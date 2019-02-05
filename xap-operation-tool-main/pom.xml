@@ -276,7 +276,7 @@
 							<Implementation-Version>${project.version}</Implementation-Version>
 							<Implementation-Vendor>CAPS</Implementation-Vendor>
 							<Build-Time>${maven.build.timestamp}</Build-Time>
-							<Main-Class>org.github.caps.xap.tools.applicationdeployer.Tool</Main-Class>
+							<Main-Class>gca.in.xap.tools.operationtool.Tool</Main-Class>
 						</manifestEntries>
 					</archive>
 				</configuration>
