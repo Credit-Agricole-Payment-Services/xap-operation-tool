@@ -1,0 +1,50 @@
+<configuration>
+
+	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+		<filter class="org.github.caps.xap.tools.applicationdeployer.logback.ThresholdLoggerFilter">
+			<logger>console</logger>
+			<level>INFO</level>
+		</filter>
+		<filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+			<level>INFO</level>
+		</filter>
+		<!-- encoders are assigned the type
+             ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+		<encoder>
+			<pattern>%d{HH:mm:ss.SSS} %-5level [%-24thread] [%-24X{threadNamePrefix} %-8X{jndiContext}] %logger - %msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<appender name="ASYNC_STDOUT" class="ch.qos.logback.classic.AsyncAppender">
+		<appender-ref ref="STDOUT" />
+	</appender>
+
+	<appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>logs/xap-application-deployer.log</file>
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<!-- daily rollover -->
+			<fileNamePattern>logs/xap-application-deployer.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<maxHistory>8</maxHistory>
+		</rollingPolicy>
+
+		<encoder>
+			<pattern>%date %-5level [%-24thread] [%-24X{threadNamePrefix} %-8X{jndiContext}] %logger - %msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+		<appender-ref ref="FILE" />
+	</appender>
+
+	<logger name="org.springframework" level="WARN"/>
+
+	<logger name="org.github.caps.xap.tools.applicationdeployer" level="INFO"/>
+
+	<logger name="org.openspaces.pu.container.support.ResourceApplicationContext" level="WARN"/>
+
+	<root level="INFO">
+		<appender-ref ref="ASYNC_STDOUT" />
+		<appender-ref ref="ASYNC_FILE" />
+	</root>
+
+</configuration>

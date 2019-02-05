@@ -1,0 +1,6 @@
+xapClient:
+  - locators: localhost
+  - groups: xap-dev
+credentials:
+  - username:
+  - password:
