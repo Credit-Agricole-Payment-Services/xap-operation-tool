@@ -191,8 +191,8 @@ public class XapHelper {
 			ProcessingUnitConfig processingUnitConfig = pu.toProcessingUnitConfig();
 			ProcessingUnitDeployment processingUnitDeployment = new CustomProcessingUnitDeployment(pu.getName(), processingUnitConfig);
 
-			log.info("processingUnitConfig = {}", processingUnitConfig);
-			log.info("processingUnitDeployment = {}", processingUnitDeployment);
+			log.debug("processingUnitConfig = {}", processingUnitConfig);
+			log.debug("processingUnitDeployment = {}", processingUnitDeployment);
 
 			doWithProcessingUnit(pu.getName(), Duration.of(10, ChronoUnit.SECONDS), existingProcessingUnit -> {
 				final int instancesCount = existingProcessingUnit.getInstances().length;
