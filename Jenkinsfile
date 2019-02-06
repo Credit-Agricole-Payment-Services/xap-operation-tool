@@ -37,9 +37,6 @@ pipeline {
 			}
 		}
 		stage('Quality Analysis') {
-			when {
-				anyOf { branch 'master'; branch 'develop'; branch 'dev'  }
-			}
 			steps {
 				withDockerContainer(image: DOCKER_IMAGE_BUILD, args: env.DOCKER_RUN_ARGS) {
 					withMaven(
