@@ -1,4 +1,4 @@
-package gca.in.xap.tools.operationtool.helper;
+package gca.in.xap.tools.operationtool.service;
 
 import lombok.NonNull;
 import lombok.Setter;
@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 import static java.util.Arrays.stream;
 
 @Slf4j
-public class XapHelper {
+public class XapService {
 
 	static void awaitDeployment(
 			@NonNull final ApplicationConfig applicationConfig,
@@ -56,14 +56,13 @@ public class XapHelper {
 			ProcessingUnit pu = processingUnits.getProcessingUnit(puName);
 			awaitDeployment(pu, deploymentStartTime, timeout, timeoutTime);
 			deployedPuNames.add(puName);
-			log.info("PU {} deployed successfully after {} ms", puName, durationSince(deploymentStartTime));
 		}
 
 		long appDeploymentEndTime = System.currentTimeMillis();
 		long appDeploymentDuration = appDeploymentEndTime - deploymentStartTime;
 
-		log.info("Deployed PUs: {}", deployedPuNames);
-		log.info("Application deployed in: {} ms", appDeploymentDuration);
+		log.info("Deployed PUs : {}", deployedPuNames);
+		log.info("Application deployed in : {} ms", appDeploymentDuration);
 	}
 
 	static void awaitDeployment(ProcessingUnit pu, long deploymentStartTime, @NonNull Duration timeout, long expectedMaximumEndDate) throws TimeoutException {
@@ -83,7 +82,7 @@ public class XapHelper {
 		final long deploymentDuration = deploymentEndTime - deploymentStartTime;
 
 		final int currentInstancesCount = pu.getInstances().length;
-		log.info("PU {} deployed in {} ms, now has {} running instances", puName, deploymentDuration, currentInstancesCount);
+		log.info("PU {} deployed successfully after {} ms, now has {} running instances", puName, deploymentDuration, currentInstancesCount);
 
 	}
 
@@ -106,9 +105,16 @@ public class XapHelper {
 	@Setter
 	private UserDetailsConfig userDetails;
 
-	public void printReportOnContainersAndProcessingUnits() {
+	private GridServiceContainer[] findContainers() {
 		GridServiceContainers gridServiceContainers = admin.getGridServiceContainers();
 		GridServiceContainer[] containers = gridServiceContainers.getContainers();
+		// we want the GSCs to be sorted by Id, for readability and reproducibility
+		Arrays.sort(containers, Comparator.comparing(GridServiceContainer::getId));
+		return containers;
+	}
+
+	public void printReportOnContainersAndProcessingUnits() {
+		final GridServiceContainer[] containers = findContainers();
 		final int gscCount = containers.length;
 		final Collection<String> containersIds = extractIds(containers);
 		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
@@ -139,8 +145,7 @@ public class XapHelper {
 	 * you may want to restart containers after a PU has been undeployed, in order to make sure no unreleased resources remains.
 	 */
 	public void restartEmptyContainers() {
-		GridServiceContainers gridServiceContainers = admin.getGridServiceContainers();
-		GridServiceContainer[] containers = gridServiceContainers.getContainers();
+		final GridServiceContainer[] containers = findContainers();
 		final int gscCount = containers.length;
 		final Collection<String> containersIds = extractIds(containers);
 		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
@@ -161,8 +166,7 @@ public class XapHelper {
 	}
 
 	public void generateHeapDumpOnEachGsc() {
-		GridServiceContainers gridServiceContainers = admin.getGridServiceContainers();
-		GridServiceContainer[] containers = gridServiceContainers.getContainers();
+		final GridServiceContainer[] containers = findContainers();
 		final int gscCount = containers.length;
 		final Collection<String> containersIds = extractIds(containers);
 		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
@@ -250,12 +254,12 @@ public class XapHelper {
 	}
 
 	public void undeploy(String applicationName) {
-		log.info("Launch undeploy of: {} (timeout: {})", applicationName, operationTimeout);
+		log.info("Launch undeploy of {}, operationTimeout = {}", applicationName, operationTimeout);
 		doWithApplication(
 				applicationName,
 				operationTimeout,
 				application -> {
-					log.info("Undeploying application: {}", applicationName);
+					log.info("Undeploying application : {}", applicationName);
 					application.undeployAndWait(operationTimeout.toMillis(), TimeUnit.MILLISECONDS);
 					log.info("{} has been successfully undeployed.", applicationName);
 				},
@@ -347,11 +351,11 @@ public class XapHelper {
 			return this;
 		}
 
-		public XapHelper create() {
+		public XapService create() {
 			Admin admin = createAdmin();
 			GridServiceManagers gridServiceManagers = getGridServiceManagersFromAdmin(admin);
-			log.info("GridServiceManagers: {}", Arrays.toString(gridServiceManagers.getManagers()));
-			XapHelper result = new XapHelper();
+			log.info("GridServiceManagers : {}", Arrays.toString(gridServiceManagers.getManagers()));
+			XapService result = new XapService();
 			result.setAdmin(admin);
 			result.setGridServiceManagers(gridServiceManagers);
 			result.setOperationTimeout(timeout);

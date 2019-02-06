@@ -1,8 +1,8 @@
 package gca.in.xap.tools.operationtool;
 
-import gca.in.xap.tools.operationtool.helper.ApplicationConfigBuilder;
-import gca.in.xap.tools.operationtool.helper.UserDetailsConfigFactory;
-import gca.in.xap.tools.operationtool.helper.XapHelper;
+import gca.in.xap.tools.operationtool.service.ApplicationConfigBuilder;
+import gca.in.xap.tools.operationtool.service.UserDetailsConfigFactory;
+import gca.in.xap.tools.operationtool.service.XapService;
 import net.lingala.zip4j.core.ZipFile;
 import net.lingala.zip4j.exception.ZipException;
 import org.openspaces.admin.application.config.ApplicationConfig;
@@ -26,7 +26,7 @@ public class Deployer {
 				applicationArguments.password
 		);
 
-		XapHelper xapHelper = new XapHelper.Builder()
+		XapService xapService = new XapService.Builder()
 				.locators(applicationArguments.locators)
 				//.groups(applicationArguments.groups)
 				.timeout(applicationArguments.timeoutDuration)
@@ -50,22 +50,24 @@ public class Deployer {
 			unzip(archiveFileOrDirectory, outputDirectory);
 		}
 
-		xapHelper.printReportOnContainersAndProcessingUnits();
+		xapService.printReportOnContainersAndProcessingUnits();
 
 		if (wholeMode) {
-			xapHelper.undeployIfExists(applicationConfig.getName());
-			xapHelper.printReportOnContainersAndProcessingUnits();
+			xapService.undeployIfExists(applicationConfig.getName());
+			xapService.printReportOnContainersAndProcessingUnits();
 		}
 
 		if (restartEmptyContainers) {
-			xapHelper.restartEmptyContainers();
+			xapService.restartEmptyContainers();
 		}
 
 		if (wholeMode) {
-			xapHelper.deployWhole(applicationConfig, applicationArguments.timeoutDuration);
+			xapService.deployWhole(applicationConfig, applicationArguments.timeoutDuration);
 		} else {
-			xapHelper.deployProcessingUnits(applicationConfig, applicationArguments.timeoutDuration, restartEmptyContainers);
+			xapService.deployProcessingUnits(applicationConfig, applicationArguments.timeoutDuration, restartEmptyContainers);
 		}
+
+		xapService.printReportOnContainersAndProcessingUnits();
 	}
 
 	public static void unzip(File archiveFile, File destinationDirectory) {

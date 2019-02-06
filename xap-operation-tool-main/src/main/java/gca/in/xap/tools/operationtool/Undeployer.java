@@ -1,7 +1,7 @@
 package gca.in.xap.tools.operationtool;
 
-import gca.in.xap.tools.operationtool.helper.UserDetailsConfigFactory;
-import gca.in.xap.tools.operationtool.helper.XapHelper;
+import gca.in.xap.tools.operationtool.service.UserDetailsConfigFactory;
+import gca.in.xap.tools.operationtool.service.XapService;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 
 public class Undeployer {
@@ -14,14 +14,14 @@ public class Undeployer {
 				applicationArguments.password
 		);
 
-		XapHelper xapHelper = new XapHelper.Builder()
+		XapService xapService = new XapService.Builder()
 				.locators(applicationArguments.locators)
 				.groups(applicationArguments.groups)
 				.timeout(applicationArguments.timeoutDuration)
 				.userDetails(userDetails)
 				.create();
 
-		xapHelper.undeploy(applicationName);
+		xapService.undeploy(applicationName);
 	}
 
 }

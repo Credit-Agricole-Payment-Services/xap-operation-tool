@@ -1,7 +1,7 @@
 package gca.in.xap.tools.operationtool;
 
-import gca.in.xap.tools.operationtool.helper.UserDetailsConfigFactory;
-import gca.in.xap.tools.operationtool.helper.XapHelper;
+import gca.in.xap.tools.operationtool.service.UserDetailsConfigFactory;
+import gca.in.xap.tools.operationtool.service.XapService;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 
 import java.util.concurrent.TimeUnit;
@@ -16,7 +16,7 @@ public class HeapDumpTask {
 				applicationArguments.password
 		);
 
-		XapHelper xapHelper = new XapHelper.Builder()
+		XapService xapService = new XapService.Builder()
 				.locators(applicationArguments.locators)
 				.groups(applicationArguments.groups)
 				.timeout(applicationArguments.timeoutDuration)
@@ -29,9 +29,9 @@ public class HeapDumpTask {
 			throw new RuntimeException(e);
 		}
 
-		xapHelper.printReportOnContainersAndProcessingUnits();
+		xapService.printReportOnContainersAndProcessingUnits();
 
-		xapHelper.generateHeapDumpOnEachGsc();
+		xapService.generateHeapDumpOnEachGsc();
 	}
 
 }

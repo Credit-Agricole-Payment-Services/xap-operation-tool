@@ -11,7 +11,7 @@
 		<!-- encoders are assigned the type
              ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
 		<encoder>
-			<pattern>%d{HH:mm:ss.SSS} %-5level [%-24thread] [%-24X{threadNamePrefix} %-8X{jndiContext}] %logger - %msg%n</pattern>
+			<pattern>%d{HH:mm:ss.SSS} %-5level [%-24thread] %logger - %msg%n</pattern>
 		</encoder>
 	</appender>
 
@@ -28,7 +28,7 @@
 		</rollingPolicy>
 
 		<encoder>
-			<pattern>%date %-5level [%-24thread] [%-24X{threadNamePrefix} %-8X{jndiContext}] %logger - %msg%n</pattern>
+			<pattern>%date %-5level [%-24thread] %logger - %msg%n</pattern>
 		</encoder>
 	</appender>
 
@@ -38,9 +38,11 @@
 
 	<logger name="org.springframework" level="WARN"/>
 
+	<logger name="uk.org.lidalia.sysoutslf4j.context.SysOutOverSLF4J" level="WARN"/>
+
 	<logger name="gca.in.xap.tools.operationtool" level="INFO"/>
 
-	<logger name="gca.in.xap.tools.operationtool.helper.ApplicationConfigBuilder" level="WARN"/>
+	<logger name="gca.in.xap.tools.operationtool.service.ApplicationConfigBuilder" level="WARN"/>
 
 	<logger name="org.openspaces.pu.container.support.ResourceApplicationContext" level="WARN"/>
 

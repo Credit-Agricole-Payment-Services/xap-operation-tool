@@ -1,6 +1,8 @@
-package gca.in.xap.tools.operationtool.helper;
+package gca.in.xap.tools.operationtool.service;
 
+import gca.in.xap.tools.operationtool.DefaultUnexpectedMockInvocationAnswer;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.openspaces.admin.application.Application;
 import org.openspaces.admin.application.config.ApplicationConfig;
 import org.openspaces.admin.pu.ProcessingUnit;
@@ -17,11 +19,11 @@ import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
 
-public class XapHelperTest {
+public class XapServiceTest {
 
 	@Test
 	public void should_await_deployment_ends_success() throws TimeoutException {
-		ApplicationConfig applicationConfig = mock(ApplicationConfig.class, DefaultUnexpectedMockInvocationAnswer.singleton);
+		ApplicationConfig applicationConfig = Mockito.mock(ApplicationConfig.class, DefaultUnexpectedMockInvocationAnswer.singleton);
 		Application dataApp = mock(Application.class, DefaultUnexpectedMockInvocationAnswer.singleton);
 
 		ProcessingUnitConfigHolder[] processingUnitsToDeploy = new ProcessingUnitConfigHolder[3];
@@ -78,7 +80,7 @@ public class XapHelperTest {
 
 		long deploymentStartTime = System.currentTimeMillis();
 
-		XapHelper.awaitDeployment(applicationConfig, dataApp, deploymentStartTime, Duration.of(10, ChronoUnit.SECONDS));
+		XapService.awaitDeployment(applicationConfig, dataApp, deploymentStartTime, Duration.of(10, ChronoUnit.SECONDS));
 	}
 
 }

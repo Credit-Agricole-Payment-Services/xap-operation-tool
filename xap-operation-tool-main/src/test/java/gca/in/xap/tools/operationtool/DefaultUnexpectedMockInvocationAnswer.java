@@ -1,4 +1,4 @@
-package gca.in.xap.tools.operationtool.helper;
+package gca.in.xap.tools.operationtool;
 
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;

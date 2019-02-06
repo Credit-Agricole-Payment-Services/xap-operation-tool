@@ -2,15 +2,11 @@ package gca.in.xap.tools.operationtool;
 
 import lombok.extern.slf4j.Slf4j;
 
-import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Enumeration;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Level;
 
 @Slf4j
@@ -71,9 +67,8 @@ public class ApplicationArguments {
 	}
 
 	public void printNetworkInfo() {
-		log.info("Inet4Address.getLoopbackAddress().getHostAddress() = {}", Inet4Address.getLoopbackAddress().getHostAddress());
 		//
-		List<String> addresses = new ArrayList<>();
+		Set<String> addresses = new TreeSet<>();
 		try {
 			for (Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces(); networkInterfaces.hasMoreElements(); ) {
 				NetworkInterface networkInterface = networkInterfaces.nextElement();
@@ -87,7 +82,7 @@ public class ApplicationArguments {
 		} catch (SocketException e) {
 			throw new RuntimeException(e);
 		}
-		log.info("addresses = {}", addresses);
+		log.info("All network addresses : {}", addresses);
 	}
 
 }
