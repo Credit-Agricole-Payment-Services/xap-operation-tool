@@ -27,13 +27,6 @@
 
     </properties>
 
-    <repositories>
-        <repository>
-            <id>xap-application-deployer-local-repo</id>
-            <url>file://${basedir}/localRepo</url>
-        </repository>
-    </repositories>
-
 
     <dependencies>
         <dependency>
@@ -52,7 +45,7 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.gigaspaces</groupId>
+            <groupId>org.gigaspaces</groupId>
             <artifactId>xap-openspaces</artifactId>
             <exclusions>
                 <exclusion>
@@ -62,7 +55,7 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.gigaspaces</groupId>
+            <groupId>org.gigaspaces</groupId>
             <artifactId>xap-datagrid</artifactId>
             <exclusions>
                 <exclusion>
@@ -72,7 +65,7 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.gigaspaces</groupId>
+            <groupId>org.gigaspaces</groupId>
             <artifactId>xap-common</artifactId>
             <exclusions>
                 <exclusion>
@@ -82,7 +75,7 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.gigaspaces</groupId>
+            <groupId>org.gigaspaces</groupId>
             <artifactId>xap-trove</artifactId>
             <version>${xap.version}</version>
             <exclusions>
@@ -93,7 +86,7 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.gigaspaces</groupId>
+            <groupId>org.gigaspaces</groupId>
             <artifactId>xap-asm</artifactId>
             <exclusions>
                 <exclusion>

@@ -28,6 +28,21 @@
         <lombok.version>1.18.4</lombok.version>
     </properties>
 
+    <repositories>
+        <!--
+        <repository>
+            <id>org.openspaces</id>
+            <url>http://maven-repository.openspaces.org</url>
+        </repository>
+        -->
+        <!--
+        <repository>
+            <id>xap-application-deployer-local-repo</id>
+            <url>file://${basedir}/localRepo</url>
+        </repository>
+        -->
+    </repositories>
+
     <modules>
         <module>xap-operation-tool-defaultconfig</module>
         <module>xap-operation-tool-main</module>
@@ -83,7 +98,7 @@
                 </exclusions>
             </dependency>
             <dependency>
-                <groupId>com.gigaspaces</groupId>
+                <groupId>org.gigaspaces</groupId>
                 <artifactId>xap-openspaces</artifactId>
                 <version>${xap.version}</version>
                 <exclusions>
@@ -94,7 +109,7 @@
                 </exclusions>
             </dependency>
             <dependency>
-                <groupId>com.gigaspaces</groupId>
+                <groupId>org.gigaspaces</groupId>
                 <artifactId>xap-datagrid</artifactId>
                 <version>${xap.version}</version>
                 <exclusions>
@@ -105,7 +120,7 @@
                 </exclusions>
             </dependency>
             <dependency>
-                <groupId>com.gigaspaces</groupId>
+                <groupId>org.gigaspaces</groupId>
                 <artifactId>xap-common</artifactId>
                 <version>${xap.version}</version>
                 <exclusions>
@@ -116,7 +131,7 @@
                 </exclusions>
             </dependency>
             <dependency>
-                <groupId>com.gigaspaces</groupId>
+                <groupId>org.gigaspaces</groupId>
                 <artifactId>xap-trove</artifactId>
                 <version>${xap.version}</version>
                 <exclusions>
@@ -127,7 +142,7 @@
                 </exclusions>
             </dependency>
             <dependency>
-                <groupId>com.gigaspaces</groupId>
+                <groupId>org.gigaspaces</groupId>
                 <artifactId>xap-asm</artifactId>
                 <version>${xap.version}</version>
                 <exclusions>
