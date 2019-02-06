@@ -8,30 +8,30 @@ import java.util.concurrent.TimeUnit;
 
 public class HeapDumpTask {
 
-    private final UserDetailsConfigFactory userDetailsConfigFactory = new UserDetailsConfigFactory();
+	private final UserDetailsConfigFactory userDetailsConfigFactory = new UserDetailsConfigFactory();
 
-    public void doHeapDump(ApplicationArguments applicationArguments) {
-        UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
-                applicationArguments.username,
-                applicationArguments.password
-        );
+	public void doHeapDump(ApplicationArguments applicationArguments) {
+		UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
+				applicationArguments.username,
+				applicationArguments.password
+		);
 
-        XapHelper xapHelper = new XapHelper.Builder()
-                .locators(applicationArguments.locators)
-                .groups(applicationArguments.groups)
-                .timeout(applicationArguments.timeoutDuration)
-                .userDetails(userDetails)
-                .create();
+		XapHelper xapHelper = new XapHelper.Builder()
+				.locators(applicationArguments.locators)
+				.groups(applicationArguments.groups)
+				.timeout(applicationArguments.timeoutDuration)
+				.userDetails(userDetails)
+				.create();
 
-        try {
-            TimeUnit.SECONDS.sleep(1);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+		try {
+			TimeUnit.SECONDS.sleep(1);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
 
-        xapHelper.printReportOnContainersAndProcessingUnits();
+		xapHelper.printReportOnContainersAndProcessingUnits();
 
-        xapHelper.generateHeapDumpOnEachGsc();
-    }
+		xapHelper.generateHeapDumpOnEachGsc();
+	}
 
 }
