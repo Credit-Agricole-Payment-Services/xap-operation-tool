@@ -49,7 +49,7 @@ public class Tool implements Runnable {
 
     public void run() {
         if (usageHelpRequested) {
-            log.info("Usage: TODO");
+            // nothing to do, picocli will print the usage information and program will exit.
             System.exit(0);
         }
         if (versionInfoRequested) {
