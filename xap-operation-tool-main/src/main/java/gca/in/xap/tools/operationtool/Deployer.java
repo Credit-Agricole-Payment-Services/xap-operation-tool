@@ -39,8 +39,8 @@ public class Deployer {
 				.withApplicationArchiveFileOrDirectory(archiveFileOrDirectory)
 				.withUserDetailsConfig(userDetails);
 
-		if (applicationArguments.commandLineArgs.length > 1) {
-			appDeployBuilder.addContextProperties(Paths.get(applicationArguments.commandLineArgs[1]));
+		if (applicationArguments.commandLineArgs.size() > 1) {
+			appDeployBuilder.addContextProperties(Paths.get(applicationArguments.commandLineArgs.get(1)));
 		}
 
 		ApplicationConfig applicationConfig = appDeployBuilder.create();

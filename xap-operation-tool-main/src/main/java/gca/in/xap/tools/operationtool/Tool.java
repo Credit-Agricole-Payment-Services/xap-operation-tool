@@ -42,7 +42,7 @@ public class Tool implements Runnable {
 	private String command;
 
 	@CommandLine.Parameters(index = "1..*", arity = "0..*", paramLabel = "FILE", description = "File(s) to process.")
-	private String[] parameters;
+	private List<String> parameters;
 
 	public Tool() {
 	}
@@ -65,12 +65,12 @@ public class Tool implements Runnable {
 			switch (command) {
 				case "deploy": {
 					Deployer deployer = new Deployer();
-					String archiveFilename = parameters[0];
+					String archiveFilename = parameters.get(0);
 					deployer.doDeploy(archiveFilename, wholeMode, restartEmptyContainers, applicationArguments);
 					break;
 				}
 				case "undeploy": {
-					String applicationName = parameters[0];
+					String applicationName = parameters.get(0);
 					Undeployer undeployer = new Undeployer();
 					undeployer.doUndeploy(applicationArguments, applicationName);
 					break;

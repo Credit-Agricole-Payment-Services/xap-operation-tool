@@ -48,14 +48,14 @@ public class ApplicationArguments {
 
 	final Duration timeoutDuration = Duration.parse(System.getProperty(PROP_TIMEOUT, PROP_TIMEOUT_DEFAULT));
 
-	final String[] commandLineArgs;
+	final List<String> commandLineArgs;
 
-	public ApplicationArguments(String... commandLineArgs) {
+	public ApplicationArguments(List<String> commandLineArgs) {
 		this.commandLineArgs = commandLineArgs;
 	}
 
 	public void printInfo() {
-		log.info("commandLineArgs = {}", Arrays.asList(commandLineArgs));
+		log.info("commandLineArgs = {}", commandLineArgs);
 
 		log.info("locators = {}", locators);
 		log.info("groups = {}", groups);
