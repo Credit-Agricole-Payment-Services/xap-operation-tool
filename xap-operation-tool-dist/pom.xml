@@ -10,7 +10,7 @@
 
 	<parent>
 		<groupId>gca.caps.xap</groupId>
-		<artifactId>xap-application-deployer</artifactId>
+		<artifactId>xap-application-deployTask</artifactId>
 		<version>1.1.0-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>

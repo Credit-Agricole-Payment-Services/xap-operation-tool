@@ -5,11 +5,8 @@ import gca.in.xap.tools.operationtool.service.XapService;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 
-import java.time.Duration;
-import java.util.concurrent.TimeUnit;
-
 @Slf4j
-public class HeapDumpTask {
+public class RestartContainersTask {
 
 	private final UserDetailsConfigFactory userDetailsConfigFactory = new UserDetailsConfigFactory();
 
@@ -28,8 +25,7 @@ public class HeapDumpTask {
 
 		xapService.printReportOnContainersAndProcessingUnits();
 
-		xapService.setDefaultTimeout(Duration.ofMinutes(5));
-		xapService.generateHeapDumpOnEachGsc();
+		xapService.restartAllContainers();
 	}
 
 }

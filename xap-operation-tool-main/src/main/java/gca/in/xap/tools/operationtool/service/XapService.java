@@ -10,7 +10,9 @@ import org.openspaces.admin.application.config.ApplicationConfig;
 import org.openspaces.admin.dump.DumpResult;
 import org.openspaces.admin.gsc.GridServiceContainer;
 import org.openspaces.admin.gsc.GridServiceContainers;
+import org.openspaces.admin.gsm.GridServiceManager;
 import org.openspaces.admin.gsm.GridServiceManagers;
+import org.openspaces.admin.machine.Machine;
 import org.openspaces.admin.pu.ProcessingUnit;
 import org.openspaces.admin.pu.ProcessingUnitDeployment;
 import org.openspaces.admin.pu.ProcessingUnitInstance;
@@ -127,6 +129,13 @@ public class XapService {
 		}
 	}
 
+	public void printReportOnManagers() {
+		final GridServiceManagers managers = admin.getGridServiceManagers();
+		final int gsmCount = managers.getSize();
+		final Collection<String> managersIds = extractIds(managers);
+		log.info("Found {} running GSM instances : {}", gsmCount, managersIds);
+	}
+
 	public Collection<String> extractRunningProcessingUnitsNames(GridServiceContainer gsc) {
 		ProcessingUnitInstance[] puInstances = gsc.getProcessingUnitInstances();
 		return extractProcessingUnitsNames(puInstances);
@@ -164,6 +173,43 @@ public class XapService {
 		}
 		log.info("Triggered restart of GSC instances : {}", extractIds(containersToRestart));
 	}
+
+	public void restartAllContainers() {
+		final GridServiceContainer[] containers = findContainers();
+		final int gscCount = containers.length;
+		final Collection<String> containersIds = extractIds(containers);
+		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
+
+		log.info("Will restart all GSC instances : {}", containersIds);
+		for (GridServiceContainer gsc : containers) {
+			gsc.restart();
+		}
+		log.info("Triggered restart of GSC instances : {}", containersIds);
+	}
+
+	public void restartAllManagers() {
+		final GridServiceManagers managers = admin.getGridServiceManagers();
+		final int gsmCount = managers.getSize();
+		final Collection<String> managersIds = extractIds(managers);
+		log.info("Found {} running GSM instances : {}", gsmCount, managersIds);
+
+		log.info("Will restart all GSM instances : {}", managersIds);
+		for (GridServiceManager gsm : managers) {
+			Machine machine = gsm.getMachine();
+			String hostname = machine.getHostName();
+			String hostAddress = machine.getHostAddress();
+			log.info("Asking GSM {} ({}) to restart ...", hostname, hostAddress);
+			gsm.restart();
+			log.info("Waiting 1 minute for GSM {} ({}) to restart ...", hostname, hostAddress);
+			try {
+				TimeUnit.MINUTES.sleep(1);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+		}
+		log.info("Triggered restart of GSM instances : {}", managersIds);
+	}
+
 
 	public void generateHeapDumpOnEachGsc() {
 		final GridServiceContainer[] containers = findContainers();
@@ -293,6 +339,14 @@ public class XapService {
 		return gscIds;
 	}
 
+	private Collection<String> extractIds(GridServiceManagers managers) {
+		Set<String> gscIds = new TreeSet<>();
+		for (GridServiceManager gsm : managers) {
+			gscIds.add(gsm.getMachine().getHostName());
+		}
+		return gscIds;
+	}
+
 	public void doWithApplication(String name, Duration timeout, Consumer<Application> ifFound, Consumer<String> ifNotFound) {
 		Application application = gridServiceManagers.getAdmin().getApplications().waitFor(name, timeout.toMillis(), TimeUnit.MILLISECONDS);
 		if (application == null) {
@@ -354,10 +408,10 @@ public class XapService {
 			return this;
 		}
 
-		void waitToDiscoverXap() {
+		void waitToDiscoverXap(int durationInSeconds) {
 			log.info("Waiting a little bit in order to discover XAP Managers ...");
 			try {
-				TimeUnit.SECONDS.sleep(3);
+				TimeUnit.SECONDS.sleep(5);
 			} catch (InterruptedException e) {
 				throw new RuntimeException(e);
 			}
@@ -365,9 +419,14 @@ public class XapService {
 
 		public XapService create() {
 			Admin admin = createAdmin();
-			waitToDiscoverXap();
-			GridServiceManagers gridServiceManagers = getGridServiceManagersFromAdmin(admin);
-			log.info("GridServiceManagers : {}", Arrays.toString(gridServiceManagers.getManagers()));
+			GridServiceManagers gridServiceManagers = null;
+			int attemptCount = 10;
+			while (attemptCount > 0 && gridServiceManagers == null || gridServiceManagers.getSize() == 0) {
+				waitToDiscoverXap(1);
+				gridServiceManagers = getGridServiceManagersFromAdmin(admin);
+				log.info("GridServiceManagers : {}", Arrays.toString(gridServiceManagers.getManagers()));
+				attemptCount--;
+			}
 			XapService result = new XapService();
 			result.setAdmin(admin);
 			result.setGridServiceManagers(gridServiceManagers);

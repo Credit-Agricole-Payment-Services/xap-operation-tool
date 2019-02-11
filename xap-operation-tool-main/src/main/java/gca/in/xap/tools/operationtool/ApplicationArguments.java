@@ -16,10 +16,7 @@ public class ApplicationArguments {
 	private static final String PROP_CREDENTIAL_SECRET = "credential.password";
 
 	private static final String PROP_LOOKUP_GROUPS = "lookup.groups";
-	private static final String PROP_LOOKUP_GROUPS_ENV = "XAP_LOOKUP_GROUPS";
-
 	private static final String PROP_LOOKUP_LOCATORS = "lookup.locators";
-	private static final String PROP_LOOKUP_LOCATORS_ENV = "XAP_LOOKUP_LOCATORS";
 
 	private static final String PROP_TIMEOUT = "timeout";
 	private static final String PROP_TIMEOUT_DEFAULT = "PT1M";
@@ -72,11 +69,11 @@ public class ApplicationArguments {
 	}
 
 	static List<String> findLookupGroups() {
-		return findProperty(PROP_LOOKUP_GROUPS_ENV, PROP_LOOKUP_GROUPS, "xap");
+		return findProperty("XAP_LOOKUP_GROUPS", "lookup.groups", "xap");
 	}
 
 	static List<String> findLookupLocators() {
-		return findProperty(PROP_LOOKUP_LOCATORS_ENV, PROP_LOOKUP_LOCATORS, "localhost");
+		return findProperty("XAP_MANAGER_SERVERS", "lookup.locators", "localhost");
 	}
 
 	static List<String> findProperty(@NonNull String envVariableName, @NonNull String systemPropertyName, @NonNull String defaultValue) {
@@ -95,8 +92,8 @@ public class ApplicationArguments {
 	public static String generateUsageString() {
 		return "args: <zipFile> (<propsFile>)"
 				+ "\nAvailable system properties:"
-				+ "\n -D" + PROP_LOOKUP_GROUPS + " (comma separated multi-values. Default value (cf. env:" + PROP_LOOKUP_GROUPS_ENV + ") : " + findLookupGroups() + ")"
-				+ "\n -D" + PROP_LOOKUP_LOCATORS + " (comma separated multi-values. Default (cf. env:" + PROP_LOOKUP_LOCATORS_ENV + ") : " + findLookupGroups() + ")"
+				+ "\n -D" + PROP_LOOKUP_GROUPS + " (comma separated multi-values. Default value (cf. env:XAP_LOOKUP_GROUPS) : " + findLookupGroups() + ")"
+				+ "\n -D" + PROP_LOOKUP_LOCATORS + " (comma separated multi-values. Default (cf. env:XAP_MANAGER_SERVERS) : " + findLookupGroups() + ")"
 				+ "\n -D" + PROP_CREDENTIAL_USERNAME + " (URL Encoded value)"
 				+ "\n -D" + PROP_CREDENTIAL_SECRET + " (URL Encoded value)"
 				+ "\n -D" + PROP_TIMEOUT + " (ISO-8601 Duration. Default value: " + PROP_TIMEOUT_DEFAULT + ")";

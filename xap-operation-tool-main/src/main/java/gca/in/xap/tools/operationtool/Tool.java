@@ -64,20 +64,30 @@ public class Tool implements Runnable {
 		try {
 			switch (command) {
 				case "deploy": {
-					Deployer deployer = new Deployer();
+					DeployTask task = new DeployTask();
 					String archiveFilename = parameters.get(0);
-					deployer.doDeploy(archiveFilename, wholeMode, restartEmptyContainers, applicationArguments);
+					task.executeTask(archiveFilename, wholeMode, restartEmptyContainers, applicationArguments);
 					break;
 				}
 				case "undeploy": {
 					String applicationName = parameters.get(0);
-					Undeployer undeployer = new Undeployer();
-					undeployer.doUndeploy(applicationArguments, applicationName);
+					UndeployTask task = new UndeployTask();
+					task.executeTask(applicationArguments, applicationName);
 					break;
 				}
 				case "heapdump": {
 					HeapDumpTask task = new HeapDumpTask();
-					task.doHeapDump(applicationArguments);
+					task.executeTask(applicationArguments);
+					break;
+				}
+				case "restart-containers": {
+					RestartContainersTask task = new RestartContainersTask();
+					task.executeTask(applicationArguments);
+					break;
+				}
+				case "restart-managers": {
+					RestartManagersTask task = new RestartManagersTask();
+					task.executeTask(applicationArguments);
 					break;
 				}
 				default:

@@ -20,10 +20,10 @@
 	</appender>
 
 	<appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-		<file>logs/xap-application-deployer.log</file>
+		<file>logs/xap-application-deployTask.log</file>
 		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
 			<!-- daily rollover -->
-			<fileNamePattern>logs/xap-application-deployer.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<fileNamePattern>logs/xap-application-deployTask.%d{yyyy-MM-dd}.log</fileNamePattern>
 			<maxHistory>8</maxHistory>
 		</rollingPolicy>
 

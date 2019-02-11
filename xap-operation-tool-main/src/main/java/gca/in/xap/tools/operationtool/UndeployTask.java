@@ -4,11 +4,11 @@ import gca.in.xap.tools.operationtool.service.UserDetailsConfigFactory;
 import gca.in.xap.tools.operationtool.service.XapService;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 
-public class Undeployer {
+public class UndeployTask {
 
 	private final UserDetailsConfigFactory userDetailsConfigFactory = new UserDetailsConfigFactory();
 
-	public void doUndeploy(ApplicationArguments applicationArguments, String applicationName) {
+	public void executeTask(ApplicationArguments applicationArguments, String applicationName) {
 		UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
 				applicationArguments.username,
 				applicationArguments.password

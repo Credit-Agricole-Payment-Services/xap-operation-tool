@@ -12,11 +12,11 @@ import java.io.File;
 import java.nio.file.Paths;
 import java.util.concurrent.TimeoutException;
 
-public class Deployer {
+public class DeployTask {
 
 	private final UserDetailsConfigFactory userDetailsConfigFactory = new UserDetailsConfigFactory();
 
-	public void doDeploy(
+	public void executeTask(
 			String archiveFilename,
 			boolean wholeMode,
 			boolean restartEmptyContainers,
