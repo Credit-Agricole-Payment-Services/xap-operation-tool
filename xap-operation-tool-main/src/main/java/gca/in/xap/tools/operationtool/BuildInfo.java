@@ -13,7 +13,7 @@ public class BuildInfo {
 
 	public static void printBuildInformation() {
 		try {
-			String message = "Version Info : " + findVersionInfo("mq-injector-main");
+			String message = "Version Info : " + findVersionInfo("xap-operation-tool-main");
 			log.info(message);
 		} catch (IOException e) {
 			log.warn("Failed to find build time in MANIFEST.MF", e);

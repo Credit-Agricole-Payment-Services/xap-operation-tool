@@ -24,14 +24,6 @@ public class ApplicationArguments {
 	private static final String PROP_TIMEOUT = "timeout";
 	private static final String PROP_TIMEOUT_DEFAULT = "PT1M";
 
-	private static final String USAGE = "args: <zipFile> (<propsFile>)"
-			+ "\nAvailable system properties:"
-			+ "\n -D" + PROP_LOOKUP_GROUPS + " (comma separated multi-values. Default value (cf. env:" + PROP_LOOKUP_GROUPS_ENV + ") : " + findLookupGroups() + ")"
-			+ "\n -D" + PROP_LOOKUP_LOCATORS + " (comma separated multi-values. Default (cf. env:" + PROP_LOOKUP_LOCATORS_ENV + ") : " + findLookupGroups() + ")"
-			+ "\n -D" + PROP_CREDENTIAL_USERNAME + " (URL Encoded value)"
-			+ "\n -D" + PROP_CREDENTIAL_SECRET + " (URL Encoded value)"
-			+ "\n -D" + PROP_TIMEOUT + " (ISO-8601 Duration. Default value: " + PROP_TIMEOUT_DEFAULT + ")";
-
 	final String username = System.getProperty(PROP_CREDENTIAL_USERNAME);
 
 	final String password = System.getProperty(PROP_CREDENTIAL_SECRET, "");
@@ -87,16 +79,27 @@ public class ApplicationArguments {
 		return findProperty(PROP_LOOKUP_LOCATORS_ENV, PROP_LOOKUP_LOCATORS, "localhost");
 	}
 
-	static List<String> findProperty(@NonNull String envPropertyName, @NonNull String systemPropertyName, @NonNull String defaultValue) {
-		String envValue = System.getenv().get(envPropertyName);
-		log.info("Value for {} ENV property is : {}", envPropertyName, envValue);
+	static List<String> findProperty(@NonNull String envVariableName, @NonNull String systemPropertyName, @NonNull String defaultValue) {
+		String envVariableValue = System.getenv().get(envVariableName);
 		String systemPropertyValue = System.getProperty(systemPropertyName);
-		log.info("Value for {} System property is : {}", systemPropertyName, systemPropertyValue);
-		String value = (systemPropertyValue != null) ? systemPropertyValue : envValue;
+		log.info("Value for ENV property {} is : {}, Value for System property {} is : {}", envVariableName, envVariableValue, systemPropertyName, systemPropertyValue);
+		String value = (systemPropertyValue != null) ? systemPropertyValue : envVariableValue;
 		if (value == null) {
 			value = defaultValue;
+			log.info("Using default value {} because neither ENV variable {} nor System property {} are set", defaultValue, envVariableName, systemPropertyName);
+			log.info("It is recommended to run the following command before using the tool, in order to have ENV variables set : source $XAP_ROOT_PATH/bin/setenv.sh");
 		}
 		return Arrays.asList(value.split(","));
+	}
+
+	public static String generateUsageString() {
+		return "args: <zipFile> (<propsFile>)"
+				+ "\nAvailable system properties:"
+				+ "\n -D" + PROP_LOOKUP_GROUPS + " (comma separated multi-values. Default value (cf. env:" + PROP_LOOKUP_GROUPS_ENV + ") : " + findLookupGroups() + ")"
+				+ "\n -D" + PROP_LOOKUP_LOCATORS + " (comma separated multi-values. Default (cf. env:" + PROP_LOOKUP_LOCATORS_ENV + ") : " + findLookupGroups() + ")"
+				+ "\n -D" + PROP_CREDENTIAL_USERNAME + " (URL Encoded value)"
+				+ "\n -D" + PROP_CREDENTIAL_SECRET + " (URL Encoded value)"
+				+ "\n -D" + PROP_TIMEOUT + " (ISO-8601 Duration. Default value: " + PROP_TIMEOUT_DEFAULT + ")";
 	}
 
 }

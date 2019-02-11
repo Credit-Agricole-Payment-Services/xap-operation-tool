@@ -26,21 +26,10 @@ public class HeapDumpTask {
 				.userDetails(userDetails)
 				.create();
 
-		waitToDiscoverXap();
-
 		xapService.printReportOnContainersAndProcessingUnits();
 
 		xapService.setDefaultTimeout(Duration.ofMinutes(5));
 		xapService.generateHeapDumpOnEachGsc();
-	}
-
-	public void waitToDiscoverXap() {
-		log.info("Waiting for XAP discovery ...");
-		try {
-			TimeUnit.SECONDS.sleep(3);
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
 	}
 
 }

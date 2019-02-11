@@ -354,8 +354,18 @@ public class XapService {
 			return this;
 		}
 
+		void waitToDiscoverXap() {
+			log.info("Waiting a little bit in order to discover XAP Managers ...");
+			try {
+				TimeUnit.SECONDS.sleep(3);
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+		}
+
 		public XapService create() {
 			Admin admin = createAdmin();
+			waitToDiscoverXap();
 			GridServiceManagers gridServiceManagers = getGridServiceManagersFromAdmin(admin);
 			log.info("GridServiceManagers : {}", Arrays.toString(gridServiceManagers.getManagers()));
 			XapService result = new XapService();
