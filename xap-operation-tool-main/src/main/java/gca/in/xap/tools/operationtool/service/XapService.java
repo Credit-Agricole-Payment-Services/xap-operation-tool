@@ -181,7 +181,10 @@ public class XapService {
 			final ZonedDateTime time = ZonedDateTime.now();
 			final String dumpFileName = "heapdump-" + gscId + "-" + time.format(dateTimeFormatter) + ".zip";
 			final File dumpFile = new File(outputDirectory, dumpFileName);
+			//
+			log.info("Asking GSC {} for a heap dump ...", gscId);
 			final DumpResult dumpResult = gsc.generateDump("Generating a heap dump with XAP operation tool", null, "heap");
+			log.info("Downloading heap dump from gsc {} to file {} ...", gscId, dumpFile.getAbsolutePath());
 			dumpResult.download(dumpFile, null);
 			log.info("Wrote file {} : size = {} bytes", dumpFile.getAbsolutePath(), dumpFile.length());
 		}
@@ -405,4 +408,10 @@ public class XapService {
 		}
 
 	}
+
+	public void setDefaultTimeout(Duration timeout) {
+		log.info("Admin will use a default timeout of {} ms", timeout.toMillis());
+		admin.setDefaultTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS);
+	}
+
 }

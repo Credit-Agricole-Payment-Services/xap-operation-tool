@@ -2,10 +2,13 @@ package gca.in.xap.tools.operationtool;
 
 import gca.in.xap.tools.operationtool.service.UserDetailsConfigFactory;
 import gca.in.xap.tools.operationtool.service.XapService;
+import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 public class HeapDumpTask {
 
 	private final UserDetailsConfigFactory userDetailsConfigFactory = new UserDetailsConfigFactory();
@@ -23,15 +26,21 @@ public class HeapDumpTask {
 				.userDetails(userDetails)
 				.create();
 
-		try {
-			TimeUnit.SECONDS.sleep(1);
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
+		waitToDiscoverXap();
 
 		xapService.printReportOnContainersAndProcessingUnits();
 
+		xapService.setDefaultTimeout(Duration.ofMinutes(5));
 		xapService.generateHeapDumpOnEachGsc();
+	}
+
+	public void waitToDiscoverXap() {
+		log.info("Waiting for XAP discovery ...");
+		try {
+			TimeUnit.SECONDS.sleep(3);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 }
