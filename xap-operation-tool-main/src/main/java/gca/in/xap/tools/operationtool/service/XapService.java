@@ -30,8 +30,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -39,6 +38,18 @@ import static java.util.Arrays.stream;
 
 @Slf4j
 public class XapService {
+
+	private static void awaitTermination(final List<Future<?>> taskResults) {
+		for (Future<?> taskResult : taskResults) {
+			try {
+				taskResult.get();
+			} catch (InterruptedException e) {
+				log.error("InterruptedException while waiting for task to complete", e);
+			} catch (ExecutionException e) {
+				log.error("ExecutionException while waiting for task to complete", e);
+			}
+		}
+	}
 
 	static void awaitDeployment(
 			@NonNull final ApplicationConfig applicationConfig,
@@ -111,6 +122,9 @@ public class XapService {
 
 	@Setter
 	private UserDetailsConfig userDetails;
+
+	@Setter
+	private ExecutorService executorService;
 
 	private final ObjectMapper objectMapper = new ObjectMapperFactory().createObjectMapper();
 
@@ -201,22 +215,52 @@ public class XapService {
 		log.info("Found {} running GSM instances : {}", gsmCount, managersIds);
 
 		log.info("Will restart all GSM instances : {}", managersIds);
-		for (GridServiceManager gsm : managers) {
-			Machine machine = gsm.getMachine();
-			String hostname = machine.getHostName();
-			String hostAddress = machine.getHostAddress();
-			log.info("Asking GSM {} ({}) to restart ...", hostname, hostAddress);
-			gsm.restart();
-			log.info("Waiting 1 minute for GSM {} ({}) to restart ...", hostname, hostAddress);
-			try {
-				TimeUnit.MINUTES.sleep(1);
-			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
-			}
-		}
+
+		final List<Future<?>> taskResults = new ArrayList<>();
+		// this can be done in parallel to perform quicker when there are a lot of containers
+		Arrays.stream(managers.getManagers()).forEach(gsm -> {
+			Future<?> taskResult = executorService.submit(() -> {
+				Machine machine = gsm.getMachine();
+				String hostname = machine.getHostName();
+				String hostAddress = machine.getHostAddress();
+				log.info("Asking GSM {} ({}) to restart ...", hostname, hostAddress);
+				gsm.restart();
+				log.info("Waiting 1 minute for GSM {} ({}) to restart ...", hostname, hostAddress);
+				try {
+					TimeUnit.MINUTES.sleep(1);
+				} catch (InterruptedException e) {
+					throw new RuntimeException(e);
+				}
+			});
+			taskResults.add(taskResult);
+		});
+		awaitTermination(taskResults);
 		log.info("Triggered restart of GSM instances : {}", managersIds);
 	}
 
+	public void triggerGarbageCollectorOnEachGsc() {
+		final GridServiceContainer[] containers = findContainers();
+		final int gscCount = containers.length;
+		final Collection<String> containersIds = extractIds(containers);
+		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
+
+		final List<Future<?>> taskResults = new ArrayList<>();
+		// this can be done in parallel to perform quicker when there are a lot of containers
+		Arrays.stream(containers).forEach(gsc -> {
+			Future<?> taskResult = executorService.submit(() -> {
+				final String gscId = gsc.getId();
+				try {
+					log.info("Triggering GC on GSC {} ...", gscId);
+					gsc.getVirtualMachine().runGc();
+				} catch (RuntimeException e) {
+					log.error("Failure while triggering Garbage Collector on GSC {}", gscId, e);
+				}
+			});
+			taskResults.add(taskResult);
+		});
+		awaitTermination(taskResults);
+		log.info("Triggered GC on GSC instances : {}", containersIds);
+	}
 
 	public void generateHeapDumpOnEachGsc() {
 		final GridServiceContainer[] containers = findContainers();
@@ -229,15 +273,21 @@ public class XapService {
 		boolean outputDirectoryCreated = outputDirectory.mkdirs();
 		log.debug("outputDirectoryCreated = {]", outputDirectoryCreated);
 
+		final List<Future<?>> taskResults = new ArrayList<>();
 		// this can be done in parallel to perform quicker when there are a lot of containers
-		Arrays.stream(containers).parallel().forEach(gsc -> {
-			final String gscId = gsc.getId();
-			try {
-				generateHeapDump(gsc, outputDirectory);
-			} catch (RuntimeException | IOException e) {
-				log.error("Failure while generating a Heap Dump on GSC {}", gscId, e);
-			}
+		Arrays.stream(containers).forEach(gsc -> {
+			Future<?> taskResult = executorService.submit(() -> {
+				final String gscId = gsc.getId();
+				try {
+					generateHeapDump(gsc, outputDirectory);
+				} catch (RuntimeException | IOException e) {
+					log.error("Failure while generating a Heap Dump on GSC {}", gscId, e);
+				}
+			});
+			taskResults.add(taskResult);
 		});
+		awaitTermination(taskResults);
+		log.info("Triggered Heap Dump on GSC instances : {}", containersIds);
 	}
 
 	private void generateHeapDump(@NonNull GridServiceContainer gsc, @NonNull final File outputDirectory) throws IOException {
@@ -467,11 +517,15 @@ public class XapService {
 				log.info("GridServiceManagers : {}", Arrays.toString(gridServiceManagers.getManagers()));
 				attemptCount--;
 			}
+
+			ExecutorService executor = Executors.newFixedThreadPool(4);
+
 			XapService result = new XapService();
 			result.setAdmin(admin);
 			result.setGridServiceManagers(gridServiceManagers);
 			result.setOperationTimeout(timeout);
 			result.setUserDetails(userDetails);
+			result.setExecutorService(executor);
 			return result;
 		}
 

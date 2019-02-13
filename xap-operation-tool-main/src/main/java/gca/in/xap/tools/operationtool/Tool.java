@@ -90,6 +90,11 @@ public class Tool implements Runnable {
 					task.executeTask(applicationArguments);
 					break;
 				}
+				case "trigger-gc": {
+					GarbageCollectorTask task = new GarbageCollectorTask();
+					task.executeTask(applicationArguments);
+					break;
+				}
 				default:
 					throw new IllegalArgumentException("Unsupported command : " + command);
 			}
