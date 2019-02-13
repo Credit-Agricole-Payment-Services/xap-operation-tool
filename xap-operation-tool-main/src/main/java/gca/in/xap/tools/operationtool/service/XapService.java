@@ -1,5 +1,7 @@
 package gca.in.xap.tools.operationtool.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import gca.in.xap.tools.operationtool.model.HeapDumpReport;
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +24,7 @@ import org.openspaces.admin.pu.config.UserDetailsConfig;
 import org.openspaces.admin.pu.topology.ProcessingUnitConfigHolder;
 
 import java.io.File;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -92,6 +95,8 @@ public class XapService {
 		return System.currentTimeMillis() - time;
 	}
 
+	private final DateTimeFormatter heapDumpsFileNamesDateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+
 	@Setter
 	private Admin admin;
 
@@ -106,6 +111,8 @@ public class XapService {
 
 	@Setter
 	private UserDetailsConfig userDetails;
+
+	private final ObjectMapper objectMapper = new ObjectMapperFactory().createObjectMapper();
 
 	private GridServiceContainer[] findContainers() {
 		GridServiceContainers gridServiceContainers = admin.getGridServiceContainers();
@@ -217,24 +224,57 @@ public class XapService {
 		final Collection<String> containersIds = extractIds(containers);
 		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
 
-		final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+
 		final File outputDirectory = new File("dumps/heap");
 		boolean outputDirectoryCreated = outputDirectory.mkdirs();
 		log.debug("outputDirectoryCreated = {]", outputDirectoryCreated);
 
-		for (GridServiceContainer gsc : containers) {
+		// this can be done in parallel to perform quicker when there are a lot of containers
+		Arrays.stream(containers).parallel().forEach(gsc -> {
 			final String gscId = gsc.getId();
-			final ZonedDateTime time = ZonedDateTime.now();
-			final String dumpFileName = "heapdump-" + gscId + "-" + time.format(dateTimeFormatter) + ".zip";
-			final File dumpFile = new File(outputDirectory, dumpFileName);
-			//
-			log.info("Asking GSC {} for a heap dump ...", gscId);
-			final DumpResult dumpResult = gsc.generateDump("Generating a heap dump with XAP operation tool", null, "heap");
-			log.info("Downloading heap dump from gsc {} to file {} ...", gscId, dumpFile.getAbsolutePath());
-			dumpResult.download(dumpFile, null);
-			log.info("Wrote file {} : size = {} bytes", dumpFile.getAbsolutePath(), dumpFile.length());
-		}
+			try {
+				generateHeapDump(gsc, outputDirectory);
+			} catch (RuntimeException | IOException e) {
+				log.error("Failure while generating a Heap Dump on GSC {}", gscId, e);
+			}
+		});
 	}
+
+	private void generateHeapDump(@NonNull GridServiceContainer gsc, @NonNull final File outputDirectory) throws IOException {
+		final String gscId = gsc.getId();
+
+		final Machine machine = gsc.getMachine();
+
+		long pid = gsc.getVirtualMachine().getDetails().getPid();
+
+		ProcessingUnitInstance[] processingUnitInstances = gsc.getProcessingUnitInstances();
+		Collection<String> processingUnitsNames = extractProcessingUnitsNames(processingUnitInstances);
+
+		final ZonedDateTime time = ZonedDateTime.now();
+		final String dumpFileName = "heapdump-" + gscId + "-" + time.format(heapDumpsFileNamesDateTimeFormatter) + ".zip";
+		final String reportFileName = "heapdump-" + gscId + "-" + time.format(heapDumpsFileNamesDateTimeFormatter) + ".json";
+		final File dumpFile = new File(outputDirectory, dumpFileName);
+		final File reportFile = new File(outputDirectory, reportFileName);
+		//
+
+		HeapDumpReport heapDumpReport = new HeapDumpReport();
+		heapDumpReport.setGscId(gscId);
+		heapDumpReport.setPid(pid);
+		heapDumpReport.setStartTime(time);
+		heapDumpReport.setHeapDumpFileName(dumpFileName);
+		heapDumpReport.setProcessingUnitsNames(new ArrayList<>(processingUnitsNames));
+		heapDumpReport.setHostName(machine.getHostName());
+		heapDumpReport.setHostAddress(machine.getHostAddress());
+		objectMapper.writeValue(reportFile, heapDumpReport);
+
+		//
+		log.info("Asking GSC {} for a heap dump ...", gscId);
+		final DumpResult dumpResult = gsc.generateDump("Generating a heap dump with XAP operation tool", null, "heap");
+		log.info("Downloading heap dump from gsc {} to file {} ...", gscId, dumpFile.getAbsolutePath());
+		dumpResult.download(dumpFile, null);
+		log.info("Wrote file {} : size = {} bytes", dumpFile.getAbsolutePath(), dumpFile.length());
+	}
+
 
 	public void deployWhole(ApplicationConfig applicationConfig, Duration timeout) throws TimeoutException {
 		log.info("Attempting deployment of application '{}' composed of : {} with a timeout of {}",
