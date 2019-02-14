@@ -32,6 +32,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.stream;
@@ -128,6 +129,8 @@ public class XapService {
 
 	private final ObjectMapper objectMapper = new ObjectMapperFactory().createObjectMapper();
 
+	private final int afterThoughtDurationInSeconds = 5;
+
 	private GridServiceContainer[] findContainers() {
 		GridServiceContainers gridServiceContainers = admin.getGridServiceContainers();
 		GridServiceContainer[] containers = gridServiceContainers.getContainers();
@@ -137,10 +140,15 @@ public class XapService {
 	}
 
 	public void printReportOnContainersAndProcessingUnits() {
-		final GridServiceContainer[] containers = findContainers();
+		printReportOnContainersAndProcessingUnits(gsc -> true);
+	}
+
+	public void printReportOnContainersAndProcessingUnits(Predicate<GridServiceContainer> predicate) {
+		GridServiceContainer[] containers = findContainers();
+		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
 		final int gscCount = containers.length;
 		final Collection<String> containersIds = extractIds(containers);
-		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
+		log.info("Found {} matching running GSC instances : {}", gscCount, containersIds);
 		for (GridServiceContainer gsc : containers) {
 			String gscId = gsc.getId();
 			ProcessingUnitInstance[] puInstances = gsc.getProcessingUnitInstances();
@@ -195,15 +203,30 @@ public class XapService {
 		log.info("Triggered restart of GSC instances : {}", extractIds(containersToRestart));
 	}
 
-	public void restartAllContainers() {
-		final GridServiceContainer[] containers = findContainers();
+	public void restartContainers(@NonNull Predicate<GridServiceContainer> predicate, @NonNull RestartStrategy restartStrategy) {
+		GridServiceContainer[] containers = findContainers();
+		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
 		final int gscCount = containers.length;
 		final Collection<String> containersIds = extractIds(containers);
-		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
+		log.info("Found {} matching GSC instances : {}", gscCount, containersIds);
 
-		log.info("Will restart all GSC instances : {}", containersIds);
+		log.info("Will restart {} GSC instances : {}", gscCount, containersIds);
+		log.info("Are you sure ? You have {} seconds to use CTRL+C to stop if unsure.", afterThoughtDurationInSeconds);
+		try {
+			TimeUnit.SECONDS.sleep(afterThoughtDurationInSeconds);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+		boolean firstIteration = true;
 		for (GridServiceContainer gsc : containers) {
+			if (!firstIteration) {
+				// we want to wait between each component restart
+				// we don't want to wait before first restart, nor after last restart
+				restartStrategy.waitBetweenComponent();
+			}
 			gsc.restart();
+			log.info("GSC {} restarted", gsc.getId());
+			firstIteration = false;
 		}
 		log.info("Triggered restart of GSC instances : {}", containersIds);
 	}

@@ -1,10 +1,17 @@
 package gca.in.xap.tools.operationtool;
 
 import com.google.common.collect.Lists;
+import gca.in.xap.tools.operationtool.predicates.AndPredicate;
+import gca.in.xap.tools.operationtool.predicates.container.IsEmptyContainerPredicate;
+import gca.in.xap.tools.operationtool.predicates.pu.*;
+import gca.in.xap.tools.operationtool.service.RestartStrategy;
 import lombok.extern.slf4j.Slf4j;
+import org.openspaces.admin.pu.ProcessingUnitInstance;
 import picocli.CommandLine;
 import uk.org.lidalia.sysoutslf4j.context.SysOutOverSLF4J;
 
+import java.time.Duration;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
@@ -80,8 +87,49 @@ public class Tool implements Runnable {
 					task.executeTask(applicationArguments);
 					break;
 				}
-				case "restart-containers": {
-					RestartContainersTask task = new RestartContainersTask();
+				case "restart-containers-all": {
+					RestartStrategy restartStrategy = new RestartStrategy(Duration.ZERO);
+					RestartContainersTask task = new RestartContainersTask(gsc -> true, restartStrategy);
+					task.executeTask(applicationArguments);
+					break;
+				}
+				case "restart-containers-empty-only": {
+					RestartStrategy restartStrategy = new RestartStrategy(Duration.ZERO);
+					RestartContainersTask task = new RestartContainersTask(new IsEmptyContainerPredicate(), restartStrategy);
+					task.executeTask(applicationArguments);
+					break;
+				}
+				case "restart-containers-stateless-only": {
+					RestartStrategy restartStrategy = new RestartStrategy(Duration.ofMinutes(1));
+					RestartContainersTask task = new RestartContainersTask(gsc -> {
+						ProcessingUnitInstance[] processingUnitInstances = gsc.getProcessingUnitInstances();
+						// if the GSC is not running any PU, then we do not want to restart it
+						if (processingUnitInstances.length == 0) {
+							return false;
+						}
+						// if the GSC is running an EmbeddedSpace, then we do not want to restart it
+						// else, it means that we are only running stateless PU(s) in this GSC
+						return Arrays.stream(processingUnitInstances).noneMatch(new IsStatefulProcessingUnitPredicate());
+					}, restartStrategy);
+					task.executeTask(applicationArguments);
+					break;
+				}
+				case "restart-containers-stateful-backups-only": {
+					RestartStrategy restartStrategy = new RestartStrategy(Duration.ofMinutes(1));
+					RestartContainersTask task = new RestartContainersTask(gsc -> {
+						ProcessingUnitInstance[] processingUnitInstances = gsc.getProcessingUnitInstances();
+						// if the GSC is not running any PU, then we do not want to restart it
+						if (processingUnitInstances.length == 0) {
+							return false;
+						}
+						// if the GSC is running an stateful Primary PU, then we do not want to restart it
+						// else, it means that we are only running backup PU(s) in this GSC
+						AndPredicate<ProcessingUnitInstance> containsStatefulBackupPUPredicate = new AndPredicate<>(new IsStatefulProcessingUnitPredicate(), new IsBackupStatefulProcessingUnitPredicate(), new HasBackupSpaceInstancePredicate());
+						AndPredicate<ProcessingUnitInstance> containsStatefulPrimaryPUPredicate = new AndPredicate<>(new IsStatefulProcessingUnitPredicate(), new IsPrimaryStatefulProcessingUnitPredicate(), new HasPrimarySpaceInstancePredicate());
+						boolean containsStatefulBackupPU = Arrays.stream(processingUnitInstances).anyMatch(containsStatefulBackupPUPredicate);
+						boolean containsStatefulPrimaryPU = Arrays.stream(processingUnitInstances).anyMatch(containsStatefulPrimaryPUPredicate);
+						return containsStatefulBackupPU & !containsStatefulPrimaryPU;
+					}, restartStrategy);
 					task.executeTask(applicationArguments);
 					break;
 				}
@@ -118,7 +166,6 @@ public class Tool implements Runnable {
 
 		CommandLine.run(new Tool(), args);
 	}
-
 
 }
 
