@@ -1,11 +1,9 @@
 package gca.in.xap.tools.operationtool;
 
-import com.google.common.collect.Lists;
-import gca.in.xap.tools.operationtool.predicates.AndPredicate;
 import gca.in.xap.tools.operationtool.predicates.container.IsEmptyContainerPredicate;
 import gca.in.xap.tools.operationtool.predicates.container.StatefulBackupsOnlyPredicate;
 import gca.in.xap.tools.operationtool.predicates.container.StatefulPrimariesOnlyPredicate;
-import gca.in.xap.tools.operationtool.predicates.pu.*;
+import gca.in.xap.tools.operationtool.predicates.pu.IsStatefulProcessingUnitPredicate;
 import gca.in.xap.tools.operationtool.service.RestartStrategy;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.pu.ProcessingUnitInstance;
@@ -17,7 +15,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 @Slf4j
 @CommandLine.Command(name = "example", mixinStandardHelpOptions = false, version = "XAP application management command-line tool")
@@ -28,7 +26,7 @@ public class Tool implements Runnable {
 		}
 
 		public Iterator<String> iterator() {
-			List<String> commands = Lists.newArrayList("deploy", "undeploy");
+			List<String> commands = Arrays.stream(Command.values()).map(Enum::name).collect(Collectors.toList());
 			return commands.iterator();
 		}
 	}
@@ -68,46 +66,46 @@ public class Tool implements Runnable {
 		}
 		log.info("command = {}", command);
 
+		final Command commandValue = Command.valueOf(command.replace("_", "-").replace("-", "_"));
+
 		ApplicationArguments applicationArguments = new ApplicationArguments(parameters);
 		applicationArguments.printInfo();
 
 		try {
-			switch (command) {
-				case "deploy": {
+			switch (commandValue) {
+				case deploy: {
 					DeployTask task = new DeployTask();
-					String archiveFilename = parameters.get(0);
-					task.executeTask(archiveFilename, wholeMode, restartEmptyContainers, applicationArguments);
+					task.executeTask(applicationArguments, wholeMode, restartEmptyContainers);
 					break;
 				}
-				case "undeploy": {
-					String applicationName = parameters.get(0);
+				case undeploy: {
 					UndeployTask task = new UndeployTask();
-					task.executeTask(applicationArguments, applicationName);
+					task.executeTask(applicationArguments);
 					break;
 				}
-				case "shutdown-host": {
+				case shutdown_host: {
 					ShutdownHostTask task = new ShutdownHostTask();
 					task.executeTask(applicationArguments);
 					break;
 				}
-				case "heapdump": {
+				case heapdump: {
 					HeapDumpTask task = new HeapDumpTask();
 					task.executeTask(applicationArguments);
 					break;
 				}
-				case "restart-containers-all": {
+				case restart_containers_all: {
 					RestartStrategy restartStrategy = new RestartStrategy(Duration.ZERO);
 					RestartContainersTask task = new RestartContainersTask(gsc -> true, restartStrategy);
 					task.executeTask(applicationArguments);
 					break;
 				}
-				case "restart-containers-empty-only": {
+				case restart_containers_empty_only: {
 					RestartStrategy restartStrategy = new RestartStrategy(Duration.ZERO);
 					RestartContainersTask task = new RestartContainersTask(new IsEmptyContainerPredicate(), restartStrategy);
 					task.executeTask(applicationArguments);
 					break;
 				}
-				case "restart-containers-stateless-only": {
+				case restart_containers_stateless_only: {
 					RestartStrategy restartStrategy = new RestartStrategy(Duration.ofMinutes(1));
 					RestartContainersTask task = new RestartContainersTask(gsc -> {
 						ProcessingUnitInstance[] processingUnitInstances = gsc.getProcessingUnitInstances();
@@ -122,30 +120,34 @@ public class Tool implements Runnable {
 					task.executeTask(applicationArguments);
 					break;
 				}
-				case "restart-containers-stateful-backups-only": {
+				case restart_containers_stateful_backups_only: {
 					RestartStrategy restartStrategy = new RestartStrategy(Duration.ofMinutes(1));
 					RestartContainersTask task = new RestartContainersTask(new StatefulBackupsOnlyPredicate(), restartStrategy);
 					task.executeTask(applicationArguments);
 					break;
 				}
-				case "restart-containers-stateful-primaries-only": {
+				case restart_containers_stateful_primaries_only: {
 					RestartStrategy restartStrategy = new RestartStrategy(Duration.ofMinutes(1));
 					RestartContainersTask task = new RestartContainersTask(new StatefulPrimariesOnlyPredicate(), restartStrategy);
 					task.executeTask(applicationArguments);
 					break;
 				}
-				case "restart-managers": {
+				case restart_managers: {
 					RestartManagersTask task = new RestartManagersTask();
 					task.executeTask(applicationArguments);
 					break;
 				}
-				case "trigger-gc": {
+				case trigger_gc: {
 					GarbageCollectorTask task = new GarbageCollectorTask();
 					task.executeTask(applicationArguments);
 					break;
 				}
 				default:
-					throw new IllegalArgumentException("Unsupported command : " + command);
+					List<String> supportedCommands = Arrays.stream(Command.values())
+							.map(Enum::name)
+							.map(name -> name.replace("_", "-"))
+							.collect(Collectors.toList());
+					throw new IllegalArgumentException("Unsupported command : " + command + ", supported values are : " + supportedCommands);
 			}
 		} catch (TimeoutException | RuntimeException e) {
 			log.error("Exception while procesing command {} : {} : {}", command, e.getClass().getName(), e.getMessage(), e);
@@ -155,7 +157,6 @@ public class Tool implements Runnable {
 		// exit with a zero code, in order to shutdown all daemon threads
 		System.exit(0);
 	}
-
 
 
 	public static void main(String[] args) {

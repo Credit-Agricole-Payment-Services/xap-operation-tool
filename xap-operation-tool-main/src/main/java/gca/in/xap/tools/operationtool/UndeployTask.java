@@ -8,7 +8,9 @@ public class UndeployTask {
 
 	private final UserDetailsConfigFactory userDetailsConfigFactory = new UserDetailsConfigFactory();
 
-	public void executeTask(ApplicationArguments applicationArguments, String applicationName) {
+	public void executeTask(ApplicationArguments applicationArguments) {
+		String applicationName = applicationArguments.commandLineArgs.get(0);
+
 		UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
 				applicationArguments.username,
 				applicationArguments.password

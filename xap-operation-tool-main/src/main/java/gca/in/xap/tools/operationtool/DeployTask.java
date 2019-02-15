@@ -17,10 +17,11 @@ public class DeployTask {
 	private final UserDetailsConfigFactory userDetailsConfigFactory = new UserDetailsConfigFactory();
 
 	public void executeTask(
-			String archiveFilename,
-			boolean wholeMode,
-			boolean restartEmptyContainers,
-			ApplicationArguments applicationArguments) throws TimeoutException {
+			ApplicationArguments applicationArguments, boolean wholeMode,
+			boolean restartEmptyContainers) throws TimeoutException {
+
+		final String archiveFilename = applicationArguments.commandLineArgs.get(0);
+
 		UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
 				applicationArguments.username,
 				applicationArguments.password
