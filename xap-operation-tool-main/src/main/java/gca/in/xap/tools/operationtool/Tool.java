@@ -85,6 +85,11 @@ public class Tool implements Runnable {
 					task.executeTask(applicationArguments, applicationName);
 					break;
 				}
+				case "shutdown-host": {
+					ShutdownHostTask task = new ShutdownHostTask();
+					task.executeTask(applicationArguments);
+					break;
+				}
 				case "heapdump": {
 					HeapDumpTask task = new HeapDumpTask();
 					task.executeTask(applicationArguments);

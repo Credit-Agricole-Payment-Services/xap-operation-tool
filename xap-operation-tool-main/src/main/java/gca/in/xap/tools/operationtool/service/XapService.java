@@ -2,6 +2,7 @@ package gca.in.xap.tools.operationtool.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gca.in.xap.tools.operationtool.model.HeapDumpReport;
+import gca.in.xap.tools.operationtool.predicates.NotPredicate;
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -10,11 +11,13 @@ import org.openspaces.admin.AdminFactory;
 import org.openspaces.admin.application.Application;
 import org.openspaces.admin.application.config.ApplicationConfig;
 import org.openspaces.admin.dump.DumpResult;
+import org.openspaces.admin.gsa.GridServiceAgent;
 import org.openspaces.admin.gsc.GridServiceContainer;
 import org.openspaces.admin.gsc.GridServiceContainers;
 import org.openspaces.admin.gsm.GridServiceManager;
 import org.openspaces.admin.gsm.GridServiceManagers;
 import org.openspaces.admin.machine.Machine;
+import org.openspaces.admin.machine.Machines;
 import org.openspaces.admin.pu.ProcessingUnit;
 import org.openspaces.admin.pu.ProcessingUnitDeployment;
 import org.openspaces.admin.pu.ProcessingUnitInstance;
@@ -22,6 +25,8 @@ import org.openspaces.admin.pu.ProcessingUnits;
 import org.openspaces.admin.pu.config.ProcessingUnitConfig;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 import org.openspaces.admin.pu.topology.ProcessingUnitConfigHolder;
+import org.openspaces.admin.zone.config.ExactZonesConfig;
+import org.openspaces.admin.zone.config.RequiredZonesConfig;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,6 +36,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -488,6 +494,92 @@ public class XapService {
 				},
 				appName -> {
 				});
+	}
+
+	public void shutdownHost(String hostname) {
+		final Predicate<Machine> machinePredicate = machine -> machine.getHostName().equals(hostname) || machine.getHostAddress().equals(hostname);
+
+		final Machines machines = gridServiceManagers.getAdmin().getMachines();
+		final Machine[] allMachines = machines.getMachines();
+		final Machine[] matchingMachines = Arrays.stream(allMachines).filter(machinePredicate).toArray(Machine[]::new);
+
+		log.info("allMachines.length = {}, matchingMachines.length = {}", allMachines.length, matchingMachines.length);
+
+		boolean forbidWhenOnlyOneHost = false;
+		if (forbidWhenOnlyOneHost) {
+			if (matchingMachines.length == allMachines.length) {
+				String message = "This will effectively shutdown all Machines in the XAP cluster, this is not supported in order to prevent service interruption";
+				log.error(message);
+				throw new IllegalStateException(message);
+			}
+		}
+
+		AtomicInteger foundPuInstanceCount = null;
+
+		final int maxRelocateAttemptCount = 5;
+		AtomicInteger attemptCount = new AtomicInteger(0);
+
+		while (attemptCount.get() < maxRelocateAttemptCount && (foundPuInstanceCount == null || foundPuInstanceCount.get() > 0)) {
+			attemptCount.incrementAndGet();
+			//
+			final AtomicInteger remainingPuInstanceCount = new AtomicInteger(0);
+			Arrays.stream(matchingMachines).forEach(machine -> {
+
+				ProcessingUnitInstance[] processingUnitInstances = machine.getProcessingUnitInstances();
+				log.info("Found {} ProcessingUnitInstance¨running on Machine {}", processingUnitInstances.length, machine.getHostName());
+				Arrays.stream(processingUnitInstances).forEach(puInstance -> {
+					final GridServiceContainer gsc = puInstance.getGridServiceContainer();
+					log.info("Processing Unit {} Instance¨{} is running on GSC {}. Relocating to another GSC ...", puInstance.getName(), puInstance.getId(), gsc.getId());
+					remainingPuInstanceCount.incrementAndGet();
+
+					relocatePuInstance(puInstance, new NotPredicate<>(machinePredicate));
+				});
+			});
+			//
+			foundPuInstanceCount = remainingPuInstanceCount;
+		}
+
+		if (foundPuInstanceCount.get() == 0) {
+			Arrays.stream(matchingMachines).forEach(machine -> {
+				GridServiceAgent gridServiceAgent = machine.getGridServiceAgent();
+				log.info("Shutting down GSA {} on Machine {} ...", gridServiceAgent.getUid(), machine.getHostName());
+				gridServiceAgent.shutdown();
+				log.info("Successfully shut down GSA {} on Machine {}", gridServiceAgent.getUid(), machine.getHostName());
+			});
+		} else {
+			log.info("Found {} ProcessingUnitInstance¨running on Machine {}", foundPuInstanceCount.get(), hostname);
+		}
+
+	}
+
+	public void relocatePuInstance(ProcessingUnitInstance puInstance, Predicate<Machine> machinePredicate) {
+		final GridServiceContainer gscWherePuIsCurrentlyRunning = puInstance.getGridServiceContainer();
+		//
+		final ProcessingUnit processingUnit = puInstance.getProcessingUnit();
+		final RequiredZonesConfig puRequiredContainerZones = processingUnit.getRequiredContainerZones();
+		log.info("Looking for a GSC with Zones configuration that matches : {}", puRequiredContainerZones);
+
+		//
+		Predicate<GridServiceContainer> containerPredicate = gsc -> {
+			final ExactZonesConfig containerExactZones = gsc.getExactZones();
+			return puRequiredContainerZones.isSatisfiedBy(containerExactZones);
+		};
+
+		GridServiceContainer[] containers = gridServiceManagers.getAdmin().getGridServiceContainers().getContainers();
+
+		GridServiceContainer container = Arrays.stream(containers)
+				.filter(gsc -> machinePredicate.test(gsc.getMachine()))
+				.filter(gsc -> !gsc.getId().equals(gscWherePuIsCurrentlyRunning.getId()))
+				.filter(containerPredicate)
+				.min(Comparator.comparingInt(gsc -> gsc.getProcessingUnitInstances().length))
+				.orElseThrow(() -> new UnsupportedOperationException("Did not find any GSC matching requirements, with puRequiredContainerZones = " + puRequiredContainerZones));
+
+		log.info("Identified a matching GSC to relocate the PU instance {} of PU {} : {} (having zone config : {})",
+				puInstance.getId(),
+				processingUnit.getName(),
+				container.getId(),
+				container.getExactZones());
+		puInstance.relocate(container);
 	}
 
 
