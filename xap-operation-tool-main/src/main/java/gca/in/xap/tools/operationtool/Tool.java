@@ -3,6 +3,8 @@ package gca.in.xap.tools.operationtool;
 import com.google.common.collect.Lists;
 import gca.in.xap.tools.operationtool.predicates.AndPredicate;
 import gca.in.xap.tools.operationtool.predicates.container.IsEmptyContainerPredicate;
+import gca.in.xap.tools.operationtool.predicates.container.StatefulBackupsOnlyPredicate;
+import gca.in.xap.tools.operationtool.predicates.container.StatefulPrimariesOnlyPredicate;
 import gca.in.xap.tools.operationtool.predicates.pu.*;
 import gca.in.xap.tools.operationtool.service.RestartStrategy;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +17,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 
 @Slf4j
 @CommandLine.Command(name = "example", mixinStandardHelpOptions = false, version = "XAP application management command-line tool")
@@ -116,20 +119,13 @@ public class Tool implements Runnable {
 				}
 				case "restart-containers-stateful-backups-only": {
 					RestartStrategy restartStrategy = new RestartStrategy(Duration.ofMinutes(1));
-					RestartContainersTask task = new RestartContainersTask(gsc -> {
-						ProcessingUnitInstance[] processingUnitInstances = gsc.getProcessingUnitInstances();
-						// if the GSC is not running any PU, then we do not want to restart it
-						if (processingUnitInstances.length == 0) {
-							return false;
-						}
-						// if the GSC is running an stateful Primary PU, then we do not want to restart it
-						// else, it means that we are only running backup PU(s) in this GSC
-						AndPredicate<ProcessingUnitInstance> containsStatefulBackupPUPredicate = new AndPredicate<>(new IsStatefulProcessingUnitPredicate(), new IsBackupStatefulProcessingUnitPredicate(), new HasBackupSpaceInstancePredicate());
-						AndPredicate<ProcessingUnitInstance> containsStatefulPrimaryPUPredicate = new AndPredicate<>(new IsStatefulProcessingUnitPredicate(), new IsPrimaryStatefulProcessingUnitPredicate(), new HasPrimarySpaceInstancePredicate());
-						boolean containsStatefulBackupPU = Arrays.stream(processingUnitInstances).anyMatch(containsStatefulBackupPUPredicate);
-						boolean containsStatefulPrimaryPU = Arrays.stream(processingUnitInstances).anyMatch(containsStatefulPrimaryPUPredicate);
-						return containsStatefulBackupPU & !containsStatefulPrimaryPU;
-					}, restartStrategy);
+					RestartContainersTask task = new RestartContainersTask(new StatefulBackupsOnlyPredicate(), restartStrategy);
+					task.executeTask(applicationArguments);
+					break;
+				}
+				case "restart-containers-stateful-primaries-only": {
+					RestartStrategy restartStrategy = new RestartStrategy(Duration.ofMinutes(1));
+					RestartContainersTask task = new RestartContainersTask(new StatefulPrimariesOnlyPredicate(), restartStrategy);
 					task.executeTask(applicationArguments);
 					break;
 				}
@@ -154,6 +150,8 @@ public class Tool implements Runnable {
 		// exit with a zero code, in order to shutdown all daemon threads
 		System.exit(0);
 	}
+
+
 
 	public static void main(String[] args) {
 		SysOutOverSLF4J.sendSystemOutAndErrToSLF4J();
