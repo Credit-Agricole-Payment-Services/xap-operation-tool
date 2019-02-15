@@ -516,7 +516,7 @@ public class XapService {
 
 		AtomicInteger foundPuInstanceCount = null;
 
-		final int maxRelocateAttemptCount = 5;
+		final int maxRelocateAttemptCount = 2;
 		AtomicInteger attemptCount = new AtomicInteger(0);
 
 		while (attemptCount.get() < maxRelocateAttemptCount && (foundPuInstanceCount == null || foundPuInstanceCount.get() > 0)) {
@@ -529,10 +529,16 @@ public class XapService {
 				log.info("Found {} ProcessingUnitInstance¨running on Machine {}", processingUnitInstances.length, machine.getHostName());
 				Arrays.stream(processingUnitInstances).forEach(puInstance -> {
 					final GridServiceContainer gsc = puInstance.getGridServiceContainer();
-					log.info("Processing Unit {} Instance¨{} is running on GSC {}. Relocating to another GSC ...", puInstance.getName(), puInstance.getId(), gsc.getId());
+					log.info("Processing Unit {} Instance {} is running on GSC {}. Relocating to another GSC ...", puInstance.getName(), puInstance.getId(), gsc.getId());
 					remainingPuInstanceCount.incrementAndGet();
 
-					relocatePuInstance(puInstance, new NotPredicate<>(machinePredicate));
+					try {
+						relocatePuInstance(puInstance, new NotPredicate<>(machinePredicate));
+					} catch (RuntimeException e) {
+						// if there is a failure on 1 PU, maybe other PUs can be relocated, so we continue
+						// this exception needs to be catched in order to be able to proceed on other PUs if any
+						log.error("Failure while trying to relocate PU instance", e);
+					}
 				});
 			});
 			//
