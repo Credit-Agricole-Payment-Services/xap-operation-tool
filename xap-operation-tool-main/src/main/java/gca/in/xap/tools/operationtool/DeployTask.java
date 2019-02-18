@@ -1,6 +1,7 @@
 package gca.in.xap.tools.operationtool;
 
-import gca.in.xap.tools.operationtool.service.ApplicationConfigBuilder;
+import gca.in.xap.tools.operationtool.service.DefaultApplicationConfigBuilder;
+import gca.in.xap.tools.operationtool.service.PropertiesMergeBuilder;
 import gca.in.xap.tools.operationtool.service.UserDetailsConfigFactory;
 import gca.in.xap.tools.operationtool.service.XapService;
 import net.lingala.zip4j.core.ZipFile;
@@ -9,6 +10,7 @@ import org.openspaces.admin.application.config.ApplicationConfig;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.TimeoutException;
 
@@ -37,13 +39,19 @@ public class DeployTask {
 
 		final File archiveFileOrDirectory = new File(archiveFilename);
 
-		ApplicationConfigBuilder appDeployBuilder = new ApplicationConfigBuilder()
-				.withApplicationArchiveFileOrDirectory(archiveFileOrDirectory)
-				.withUserDetailsConfig(userDetails);
+		final PropertiesMergeBuilder propertiesMergeBuilder = new PropertiesMergeBuilder();
 
 		if (applicationArguments.commandLineArgs.size() > 1) {
-			appDeployBuilder.addContextProperties(Paths.get(applicationArguments.commandLineArgs.get(1)));
+			Path path = Paths.get(applicationArguments.commandLineArgs.get(1));
+			propertiesMergeBuilder.addContextProperties(path);
 		}
+
+		final DefaultApplicationConfigBuilder appDeployBuilder;
+
+		appDeployBuilder = new DefaultApplicationConfigBuilder()
+				.withApplicationArchiveFileOrDirectory(archiveFileOrDirectory)
+				.withUserDetailsConfig(userDetails)
+				.withSharedProperties(propertiesMergeBuilder.getMergedProperties());
 
 		ApplicationConfig applicationConfig = appDeployBuilder.create();
 
