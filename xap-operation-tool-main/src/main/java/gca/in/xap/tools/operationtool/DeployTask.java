@@ -20,6 +20,7 @@ public class DeployTask {
 			ApplicationArguments applicationArguments, boolean wholeMode,
 			boolean restartEmptyContainers) throws TimeoutException {
 
+		applicationArguments.checkMinimalNumberOfCommandLineArgs(1);
 		final String archiveFilename = applicationArguments.commandLineArgs.get(0);
 
 		UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(

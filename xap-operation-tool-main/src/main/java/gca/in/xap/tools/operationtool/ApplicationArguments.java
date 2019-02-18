@@ -3,6 +3,7 @@ package gca.in.xap.tools.operationtool;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.annotation.Nullable;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
@@ -31,9 +32,10 @@ public class ApplicationArguments {
 
 	final Duration timeoutDuration = Duration.parse(System.getProperty(PROP_TIMEOUT, PROP_TIMEOUT_DEFAULT));
 
+	@Nullable
 	final List<String> commandLineArgs;
 
-	public ApplicationArguments(List<String> commandLineArgs) {
+	public ApplicationArguments(@Nullable List<String> commandLineArgs) {
 		this.commandLineArgs = commandLineArgs;
 	}
 
@@ -47,6 +49,16 @@ public class ApplicationArguments {
 		log.info("password = **** (hidden)");
 
 		printNetworkInfo();
+	}
+
+	public void checkMinimalNumberOfCommandLineArgs(int minArgsCount) {
+		if (minArgsCount < 0) {
+			throw new IllegalArgumentException("minArgsCount should be at least zero : minArgsCount = " + minArgsCount);
+		}
+		int actualArgsCount = commandLineArgs == null ? 0 : commandLineArgs.size();
+		if (actualArgsCount < minArgsCount) {
+			throw new IllegalArgumentException("Expected at least " + minArgsCount + " args, found " + actualArgsCount);
+		}
 	}
 
 	public void printNetworkInfo() {

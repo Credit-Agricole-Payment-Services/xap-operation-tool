@@ -9,6 +9,7 @@ public class UndeployTask {
 	private final UserDetailsConfigFactory userDetailsConfigFactory = new UserDetailsConfigFactory();
 
 	public void executeTask(ApplicationArguments applicationArguments) {
+		applicationArguments.checkMinimalNumberOfCommandLineArgs(1);
 		String applicationName = applicationArguments.commandLineArgs.get(0);
 
 		UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(

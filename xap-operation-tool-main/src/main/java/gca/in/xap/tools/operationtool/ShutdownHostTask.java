@@ -11,10 +11,7 @@ public class ShutdownHostTask {
 	private final UserDetailsConfigFactory userDetailsConfigFactory = new UserDetailsConfigFactory();
 
 	public void executeTask(ApplicationArguments applicationArguments) {
-
-		if (applicationArguments.commandLineArgs.size() == 0) {
-			throw new IllegalArgumentException("Expected at least one argument : <hostname> [<hostname>...]");
-		}
+		applicationArguments.checkMinimalNumberOfCommandLineArgs(1);
 
 		UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
 				applicationArguments.username,
