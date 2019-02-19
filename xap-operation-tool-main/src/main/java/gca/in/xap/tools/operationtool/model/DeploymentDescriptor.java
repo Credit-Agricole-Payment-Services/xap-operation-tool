@@ -1,17 +1,16 @@
 package gca.in.xap.tools.operationtool.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 import java.util.List;
 import java.util.Map;
 
 @Data
-@JsonIgnoreProperties(ignoreUnknown = true)
+//@JsonIgnoreProperties(ignoreUnknown = true)
 public class DeploymentDescriptor {
 
 	@Data
-	@JsonIgnoreProperties(ignoreUnknown = true)
+	//@JsonIgnoreProperties(ignoreUnknown = true)
 	public static class Topology {
 		private String schema;
 		private Integer instances;
@@ -20,7 +19,7 @@ public class DeploymentDescriptor {
 	}
 
 	@Data
-	@JsonIgnoreProperties(ignoreUnknown = true)
+	//@JsonIgnoreProperties(ignoreUnknown = true)
 	public static class ServiceLevelAgreement {
 		private Boolean requiresIsolation;
 		private Integer maxInstancesPerVM;

@@ -73,12 +73,19 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 		ApplicationConfig applicationConfig = new ApplicationFileDeployment(applicationArchiveFileOrDirectory).create();
 		log.info("applicationConfig = {}", applicationConfig);
 
-		final Map<String, String> sharedPropertiesAsMap = toMap(sharedProperties);
+		final SecretsConfigBuilder secretsConfigBuilder = new SecretsConfigBuilder();
+
+		Map<String, String> sharedPropertiesAsMap = toMap(sharedProperties);
+		try {
+			sharedPropertiesAsMap = secretsConfigBuilder.askSecrets(sharedPropertiesAsMap);
+		} catch (IOException e) {
+			throw new RuntimeException("Exception while asking for user input for secrets value", e);
+		}
 
 		final File deploymentDescriptorsDirectoryFile = deploymentDescriptorsDirectory == null ? new File(".") : deploymentDescriptorsDirectory;
 
 		for (ProcessingUnitConfigHolder puConfig : applicationConfig.getProcessingUnits()) {
-			configure(puConfig, sharedPropertiesAsMap, deploymentDescriptorsDirectoryFile);
+			configure(secretsConfigBuilder, puConfig, sharedPropertiesAsMap, deploymentDescriptorsDirectoryFile);
 		}
 		log.info("Created ApplicationConfig for application '{}' composed of : {}",
 				applicationConfig.getName(),
@@ -87,7 +94,12 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 		return applicationConfig;
 	}
 
-	private void configure(ProcessingUnitConfigHolder puConfig, Map<String, String> sharedPropertiesAsMap, File deploymentDescriptorsDirectoryFile) {
+	private void configure(
+			SecretsConfigBuilder secretsConfigBuilder,
+			ProcessingUnitConfigHolder puConfig,
+			Map<String, String> sharedPropertiesAsMap,
+			File deploymentDescriptorsDirectoryFile
+	) {
 		final File deploymentDescriptorFile = new File(deploymentDescriptorsDirectoryFile, puConfig.getName() + ".json");
 		DeploymentDescriptor deploymentDescriptor;
 		if (!deploymentDescriptorFile.exists()) {
@@ -105,8 +117,13 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 
 		puConfig.getContextProperties().putAll(sharedPropertiesAsMap);
 		if (deploymentDescriptor != null) {
-			final Map<String, String> additionalContextProperties = deploymentDescriptor.getContextProperties();
+			Map<String, String> additionalContextProperties = deploymentDescriptor.getContextProperties();
 			if (additionalContextProperties != null) {
+				try {
+					additionalContextProperties = secretsConfigBuilder.askSecrets(additionalContextProperties);
+				} catch (IOException e) {
+					throw new RuntimeException("Exception while asking for user input for secrets value", e);
+				}
 				puConfig.getContextProperties().putAll(additionalContextProperties);
 			}
 		}
@@ -163,5 +180,6 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 		}
 		return Collections.unmodifiableMap(result);
 	}
+
 
 }
