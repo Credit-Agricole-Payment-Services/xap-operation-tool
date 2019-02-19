@@ -3,11 +3,11 @@ package gca.in.xap.tools.operationtool.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gca.in.xap.tools.operationtool.model.HeapDumpReport;
 import gca.in.xap.tools.operationtool.predicates.NotPredicate;
+import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.Admin;
-import org.openspaces.admin.AdminFactory;
 import org.openspaces.admin.application.Application;
 import org.openspaces.admin.application.config.ApplicationConfig;
 import org.openspaces.admin.dump.DumpResult;
@@ -27,6 +27,7 @@ import org.openspaces.admin.pu.config.UserDetailsConfig;
 import org.openspaces.admin.pu.topology.ProcessingUnitConfigHolder;
 import org.openspaces.admin.zone.config.ExactZonesConfig;
 import org.openspaces.admin.zone.config.RequiredZonesConfig;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,9 +40,6 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
-import static java.util.Arrays.stream;
 
 @Slf4j
 public class XapService {
@@ -133,9 +131,11 @@ public class XapService {
 	@Setter
 	private ExecutorService executorService;
 
-	private final ObjectMapper objectMapper = new ObjectMapperFactory().createObjectMapper();
+	@Setter
+	@Autowired
+	private UserConfirmationService userConfirmationService;
 
-	private final int afterThoughtDurationInSeconds = 5;
+	private final ObjectMapper objectMapper = new ObjectMapperFactory().createObjectMapper();
 
 	private GridServiceContainer[] findContainers() {
 		GridServiceContainers gridServiceContainers = admin.getGridServiceContainers();
@@ -217,12 +217,7 @@ public class XapService {
 		log.info("Found {} matching GSC instances : {}", gscCount, containersIds);
 
 		log.info("Will restart {} GSC instances : {}", gscCount, containersIds);
-		log.info("Are you sure ? You have {} seconds to use CTRL+C to stop if unsure.", afterThoughtDurationInSeconds);
-		try {
-			TimeUnit.SECONDS.sleep(afterThoughtDurationInSeconds);
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
+		userConfirmationService.askConfirmationAndWait();
 		boolean firstIteration = true;
 		for (GridServiceContainer gsc : containers) {
 			if (!firstIteration) {
@@ -588,110 +583,6 @@ public class XapService {
 		puInstance.relocate(container);
 	}
 
-
-	public static class Builder {
-
-		private List<String> locators;
-
-		private List<String> groups;
-
-		private UserDetailsConfig userDetails;
-
-		private Duration timeout;
-
-		public Builder locators(List<String> locators) {
-			this.locators = locators;
-			return this;
-		}
-
-		public Builder groups(List<String> groups) {
-			this.groups = groups;
-			return this;
-		}
-
-		public Builder userDetails(UserDetailsConfig userDetails) {
-			this.userDetails = userDetails;
-			return this;
-		}
-
-		public Builder timeout(Duration timeout) {
-			this.timeout = timeout;
-			return this;
-		}
-
-		void waitToDiscoverXap(int durationInSeconds) {
-			log.info("Waiting a little bit in order to discover XAP Managers ...");
-			try {
-				TimeUnit.SECONDS.sleep(5);
-			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
-			}
-		}
-
-		public XapService create() {
-			Admin admin = createAdmin();
-			GridServiceManagers gridServiceManagers = null;
-			int attemptCount = 10;
-			while (attemptCount > 0 && gridServiceManagers == null || gridServiceManagers.getSize() == 0) {
-				waitToDiscoverXap(1);
-				gridServiceManagers = getGridServiceManagersFromAdmin(admin);
-				log.info("GridServiceManagers : {}", Arrays.toString(gridServiceManagers.getManagers()));
-				attemptCount--;
-			}
-
-			ExecutorService executor = Executors.newFixedThreadPool(4);
-
-			XapService result = new XapService();
-			result.setAdmin(admin);
-			result.setGridServiceManagers(gridServiceManagers);
-			result.setOperationTimeout(timeout);
-			result.setUserDetails(userDetails);
-			result.setExecutorService(executor);
-			return result;
-		}
-
-		GridServiceManagers getGridServiceManagersFromAdmin(Admin admin) {
-			GridServiceManagers result = admin.getGridServiceManagers();
-			final int gsmCount = result.getSize();
-			log.info("gsmCount = {}", gsmCount);
-			return result;
-			//GridServiceManager gridServiceManagers = admin.getGridServiceManagers().waitForAtLeastOne(5, TimeUnit.MINUTES);
-			//log.info("Retrieved GridServiceManager> locators: {} ; groups: {}");
-			//return gridServiceManagers;
-		}
-
-		private Admin createAdmin() {
-			AdminFactory factory = new AdminFactory().useDaemonThreads(true).useGsLogging(true);
-
-			if (locators != null) {
-				for (String locator : locators) {
-					if (!locator.isEmpty()) {
-						factory.addLocator(locator);
-					}
-				}
-			}
-			if (groups != null) {
-				for (String group : groups) {
-					if (!group.isEmpty()) {
-						factory.addGroup(group);
-					}
-				}
-			}
-			if (userDetails != null) {
-				factory = factory.credentials(userDetails.getUsername(), userDetails.getPassword());
-			}
-
-			Admin admin = factory.createAdmin();
-			log.info("Admin will use a default timeout of {} ms", timeout.toMillis());
-			admin.setDefaultTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS);
-
-			List<String> locators = stream(admin.getLocators()).map(l -> l.getHost() + ":" + l.getPort()).collect(Collectors.toList());
-			List<String> groups = stream(admin.getGroups()).collect(Collectors.toList());
-			log.info("Using Admin : locators = {} ; groups = {}", locators, groups);
-			return admin;
-		}
-
-	}
 
 	public void setDefaultTimeout(Duration timeout) {
 		log.info("Admin will use a default timeout of {} ms", timeout.toMillis());

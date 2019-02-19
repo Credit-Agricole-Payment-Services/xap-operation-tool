@@ -32,7 +32,6 @@ public class BuildInfo {
 				String implementationVersion = mainAttributes.getValue("Implementation-Version");
 				String buildTime = mainAttributes.getValue("Build-Time");
 				String buildAuthor = mainAttributes.getValue("Built-By");
-				;
 				return implementationVersion + " (" + buildTime + ") builded by '" + buildAuthor + "'";
 			}
 		}

@@ -4,3 +4,5 @@ xapClient:
 credentials:
   - username:
   - password:
+json-config:
+  - location: /app/in/awq/sctinst/script

@@ -1,0 +1,36 @@
+{
+  "name": "in-core",
+  "resource": "in-core.jar",
+  "topology": {
+	"schema": "partitioned",
+	"partitions": 1,
+	"backupsPerPartition": 1
+  },
+  "sla": {
+	"requiresIsolation": true,
+	"maxInstancesPerVM": 4,
+	"maxInstancesPerMachine": 4,
+	"max-instances-per-zone": "ZONE_A,DAL_2G/1,ZONE_B,DID_4G/1"
+  },
+  "contextProperties": {
+	"app.jms.bindings.late.path": "file:///app/in/awq/sctinst/current/config/late/jndi",
+	"app.jms.bindings.stetbox.path": "file:///app/in/awq/sctinst/current/config/jndi",
+	"app.jms.stet.concurrency": "5-50",
+	"app.jms.late.concurrency": "5-50",
+	"app.jms.xml.persistance": "true",
+	"app.core.sla.instances": "1",
+	"app.core.sla.backups": "1",
+	"app.core.polling.reception.concurrency": "10",
+	"app.core.polling.emission.concurrency": "10",
+	"app.core.gdr.daEntryPointConf.location": "/app/in/awq/sctinst/current/config/gdr/gdr-da.conf",
+	"app.core.gdr.naEntryPointConf.location": "/app/in/awq/sctinst/current/config/gdr/gdr-na.conf",
+	"app.core.gdr.daEntryPointConf.version": "0",
+	"app.core.gdr.naEntryPointConf.version": "0",
+	"app.core.gdr.daTransactionType": "DA1",
+	"app.core.gdr.naTransactionType": "NA1",
+	"capsin.database.jdbcUrl": "jdbc:oracle:thin:@***REMOVED***:12992:inq1",
+	"capsin.database.username": "***REMOVED***",
+	"capsin.database.password": "password",
+	"capsin.hibernate.hbm2ddl.auto": "none"
+  }
+}

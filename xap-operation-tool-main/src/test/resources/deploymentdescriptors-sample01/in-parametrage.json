@@ -1,0 +1,20 @@
+{
+  "name": "in-parametrage",
+  "resource": "in-parametrage.jar",
+  "sla": {
+	"requiresIsolation": false,
+	"maxInstancesPerVM": 4,
+	"maxInstancesPerMachine": 4,
+	"zones": [
+	  "DID_2G",
+	  "DAL_2G"
+	]
+  },
+  "contextProperties": {
+	"capsin.database.jdbcUrl": "jdbc:oracle:thin:@***REMOVED***:12992:inq1",
+	"capsin.database.username": "***REMOVED***",
+	"capsin.database.password": "password",
+	"capsin.hibernate.hbm2ddl.auto": "update"
+  }
+}
+

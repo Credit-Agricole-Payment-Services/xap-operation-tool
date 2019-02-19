@@ -20,7 +20,7 @@ public class ApplicationArguments {
 	private static final String PROP_LOOKUP_LOCATORS = "lookup.locators";
 
 	private static final String PROP_TIMEOUT = "timeout";
-	private static final String PROP_TIMEOUT_DEFAULT = "PT1M";
+	private static final String PROP_TIMEOUT_DEFAULT = "PT5M";
 
 	final String username = System.getProperty(PROP_CREDENTIAL_USERNAME);
 

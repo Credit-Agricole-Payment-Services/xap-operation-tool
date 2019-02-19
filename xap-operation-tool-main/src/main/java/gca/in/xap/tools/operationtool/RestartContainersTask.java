@@ -3,6 +3,7 @@ package gca.in.xap.tools.operationtool;
 import gca.in.xap.tools.operationtool.service.RestartStrategy;
 import gca.in.xap.tools.operationtool.service.UserDetailsConfigFactory;
 import gca.in.xap.tools.operationtool.service.XapService;
+import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsc.GridServiceContainer;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
@@ -13,6 +14,8 @@ import java.util.function.Predicate;
 public class RestartContainersTask {
 
 	private final UserDetailsConfigFactory userDetailsConfigFactory = new UserDetailsConfigFactory();
+
+	private final XapServiceBuilder xapServiceBuilder = new XapServiceBuilder();
 
 	private final Predicate<GridServiceContainer> predicate;
 
@@ -29,7 +32,7 @@ public class RestartContainersTask {
 				applicationArguments.password
 		);
 
-		XapService xapService = new XapService.Builder()
+		XapService xapService = xapServiceBuilder
 				.locators(applicationArguments.locators)
 				.groups(applicationArguments.groups)
 				.timeout(applicationArguments.timeoutDuration)

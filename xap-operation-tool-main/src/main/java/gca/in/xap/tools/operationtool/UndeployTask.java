@@ -2,11 +2,14 @@ package gca.in.xap.tools.operationtool;
 
 import gca.in.xap.tools.operationtool.service.UserDetailsConfigFactory;
 import gca.in.xap.tools.operationtool.service.XapService;
+import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 
 public class UndeployTask {
 
 	private final UserDetailsConfigFactory userDetailsConfigFactory = new UserDetailsConfigFactory();
+
+	private final XapServiceBuilder xapServiceBuilder = new XapServiceBuilder();
 
 	public void executeTask(ApplicationArguments applicationArguments) {
 		applicationArguments.checkMinimalNumberOfCommandLineArgs(1);
@@ -17,7 +20,7 @@ public class UndeployTask {
 				applicationArguments.password
 		);
 
-		XapService xapService = new XapService.Builder()
+		XapService xapService = xapServiceBuilder
 				.locators(applicationArguments.locators)
 				.groups(applicationArguments.groups)
 				.timeout(applicationArguments.timeoutDuration)

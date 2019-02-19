@@ -18,7 +18,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 @Slf4j
-@CommandLine.Command(name = "example", mixinStandardHelpOptions = false, version = "XAP application management command-line tool")
+@CommandLine.Command(name = "example", version = "XAP application management command-line tool")
 public class Tool implements Runnable {
 
 	private static class CommandsListCandidates implements Iterable<String> {

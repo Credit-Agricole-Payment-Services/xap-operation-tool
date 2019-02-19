@@ -1,9 +1,8 @@
 package gca.in.xap.tools.operationtool;
 
-import gca.in.xap.tools.operationtool.service.DefaultApplicationConfigBuilder;
-import gca.in.xap.tools.operationtool.service.PropertiesMergeBuilder;
-import gca.in.xap.tools.operationtool.service.UserDetailsConfigFactory;
-import gca.in.xap.tools.operationtool.service.XapService;
+import gca.in.xap.tools.operationtool.service.*;
+import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
+import lombok.extern.slf4j.Slf4j;
 import net.lingala.zip4j.core.ZipFile;
 import net.lingala.zip4j.exception.ZipException;
 import org.openspaces.admin.application.config.ApplicationConfig;
@@ -14,9 +13,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.TimeoutException;
 
+@Slf4j
 public class DeployTask {
 
 	private final UserDetailsConfigFactory userDetailsConfigFactory = new UserDetailsConfigFactory();
+
+	private final XapServiceBuilder xapServiceBuilder = new XapServiceBuilder();
+
+	private final UserConfirmationService userConfirmationService = new UserConfirmationService();
 
 	public void executeTask(
 			ApplicationArguments applicationArguments, boolean wholeMode,
@@ -30,12 +34,13 @@ public class DeployTask {
 				applicationArguments.password
 		);
 
-		XapService xapService = new XapService.Builder()
+		XapService xapService = xapServiceBuilder
 				.locators(applicationArguments.locators)
 				//.groups(applicationArguments.groups)
 				.timeout(applicationArguments.timeoutDuration)
 				.userDetails(userDetails)
 				.create();
+
 
 		final File archiveFileOrDirectory = new File(archiveFilename);
 
@@ -54,6 +59,9 @@ public class DeployTask {
 				.withSharedProperties(propertiesMergeBuilder.getMergedProperties());
 
 		ApplicationConfig applicationConfig = appDeployBuilder.create();
+
+		log.info("Will deploy ApplicationConfig : {}", applicationConfig);
+		userConfirmationService.askConfirmationAndWait();
 
 		if (archiveFileOrDirectory.isFile()) {
 			File outputDirectory = new File(".");
