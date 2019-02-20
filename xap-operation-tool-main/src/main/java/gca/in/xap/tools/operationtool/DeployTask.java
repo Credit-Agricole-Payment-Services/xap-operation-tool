@@ -2,16 +2,14 @@ package gca.in.xap.tools.operationtool;
 
 import gca.in.xap.tools.operationtool.service.*;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import net.lingala.zip4j.core.ZipFile;
 import net.lingala.zip4j.exception.ZipException;
 import org.openspaces.admin.application.config.ApplicationConfig;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 
-import javax.annotation.Nullable;
 import java.io.File;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.concurrent.TimeoutException;
 
 @Slf4j
@@ -27,8 +25,8 @@ public class DeployTask {
 			ApplicationArguments applicationArguments, boolean wholeMode,
 			boolean restartEmptyContainers) throws TimeoutException {
 
-		applicationArguments.checkMinimalNumberOfCommandLineArgs(1);
-		final String archiveFilename = applicationArguments.commandLineArgs.get(0);
+		final @NonNull String archiveFilename = applicationArguments.getApplicationPath();
+		final @NonNull String deploymentDescriptorsDirectoryLocation = applicationArguments.getDescriptorsPath();
 
 		UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
 				applicationArguments.username,
@@ -45,7 +43,7 @@ public class DeployTask {
 
 		final File archiveFileOrDirectory = new File(archiveFilename);
 
-		final File deploymentDescriptorsDirectory = new File("./deploymentdescriptors");
+		final File deploymentDescriptorsDirectory = new File(deploymentDescriptorsDirectoryLocation);
 
 		final PropertiesMergeBuilder propertiesMergeBuilder = PropertiesMergeBuilder.createFromConvention();
 

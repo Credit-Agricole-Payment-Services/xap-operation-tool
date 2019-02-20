@@ -23,10 +23,10 @@ import java.util.TreeMap;
 public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder {
 
 	@Nullable
-	private File deploymentDescriptorsDirectory;
+	private File applicationArchiveFileOrDirectory;
 
 	@Nullable
-	private File applicationArchiveFileOrDirectory;
+	private File deploymentDescriptorsDirectory;
 
 	@Nullable
 	private UserDetailsConfig userDetailsConfig;
@@ -39,6 +39,11 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 
 	private final ObjectMapper objectMapper = new ObjectMapperFactory().createObjectMapper();
 
+	public DefaultApplicationConfigBuilder withApplicationArchiveFileOrDirectory(File applicationArchiveFileOrDirectory) {
+		this.applicationArchiveFileOrDirectory = applicationArchiveFileOrDirectory;
+		return this;
+	}
+
 	public DefaultApplicationConfigBuilder withDeploymentDescriptorsDirectory(File deploymentDescriptorsDirectory) {
 		this.deploymentDescriptorsDirectory = deploymentDescriptorsDirectory;
 		return this;
@@ -46,11 +51,6 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 
 	public DefaultApplicationConfigBuilder withUserDetailsConfig(UserDetailsConfig userDetails) {
 		this.userDetailsConfig = userDetails;
-		return this;
-	}
-
-	public DefaultApplicationConfigBuilder withApplicationArchiveFileOrDirectory(File applicationArchiveFileOrDirectory) {
-		this.applicationArchiveFileOrDirectory = applicationArchiveFileOrDirectory;
 		return this;
 	}
 
@@ -62,7 +62,7 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 	@Override
 	public ApplicationConfig create() {
 		log.info("applicationArchiveFileOrDirectory = {}", applicationArchiveFileOrDirectory);
-		log.info("sharedProperties = {}", sharedProperties);
+		log.info("deploymentDescriptorsDirectory = {}", deploymentDescriptorsDirectory);
 		//
 		if (applicationArchiveFileOrDirectory == null) {
 			throw new IllegalArgumentException("applicationArchiveFileOrDirectory is required");
@@ -70,8 +70,15 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 		if (!applicationArchiveFileOrDirectory.isFile() && !applicationArchiveFileOrDirectory.isDirectory()) {
 			throw new IllegalArgumentException("must be a valid application File or Directory: " + applicationArchiveFileOrDirectory);
 		}
-		ApplicationConfig applicationConfig = new ApplicationFileDeployment(applicationArchiveFileOrDirectory).create();
-		log.info("applicationConfig = {}", applicationConfig);
+
+		final File deploymentDescriptorsDirectoryFile = deploymentDescriptorsDirectory == null ? new File(".") : deploymentDescriptorsDirectory;
+		log.info("deploymentDescriptorsDirectoryFile = {}", deploymentDescriptorsDirectoryFile.getAbsolutePath());
+		if (!deploymentDescriptorsDirectoryFile.exists() || !deploymentDescriptorsDirectoryFile.isDirectory()) {
+			throw new IllegalArgumentException("deploymentDescriptorsDirectoryFile should be a valid directory : " + deploymentDescriptorsDirectoryFile);
+		}
+
+		final ApplicationConfig applicationConfig = new ApplicationFileDeployment(applicationArchiveFileOrDirectory).create();
+		log.debug("applicationConfig = {}", applicationConfig);
 
 		final SecretsConfigBuilder secretsConfigBuilder = new SecretsConfigBuilder();
 
@@ -81,8 +88,6 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 		} catch (IOException e) {
 			throw new RuntimeException("Exception while asking for user input for secrets value", e);
 		}
-
-		final File deploymentDescriptorsDirectoryFile = deploymentDescriptorsDirectory == null ? new File(".") : deploymentDescriptorsDirectory;
 
 		for (ProcessingUnitConfigHolder puConfig : applicationConfig.getProcessingUnits()) {
 			configure(secretsConfigBuilder, puConfig, sharedPropertiesAsMap, deploymentDescriptorsDirectoryFile);
@@ -168,7 +173,7 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 		log.info("originalProcessingUnitResourceName = {}, newProcessingUnitResourceName = {}", originalProcessingUnitResourceName, newProcessingUnitResourceName);
 		//processingUnitConfig.setProcessingUnit(newProcessingUnitResourceName);
 
-		log.info("processingUnitConfig = {}", processingUnitConfig);
+		log.debug("processingUnitConfig = {}", processingUnitConfig);
 	}
 
 	private static Map<String, String> toMap(@Nullable Properties properties) {

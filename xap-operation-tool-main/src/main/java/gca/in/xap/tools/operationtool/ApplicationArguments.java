@@ -1,9 +1,12 @@
 package gca.in.xap.tools.operationtool;
 
+import lombok.Getter;
 import lombok.NonNull;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.Nullable;
+import java.io.File;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
@@ -20,7 +23,7 @@ public class ApplicationArguments {
 	private static final String PROP_LOOKUP_LOCATORS = "lookup.locators";
 
 	private static final String PROP_TIMEOUT = "timeout";
-	private static final String PROP_TIMEOUT_DEFAULT = "PT5M";
+	private static final String PROP_TIMEOUT_DEFAULT = "PT10M";
 
 	final String username = System.getProperty(PROP_CREDENTIAL_USERNAME);
 
@@ -35,11 +38,24 @@ public class ApplicationArguments {
 	@Nullable
 	final List<String> commandLineArgs;
 
+	@Setter
+	@Getter
+	private String applicationPath = ".";
+
+	@Setter
+	@Getter
+	private String descriptorsPath = ".";
+
+	private final File workingDirectoryAtStartup = new File(".").getAbsoluteFile();
+
 	public ApplicationArguments(@Nullable List<String> commandLineArgs) {
 		this.commandLineArgs = commandLineArgs;
 	}
 
 	public void printInfo() {
+		log.info("workingDirectoryAtStartup = {}", workingDirectoryAtStartup.getAbsolutePath());
+		log.info("applicationPath = {}", applicationPath);
+		log.info("descriptorsPath = {}", descriptorsPath);
 		log.info("commandLineArgs = {}", commandLineArgs);
 
 		log.info("locators = {}", locators);

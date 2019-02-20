@@ -44,7 +44,10 @@ public class Tool implements Runnable {
 	private boolean restartEmptyContainers;
 
 	@CommandLine.Option(names = "-f", defaultValue = ".", description = "Path to the File or Directory that contains the application.xml descriptor. Default is current working directory.")
-	private String descriptorPath;
+	private String applicationPath;
+
+	@CommandLine.Option(names = "-c", defaultValue = ".", description = "Path to the Directory that contains the deployment descriptors (.json and .properties files). Default is current working directory.")
+	private String descriptorsPath;
 
 	@CommandLine.Parameters(index = "0", arity = "1", description = "command", completionCandidates = CommandsListCandidates.class)
 	private String command;
@@ -69,6 +72,8 @@ public class Tool implements Runnable {
 		final Command commandValue = Command.valueOf(command.replace("_", "-").replace("-", "_"));
 
 		ApplicationArguments applicationArguments = new ApplicationArguments(parameters);
+		applicationArguments.setApplicationPath(applicationPath);
+		applicationArguments.setDescriptorsPath(descriptorsPath);
 		applicationArguments.printInfo();
 
 		try {
