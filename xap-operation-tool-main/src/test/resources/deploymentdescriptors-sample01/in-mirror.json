@@ -1,0 +1,19 @@
+{
+  "name": "in-mirror",
+  "resource": "in-mirror.jar",
+  "sla": {
+	"requiresIsolation": false,
+	"maxInstancesPerVM": 1,
+	"maxInstancesPerMachine": 1,
+	"zones": [
+	  "DID_2G",
+	  "DAL_2G"
+	]
+  },
+  "contextProperties": {
+	"capsin.database.jdbcUrl": "jdbc:oracle:thin:@***REMOVED***:12992:inq1",
+	"capsin.database.username": "***REMOVED***",
+	"capsin.database.password": "password",
+	"capsin.hibernate.hbm2ddl.auto": "none"
+  }
+}
