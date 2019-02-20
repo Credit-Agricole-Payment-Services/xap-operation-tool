@@ -8,7 +8,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
@@ -16,7 +15,7 @@ import java.util.Properties;
 @Slf4j
 public class PropertiesMergeBuilder {
 
-	public static PropertiesMergeBuilder createFromConvention() {
+	public static PropertiesMergeBuilder createFromConvention(File deploymentDescriptorsDirectory) {
 		final PropertiesMergeBuilder propertiesMergeBuilder = new PropertiesMergeBuilder();
 
 		// using convention over configuration
@@ -24,12 +23,12 @@ public class PropertiesMergeBuilder {
 		// instead of being passed as a parameter
 		// this simplifies the code and the usage
 
-		Path properties1 = Paths.get("shared-public.properties");
-		Path properties2 = Paths.get("shared-secrets.properties");
+		File properties1 = new File(deploymentDescriptorsDirectory, "shared-public.properties");
+		File properties2 = new File(deploymentDescriptorsDirectory, "shared-secrets.properties");
 
 		//
-		propertiesMergeBuilder.addContextPropertiesIfExists(properties1.toFile());
-		propertiesMergeBuilder.addContextPropertiesIfExists(properties2.toFile());
+		propertiesMergeBuilder.addContextPropertiesIfExists(properties1);
+		propertiesMergeBuilder.addContextPropertiesIfExists(properties2);
 
 		return propertiesMergeBuilder;
 	}

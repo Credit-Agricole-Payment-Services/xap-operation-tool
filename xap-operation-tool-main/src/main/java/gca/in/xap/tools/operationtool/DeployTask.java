@@ -45,7 +45,7 @@ public class DeployTask {
 
 		final File deploymentDescriptorsDirectory = new File(deploymentDescriptorsDirectoryLocation);
 
-		final PropertiesMergeBuilder propertiesMergeBuilder = PropertiesMergeBuilder.createFromConvention();
+		final PropertiesMergeBuilder propertiesMergeBuilder = PropertiesMergeBuilder.createFromConvention(deploymentDescriptorsDirectory);
 
 		final DefaultApplicationConfigBuilder appDeployBuilder;
 
