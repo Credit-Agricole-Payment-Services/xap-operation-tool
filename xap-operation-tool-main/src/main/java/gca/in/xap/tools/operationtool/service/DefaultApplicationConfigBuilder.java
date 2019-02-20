@@ -23,10 +23,10 @@ import java.util.TreeMap;
 public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder {
 
 	@Nullable
-	private File deploymentDescriptorsDirectory = new File("./deploymentdescriptors");
+	private File deploymentDescriptorsDirectory;
 
 	@Nullable
-	private File applicationArchiveFileOrDirectory = new File(".");
+	private File applicationArchiveFileOrDirectory;
 
 	@Nullable
 	private UserDetailsConfig userDetailsConfig;

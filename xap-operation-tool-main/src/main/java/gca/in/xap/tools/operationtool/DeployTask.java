@@ -8,6 +8,7 @@ import net.lingala.zip4j.exception.ZipException;
 import org.openspaces.admin.application.config.ApplicationConfig;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -44,17 +45,15 @@ public class DeployTask {
 
 		final File archiveFileOrDirectory = new File(archiveFilename);
 
-		final PropertiesMergeBuilder propertiesMergeBuilder = new PropertiesMergeBuilder();
+		final File deploymentDescriptorsDirectory = new File("./deploymentdescriptors");
 
-		if (applicationArguments.commandLineArgs.size() > 1) {
-			Path path = Paths.get(applicationArguments.commandLineArgs.get(1));
-			propertiesMergeBuilder.addContextProperties(path);
-		}
+		final PropertiesMergeBuilder propertiesMergeBuilder = PropertiesMergeBuilder.createFromConvention();
 
 		final DefaultApplicationConfigBuilder appDeployBuilder;
 
 		appDeployBuilder = new DefaultApplicationConfigBuilder()
 				.withApplicationArchiveFileOrDirectory(archiveFileOrDirectory)
+				.withDeploymentDescriptorsDirectory(deploymentDescriptorsDirectory)
 				.withUserDetailsConfig(userDetails)
 				.withSharedProperties(propertiesMergeBuilder.getMergedProperties());
 
@@ -87,6 +86,7 @@ public class DeployTask {
 
 		xapService.printReportOnContainersAndProcessingUnits();
 	}
+
 
 	public static void unzip(File archiveFile, File destinationDirectory) {
 		try {

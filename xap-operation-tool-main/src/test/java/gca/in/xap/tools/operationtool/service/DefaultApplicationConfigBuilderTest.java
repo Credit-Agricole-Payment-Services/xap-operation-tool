@@ -15,11 +15,11 @@ public class DefaultApplicationConfigBuilderTest {
 
 		final DefaultApplicationConfigBuilder appDeployBuilder;
 
-		File archiveFileOrDirectory = null;
+		File archiveFileOrDirectory = new File(".");
 		File deploymentDescriptorsDirectory = new File("src/test/resources/deploymentdescriptors-sample01");
 
 		appDeployBuilder = new DefaultApplicationConfigBuilder()
-				//.withApplicationArchiveFileOrDirectory(archiveFileOrDirectory)
+				.withApplicationArchiveFileOrDirectory(archiveFileOrDirectory)
 				.withSharedProperties(propertiesMergeBuilder.getMergedProperties())
 				.withDeploymentDescriptorsDirectory(deploymentDescriptorsDirectory)
 		;
