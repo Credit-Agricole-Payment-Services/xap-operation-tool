@@ -12,6 +12,7 @@ import java.io.File;
 public class DefaultApplicationConfigBuilderTest {
 
 	@Test
+	@Ignore
 	public void should_build_application_config() {
 		final PropertiesMergeBuilder propertiesMergeBuilder = new PropertiesMergeBuilder();
 
