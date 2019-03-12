@@ -1,0 +1,24 @@
+{
+  "name": "in-jms-io",
+  "resource": "in-jms-io.jar",
+  "topology": {
+	"instances": 1
+  },
+  "sla": {
+	"requiresIsolation": false,
+	"zones": [
+	  "DAL_2G",
+	  "DID_2G"
+	],
+	"maxInstancesPerVM": 1,
+	"maxInstancesPerMachine": 0
+  },
+  "contextProperties": {
+	"app.jms.bindings.stetbox.path.1": "file:///app/in/awq/sctinst/current/config/jndi",
+	"app.jms.stet.concurrency": "5-50",
+	"app.jms.late.concurrency": "5-50",
+	"app.jms.bindings.late.path": "file:///app/in/awq/sctinst/current/config/late/jndi",
+	"app.jms.xml.persistance": "false"
+  }
+}
+

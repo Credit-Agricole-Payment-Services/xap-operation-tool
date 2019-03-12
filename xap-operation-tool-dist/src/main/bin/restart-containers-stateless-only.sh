@@ -17,7 +17,7 @@ CLASSPATH=${SCRIPTS_DIR}/config
 #CLASSPATH=${CLASSPATH}:$(echo $LIB_DIR/*.jar | tr ' ' ':')
 CLASSPATH=${CLASSPATH}:$(find "${LIB_DIR}" -name '*.jar' | tr '\n' ':')
 
-OPERATION=deploy
+OPERATION=restart-containers-stateless-only
 
 time java -Xms1G -Xmx1G -Dcom.gs.logging.disabled=true -cp "${CLASSPATH}" -jar $LIB_DIR/xap-operation-tool-main-1.1.0-SNAPSHOT.jar $OPERATION "$@"
 

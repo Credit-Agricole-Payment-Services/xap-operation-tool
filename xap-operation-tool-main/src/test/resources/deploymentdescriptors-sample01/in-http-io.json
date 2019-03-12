@@ -1,0 +1,23 @@
+{
+  "name": "in-http-io",
+  "resource": "in-http-io.jar",
+  "topology": {
+	"instances": 1
+  },
+  "sla": {
+	"requiresIsolation": false,
+	"zones": [
+	  "DAL_2G",
+	  "DID_2G"
+	],
+	"maxInstancesPerVM": "2",
+	"maxInstancesPerMachine": "0"
+  },
+  "contextProperties": {
+	"app.http.incomingPort": "8080",
+	"capsin.database.jdbcUrl": "jdbc:oracle:thin:@***REMOVED***:12992:inq1",
+	"capsin.database.username": "***REMOVED***",
+	"capsin.database.password": "password",
+	"capsin.hibernate.hbm2ddl.auto": "none"
+  }
+}
