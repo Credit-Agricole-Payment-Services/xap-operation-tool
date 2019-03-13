@@ -19,6 +19,6 @@ CLASSPATH=${CLASSPATH}:$(find "${LIB_DIR}" -name '*.jar' | tr '\n' ':')
 
 OPERATION=restart-managers
 
-time java -Xms1G -Xmx1G -Dcom.gs.logging.disabled=true -cp "${CLASSPATH}" -jar $LIB_DIR/xap-operation-tool-main-1.1.0-SNAPSHOT.jar $OPERATION "$@"
+time java -Xms1G -Xmx1G -Dcom.gs.logging.disabled=true -cp "${CLASSPATH}" -jar $LIB_DIR/xap-operation-tool-main-${project.version}.jar $OPERATION "$@"
 
 echo "Script $0 finished successfully"
