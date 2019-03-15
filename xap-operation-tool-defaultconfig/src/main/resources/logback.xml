@@ -1,5 +1,7 @@
 <configuration>
 
+	<variable name="USER" value="${USER:-DEFAULT}" />
+
 	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
 		<filter class="gca.in.xap.tools.operationtool.logback.ThresholdLoggerFilter">
 			<logger>console</logger>
@@ -20,11 +22,11 @@
 	</appender>
 
 	<appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-		<file>logs/xap-application-deployTask.log</file>
+		<file>${sys:logdir:-/app/in/log}/xap-operation-tool-${USER}.log</file>
 		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
 			<!-- daily rollover -->
-			<fileNamePattern>logs/xap-application-deployTask.%d{yyyy-MM-dd}.log</fileNamePattern>
-			<maxHistory>8</maxHistory>
+			<fileNamePattern>${sys:logdir:-/app/in/logs}/xap-operation-tool-${USER}.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<maxHistory>32</maxHistory>
 		</rollingPolicy>
 
 		<encoder>
