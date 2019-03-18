@@ -5,16 +5,13 @@ import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 
-public class UndeployTask {
+public class PrintReportTask {
 
 	private final UserDetailsConfigFactory userDetailsConfigFactory = new UserDetailsConfigFactory();
 
 	private final XapServiceBuilder xapServiceBuilder = new XapServiceBuilder();
 
 	public void executeTask(ApplicationArguments applicationArguments) {
-		applicationArguments.checkMinimalNumberOfCommandLineArgs(1);
-		String applicationName = applicationArguments.commandLineArgs.get(0);
-
 		UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
 				applicationArguments.username,
 				applicationArguments.password
@@ -27,9 +24,10 @@ public class UndeployTask {
 				.userDetails(userDetails)
 				.create();
 
+		xapService.printReportOnManagers();
+		xapService.printReportOnVirtualMachines();
 		xapService.printReportOnContainersAndProcessingUnits();
 
-		xapService.undeployIfExists(applicationName);
 	}
 
 }

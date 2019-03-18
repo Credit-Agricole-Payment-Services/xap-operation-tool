@@ -9,7 +9,6 @@ import org.openspaces.admin.pu.config.UserDetailsConfig;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -68,7 +67,8 @@ public class XapServiceBuilder {
 		while (attemptCount > 0 && gridServiceManagers == null || gridServiceManagers.getSize() == 0) {
 			waitToDiscoverXap(1);
 			gridServiceManagers = getGridServiceManagersFromAdmin(admin);
-			log.info("GridServiceManagers : {}", Arrays.toString(gridServiceManagers.getManagers()));
+			int managersCount = gridServiceManagers.getSize();
+			log.info("Found Managers count : {}", managersCount);
 			attemptCount--;
 		}
 
@@ -85,10 +85,7 @@ public class XapServiceBuilder {
 	}
 
 	GridServiceManagers getGridServiceManagersFromAdmin(Admin admin) {
-		GridServiceManagers result = admin.getGridServiceManagers();
-		final int gsmCount = result.getSize();
-		log.info("gsmCount = {}", gsmCount);
-		return result;
+		return admin.getGridServiceManagers();
 		//GridServiceManager gridServiceManagers = admin.getGridServiceManagers().waitForAtLeastOne(5, TimeUnit.MINUTES);
 		//log.info("Retrieved GridServiceManager> locators: {} ; groups: {}");
 		//return gridServiceManagers;

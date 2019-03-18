@@ -147,6 +147,11 @@ public class Tool implements Runnable {
 					task.executeTask(applicationArguments);
 					break;
 				}
+				case print_report: {
+					PrintReportTask task = new PrintReportTask();
+					task.executeTask(applicationArguments);
+					break;
+				}
 				default:
 					List<String> supportedCommands = Arrays.stream(Command.values())
 							.map(Enum::name)
