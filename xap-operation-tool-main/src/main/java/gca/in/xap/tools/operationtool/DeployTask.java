@@ -4,12 +4,11 @@ import gca.in.xap.tools.operationtool.service.*;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
-import net.lingala.zip4j.core.ZipFile;
-import net.lingala.zip4j.exception.ZipException;
 import org.openspaces.admin.application.config.ApplicationConfig;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
 @Slf4j
@@ -20,6 +19,8 @@ public class DeployTask {
 	private final XapServiceBuilder xapServiceBuilder = new XapServiceBuilder();
 
 	private final UserConfirmationService userConfirmationService = new UserConfirmationService();
+
+	private final ApplicationFileLocator applicationFileLocator = new ApplicationFileLocator();
 
 	public void executeTask(
 			ApplicationArguments applicationArguments, boolean wholeMode,
@@ -40,8 +41,13 @@ public class DeployTask {
 				.userDetails(userDetails)
 				.create();
 
-
-		final File archiveFileOrDirectory = new File(archiveFilename);
+		final File archiveFileOrDirectory;
+		try {
+			archiveFileOrDirectory = applicationFileLocator.locateApplicationFile(archiveFilename);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		log.info("Using archive file : {}", archiveFileOrDirectory);
 
 		final File deploymentDescriptorsDirectory = new File(deploymentDescriptorsDirectoryLocation);
 
@@ -79,8 +85,6 @@ public class DeployTask {
 
 		xapService.printReportOnContainersAndProcessingUnits();
 	}
-
-
 
 
 }
