@@ -60,11 +60,6 @@ public class DeployTask {
 		log.info("Will deploy ApplicationConfig : {}", applicationConfig);
 		userConfirmationService.askConfirmationAndWait();
 
-		if (archiveFileOrDirectory.isFile()) {
-			File outputDirectory = new File(".");
-			unzip(archiveFileOrDirectory, outputDirectory);
-		}
-
 		xapService.printReportOnContainersAndProcessingUnits();
 
 		if (wholeMode) {
@@ -86,13 +81,6 @@ public class DeployTask {
 	}
 
 
-	public static void unzip(File archiveFile, File destinationDirectory) {
-		try {
-			ZipFile zipFile = new ZipFile(archiveFile);
-			zipFile.extractAll(destinationDirectory.getPath());
-		} catch (ZipException e) {
-			throw new RuntimeException(e);
-		}
-	}
+
 
 }

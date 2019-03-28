@@ -2,6 +2,7 @@ package gca.in.xap.tools.operationtool.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gca.in.xap.tools.operationtool.model.DeploymentDescriptor;
+import gca.in.xap.tools.operationtool.util.ZipUtil;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.application.ApplicationFileDeployment;
@@ -77,7 +78,24 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 			throw new IllegalArgumentException("deploymentDescriptorsDirectoryFile should be a valid directory : " + deploymentDescriptorsDirectoryFile);
 		}
 
-		final ApplicationConfig applicationConfig = new ApplicationFileDeployment(applicationArchiveFileOrDirectory).create();
+		File puDirectory;
+		if (applicationArchiveFileOrDirectory.isFile()) {
+			File outputDirectoryParent = new File("/tmp/xot/");
+			outputDirectoryParent.mkdirs();
+			try {
+				puDirectory = File.createTempFile("app_", "_unzipped", outputDirectoryParent);
+			} catch (IOException e) {
+				throw new RuntimeException("Failed to create a temp directory", e);
+			}
+			puDirectory.delete();
+			puDirectory.mkdirs();
+			puDirectory.deleteOnExit();
+			ZipUtil.unzip(applicationArchiveFileOrDirectory, puDirectory);
+		} else {
+			puDirectory = applicationArchiveFileOrDirectory;
+		}
+
+		final ApplicationConfig applicationConfig = new ApplicationFileDeployment(puDirectory).create();
 		log.debug("applicationConfig = {}", applicationConfig);
 
 		final SecretsConfigBuilder secretsConfigBuilder = new SecretsConfigBuilder();
@@ -90,7 +108,7 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 		}
 
 		for (ProcessingUnitConfigHolder puConfig : applicationConfig.getProcessingUnits()) {
-			configure(secretsConfigBuilder, puConfig, sharedPropertiesAsMap, deploymentDescriptorsDirectoryFile);
+			configure(secretsConfigBuilder, puConfig, sharedPropertiesAsMap, deploymentDescriptorsDirectoryFile, puDirectory);
 		}
 		log.info("Created ApplicationConfig for application '{}' composed of : {}",
 				applicationConfig.getName(),
@@ -103,7 +121,8 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 			SecretsConfigBuilder secretsConfigBuilder,
 			ProcessingUnitConfigHolder puConfig,
 			Map<String, String> sharedPropertiesAsMap,
-			File deploymentDescriptorsDirectoryFile
+			File deploymentDescriptorsDirectoryFile,
+			File puDirectory
 	) {
 		final File deploymentDescriptorFile = new File(deploymentDescriptorsDirectoryFile, puConfig.getName() + ".json");
 		DeploymentDescriptor deploymentDescriptor;
@@ -165,13 +184,24 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 		// in order to remove the artifact version from the name
 		// so that the PU can support hot deployment later
 		// (by simply overwriting files in the /work/deploy directory on the managers)
-		String originalProcessingUnitResourceName = processingUnitConfig.getProcessingUnit();
+		final String originalProcessingUnitResourceName = processingUnitConfig.getProcessingUnit();
 		String newProcessingUnitResourceName = processingUnitConfig.getName() + "-pu.jar";
 		if (deploymentDescriptor != null) {
 			newProcessingUnitResourceName = deploymentDescriptor.getResource();
 		}
+
+		final File newProcessingUnitResourceFile = new File(puDirectory, newProcessingUnitResourceName);
+
 		log.info("originalProcessingUnitResourceName = {}, newProcessingUnitResourceName = {}", originalProcessingUnitResourceName, newProcessingUnitResourceName);
-		//processingUnitConfig.setProcessingUnit(newProcessingUnitResourceName);
+		processingUnitConfig.setProcessingUnit(newProcessingUnitResourceFile.getAbsolutePath());
+
+		File originalProcessingUnitResourceFile = new File(puDirectory, originalProcessingUnitResourceName);
+		log.info("Renaming file {} to {} ...", originalProcessingUnitResourceFile.getAbsolutePath(), newProcessingUnitResourceFile.getAbsolutePath());
+		originalProcessingUnitResourceFile.renameTo(newProcessingUnitResourceFile);
+
+		if (!newProcessingUnitResourceFile.exists()) {
+			log.warn("File {} does not exists", newProcessingUnitResourceFile.getAbsolutePath());
+		}
 
 		log.debug("processingUnitConfig = {}", processingUnitConfig);
 	}
