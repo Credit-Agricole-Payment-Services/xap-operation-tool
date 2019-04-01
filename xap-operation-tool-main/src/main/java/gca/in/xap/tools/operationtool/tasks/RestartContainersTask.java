@@ -1,5 +1,6 @@
-package gca.in.xap.tools.operationtool;
+package gca.in.xap.tools.operationtool.tasks;
 
+import gca.in.xap.tools.operationtool.ApplicationArguments;
 import gca.in.xap.tools.operationtool.service.RestartStrategy;
 import gca.in.xap.tools.operationtool.service.UserDetailsConfigFactory;
 import gca.in.xap.tools.operationtool.service.XapService;
@@ -27,15 +28,15 @@ public class RestartContainersTask {
 	}
 
 	public void executeTask(ApplicationArguments applicationArguments) {
-		UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
-				applicationArguments.username,
-				applicationArguments.password
+		final UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
+				applicationArguments.getUsername(),
+				applicationArguments.getPassword()
 		);
 
-		XapService xapService = xapServiceBuilder
-				.locators(applicationArguments.locators)
-				.groups(applicationArguments.groups)
-				.timeout(applicationArguments.timeoutDuration)
+		final XapService xapService = xapServiceBuilder
+				.locators(applicationArguments.getLocators())
+				.groups(applicationArguments.getGroups())
+				.timeout(applicationArguments.getTimeoutDuration())
 				.userDetails(userDetails)
 				.create();
 

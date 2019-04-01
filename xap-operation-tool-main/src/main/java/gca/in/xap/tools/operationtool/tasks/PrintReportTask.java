@@ -1,37 +1,34 @@
-package gca.in.xap.tools.operationtool;
+package gca.in.xap.tools.operationtool.tasks;
 
+import gca.in.xap.tools.operationtool.ApplicationArguments;
 import gca.in.xap.tools.operationtool.service.UserDetailsConfigFactory;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
-import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 
-import java.time.Duration;
-
-@Slf4j
-public class HeapDumpTask {
+public class PrintReportTask {
 
 	private final UserDetailsConfigFactory userDetailsConfigFactory = new UserDetailsConfigFactory();
 
 	private final XapServiceBuilder xapServiceBuilder = new XapServiceBuilder();
 
 	public void executeTask(ApplicationArguments applicationArguments) {
-		UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
-				applicationArguments.username,
-				applicationArguments.password
+		final UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
+				applicationArguments.getUsername(),
+				applicationArguments.getPassword()
 		);
 
-		XapService xapService = xapServiceBuilder
-				.locators(applicationArguments.locators)
-				.groups(applicationArguments.groups)
-				.timeout(applicationArguments.timeoutDuration)
+		final XapService xapService = xapServiceBuilder
+				.locators(applicationArguments.getLocators())
+				.groups(applicationArguments.getGroups())
+				.timeout(applicationArguments.getTimeoutDuration())
 				.userDetails(userDetails)
 				.create();
 
+		xapService.printReportOnManagers();
+		xapService.printReportOnVirtualMachines();
 		xapService.printReportOnContainersAndProcessingUnits();
 
-		xapService.setDefaultTimeout(Duration.ofMinutes(5));
-		xapService.generateHeapDumpOnEachGsc();
 	}
 
 }

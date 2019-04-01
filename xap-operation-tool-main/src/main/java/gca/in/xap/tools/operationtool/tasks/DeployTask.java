@@ -1,5 +1,6 @@
-package gca.in.xap.tools.operationtool;
+package gca.in.xap.tools.operationtool.tasks;
 
+import gca.in.xap.tools.operationtool.ApplicationArguments;
 import gca.in.xap.tools.operationtool.service.*;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.NonNull;
@@ -29,15 +30,15 @@ public class DeployTask {
 		final @NonNull String archiveFilename = applicationArguments.getApplicationPath();
 		final @NonNull String deploymentDescriptorsDirectoryLocation = applicationArguments.getDescriptorsPath();
 
-		UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
-				applicationArguments.username,
-				applicationArguments.password
+		final UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
+				applicationArguments.getUsername(),
+				applicationArguments.getPassword()
 		);
 
-		XapService xapService = xapServiceBuilder
-				.locators(applicationArguments.locators)
-				//.groups(applicationArguments.groups)
-				.timeout(applicationArguments.timeoutDuration)
+		final XapService xapService = xapServiceBuilder
+				.locators(applicationArguments.getLocators())
+				.groups(applicationArguments.getGroups())
+				.timeout(applicationArguments.getTimeoutDuration())
 				.userDetails(userDetails)
 				.create();
 
@@ -78,9 +79,9 @@ public class DeployTask {
 		}
 
 		if (wholeMode) {
-			xapService.deployWhole(applicationConfig, applicationArguments.timeoutDuration);
+			xapService.deployWhole(applicationConfig, applicationArguments.getTimeoutDuration());
 		} else {
-			xapService.deployProcessingUnits(applicationConfig, applicationArguments.timeoutDuration, restartEmptyContainers);
+			xapService.deployProcessingUnits(applicationConfig, applicationArguments.getTimeoutDuration(), restartEmptyContainers);
 		}
 
 		xapService.printReportOnContainersAndProcessingUnits();

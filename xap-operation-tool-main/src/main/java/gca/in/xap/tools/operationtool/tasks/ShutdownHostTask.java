@@ -1,5 +1,6 @@
-package gca.in.xap.tools.operationtool;
+package gca.in.xap.tools.operationtool.tasks;
 
+import gca.in.xap.tools.operationtool.ApplicationArguments;
 import gca.in.xap.tools.operationtool.service.UserDetailsConfigFactory;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
@@ -16,22 +17,22 @@ public class ShutdownHostTask {
 	public void executeTask(ApplicationArguments applicationArguments) {
 		applicationArguments.checkMinimalNumberOfCommandLineArgs(1);
 
-		UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
-				applicationArguments.username,
-				applicationArguments.password
+		final UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
+				applicationArguments.getUsername(),
+				applicationArguments.getPassword()
 		);
 
-		XapService xapService = xapServiceBuilder
-				.locators(applicationArguments.locators)
-				.groups(applicationArguments.groups)
-				.timeout(applicationArguments.timeoutDuration)
+		final XapService xapService = xapServiceBuilder
+				.locators(applicationArguments.getLocators())
+				.groups(applicationArguments.getGroups())
+				.timeout(applicationArguments.getTimeoutDuration())
 				.userDetails(userDetails)
 				.create();
 
 		xapService.printReportOnContainersAndProcessingUnits();
 
 		xapService.setDefaultTimeout(Duration.ofMinutes(5));
-		String hostname = applicationArguments.commandLineArgs.get(0);
+		String hostname = applicationArguments.getCommandLineArgs().get(0);
 		xapService.shutdownHost(hostname);
 	}
 
