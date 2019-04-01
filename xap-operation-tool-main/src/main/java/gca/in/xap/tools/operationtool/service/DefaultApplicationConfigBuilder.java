@@ -2,6 +2,7 @@ package gca.in.xap.tools.operationtool.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gca.in.xap.tools.operationtool.model.DeploymentDescriptor;
+import gca.in.xap.tools.operationtool.userinput.SecretsConfigInteractiveCallback;
 import gca.in.xap.tools.operationtool.util.ConfigAndSecretsHolder;
 import gca.in.xap.tools.operationtool.util.MergeMap;
 import gca.in.xap.tools.operationtool.util.ZipUtil;

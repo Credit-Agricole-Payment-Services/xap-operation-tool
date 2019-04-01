@@ -1,4 +1,4 @@
-package gca.in.xap.tools.operationtool.service;
+package gca.in.xap.tools.operationtool.userinput;
 
 import gca.in.xap.tools.operationtool.util.ConfigAndSecretsHolder;
 import gca.in.xap.tools.operationtool.util.SecretsMap;
