@@ -2,6 +2,10 @@ package gca.in.xap.tools.operationtool.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gca.in.xap.tools.operationtool.model.DeploymentDescriptor;
+import gca.in.xap.tools.operationtool.userinput.SecretsConfigInteractiveCallback;
+import gca.in.xap.tools.operationtool.util.ConfigAndSecretsHolder;
+import gca.in.xap.tools.operationtool.util.MergeMap;
+import gca.in.xap.tools.operationtool.util.ZipUtil;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.application.ApplicationFileDeployment;
@@ -13,10 +17,8 @@ import org.openspaces.admin.pu.topology.ProcessingUnitConfigHolder;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Properties;
-import java.util.TreeMap;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @ToString
@@ -35,7 +37,7 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 	 * Context Properties that would be applied to every PU
 	 */
 	@Nullable
-	private Properties sharedProperties;
+	private ConfigAndSecretsHolder sharedProperties;
 
 	private final ObjectMapper objectMapper = new ObjectMapperFactory().createObjectMapper();
 
@@ -54,7 +56,7 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 		return this;
 	}
 
-	public DefaultApplicationConfigBuilder withSharedProperties(Properties sharedProperties) {
+	public DefaultApplicationConfigBuilder withSharedProperties(ConfigAndSecretsHolder sharedProperties) {
 		this.sharedProperties = sharedProperties;
 		return this;
 	}
@@ -77,20 +79,39 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 			throw new IllegalArgumentException("deploymentDescriptorsDirectoryFile should be a valid directory : " + deploymentDescriptorsDirectoryFile);
 		}
 
-		final ApplicationConfig applicationConfig = new ApplicationFileDeployment(applicationArchiveFileOrDirectory).create();
-		log.debug("applicationConfig = {}", applicationConfig);
+		File puDirectory;
+		if (applicationArchiveFileOrDirectory.isFile()) {
+			File outputDirectoryParent = new File("/tmp/xot/");
+			outputDirectoryParent.mkdirs();
+			try {
+				puDirectory = File.createTempFile("app_", "_unzipped", outputDirectoryParent);
+			} catch (IOException e) {
+				throw new RuntimeException("Failed to create a temp directory", e);
+			}
+			puDirectory.delete();
+			puDirectory.mkdirs();
+			puDirectory.deleteOnExit();
+			ZipUtil.unzip(applicationArchiveFileOrDirectory, puDirectory);
+		} else {
+			puDirectory = applicationArchiveFileOrDirectory;
+		}
 
-		final SecretsConfigBuilder secretsConfigBuilder = new SecretsConfigBuilder();
+		final ApplicationConfig applicationConfig = createApplicationConfig(puDirectory);
 
-		Map<String, String> sharedPropertiesAsMap = toMap(sharedProperties);
+		// do not print the ApplicationConfig to logs, in order to avoid leaking sensible configuration (passwords)
+		//log.debug("applicationConfig = {}", applicationConfig);
+
+		final SecretsConfigInteractiveCallback secretsConfigInteractiveCallback = new SecretsConfigInteractiveCallback();
+
+		final ConfigAndSecretsHolder sharedPropertiesHolder;
 		try {
-			sharedPropertiesAsMap = secretsConfigBuilder.askSecrets(sharedPropertiesAsMap);
+			sharedPropertiesHolder = secretsConfigInteractiveCallback.requestForSecrets(sharedProperties);
 		} catch (IOException e) {
 			throw new RuntimeException("Exception while asking for user input for secrets value", e);
 		}
 
 		for (ProcessingUnitConfigHolder puConfig : applicationConfig.getProcessingUnits()) {
-			configure(secretsConfigBuilder, puConfig, sharedPropertiesAsMap, deploymentDescriptorsDirectoryFile);
+			configure(secretsConfigInteractiveCallback, puConfig, sharedPropertiesHolder, deploymentDescriptorsDirectoryFile, puDirectory);
 		}
 		log.info("Created ApplicationConfig for application '{}' composed of : {}",
 				applicationConfig.getName(),
@@ -99,11 +120,18 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 		return applicationConfig;
 	}
 
+	private ApplicationConfig createApplicationConfig(File puDirectory) {
+		final ApplicationConfig applicationConfig = new ApplicationFileDeployment(puDirectory).create();
+
+		return applicationConfig;
+	}
+
 	private void configure(
-			SecretsConfigBuilder secretsConfigBuilder,
+			SecretsConfigInteractiveCallback secretsConfigInteractiveCallback,
 			ProcessingUnitConfigHolder puConfig,
-			Map<String, String> sharedPropertiesAsMap,
-			File deploymentDescriptorsDirectoryFile
+			ConfigAndSecretsHolder sharedPropertiesHolder,
+			File deploymentDescriptorsDirectoryFile,
+			File puDirectory
 	) {
 		final File deploymentDescriptorFile = new File(deploymentDescriptorsDirectoryFile, puConfig.getName() + ".json");
 		DeploymentDescriptor deploymentDescriptor;
@@ -120,18 +148,32 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 			log.info("Deployment Descriptor = {}", deploymentDescriptor);
 		}
 
-		puConfig.getContextProperties().putAll(sharedPropertiesAsMap);
+		final Map<String, String> originalContextProperties = Collections.unmodifiableMap(puConfig.getContextProperties());
+
+		final List<Map<String, String>> contextPropertiesList = new ArrayList<>();
+
+		contextPropertiesList.add(originalContextProperties);
+		contextPropertiesList.add(sharedPropertiesHolder.getConfigMap());
+		contextPropertiesList.add(sharedPropertiesHolder.getSecretsMap());
+
 		if (deploymentDescriptor != null) {
-			Map<String, String> additionalContextProperties = deploymentDescriptor.getContextProperties();
+			final Map<String, String> additionalContextProperties = deploymentDescriptor.getContextProperties();
 			if (additionalContextProperties != null) {
-				try {
-					additionalContextProperties = secretsConfigBuilder.askSecrets(additionalContextProperties);
-				} catch (IOException e) {
-					throw new RuntimeException("Exception while asking for user input for secrets value", e);
+				if (!additionalContextProperties.isEmpty()) {
+					ConfigAndSecretsHolder additionalContextPropertiesHolder;
+					try {
+						additionalContextPropertiesHolder = secretsConfigInteractiveCallback.requestForSecrets(additionalContextProperties);
+					} catch (IOException e) {
+						throw new RuntimeException("Exception while asking for user input for secrets value", e);
+					}
+					contextPropertiesList.add(additionalContextPropertiesHolder.getConfigMap());
+					contextPropertiesList.add(additionalContextPropertiesHolder.getSecretsMap());
 				}
-				puConfig.getContextProperties().putAll(additionalContextProperties);
 			}
 		}
+
+		final MergeMap<String, String> finalContextProperties = new MergeMap<>(contextPropertiesList.stream().filter(list -> !list.isEmpty()).collect(Collectors.toList()));
+		puConfig.setContextProperties(finalContextProperties);
 
 		if (userDetailsConfig != null) {
 			puConfig.setUserDetails(userDetailsConfig);
@@ -165,13 +207,24 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 		// in order to remove the artifact version from the name
 		// so that the PU can support hot deployment later
 		// (by simply overwriting files in the /work/deploy directory on the managers)
-		String originalProcessingUnitResourceName = processingUnitConfig.getProcessingUnit();
+		final String originalProcessingUnitResourceName = processingUnitConfig.getProcessingUnit();
 		String newProcessingUnitResourceName = processingUnitConfig.getName() + "-pu.jar";
 		if (deploymentDescriptor != null) {
 			newProcessingUnitResourceName = deploymentDescriptor.getResource();
 		}
+
+		final File newProcessingUnitResourceFile = new File(puDirectory, newProcessingUnitResourceName);
+
 		log.info("originalProcessingUnitResourceName = {}, newProcessingUnitResourceName = {}", originalProcessingUnitResourceName, newProcessingUnitResourceName);
-		//processingUnitConfig.setProcessingUnit(newProcessingUnitResourceName);
+		processingUnitConfig.setProcessingUnit(newProcessingUnitResourceFile.getAbsolutePath());
+
+		File originalProcessingUnitResourceFile = new File(puDirectory, originalProcessingUnitResourceName);
+		log.info("Renaming file {} to {} ...", originalProcessingUnitResourceFile.getAbsolutePath(), newProcessingUnitResourceFile.getAbsolutePath());
+		originalProcessingUnitResourceFile.renameTo(newProcessingUnitResourceFile);
+
+		if (!newProcessingUnitResourceFile.exists()) {
+			log.warn("File {} does not exists", newProcessingUnitResourceFile.getAbsolutePath());
+		}
 
 		log.debug("processingUnitConfig = {}", processingUnitConfig);
 	}

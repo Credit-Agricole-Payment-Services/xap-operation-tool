@@ -1,15 +1,16 @@
-package gca.in.xap.tools.operationtool;
+package gca.in.xap.tools.operationtool.tasks;
 
+import gca.in.xap.tools.operationtool.ApplicationArguments;
 import gca.in.xap.tools.operationtool.service.*;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
+import gca.in.xap.tools.operationtool.util.ConfigAndSecretsHolder;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
-import net.lingala.zip4j.core.ZipFile;
-import net.lingala.zip4j.exception.ZipException;
 import org.openspaces.admin.application.config.ApplicationConfig;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
 @Slf4j
@@ -21,6 +22,8 @@ public class DeployTask {
 
 	private final UserConfirmationService userConfirmationService = new UserConfirmationService();
 
+	private final ApplicationFileLocator applicationFileLocator = new ApplicationFileLocator();
+
 	public void executeTask(
 			ApplicationArguments applicationArguments, boolean wholeMode,
 			boolean restartEmptyContainers) throws TimeoutException {
@@ -28,24 +31,29 @@ public class DeployTask {
 		final @NonNull String archiveFilename = applicationArguments.getApplicationPath();
 		final @NonNull String deploymentDescriptorsDirectoryLocation = applicationArguments.getDescriptorsPath();
 
-		UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
-				applicationArguments.username,
-				applicationArguments.password
+		final UserDetailsConfig userDetails = userDetailsConfigFactory.createFromUrlEncodedValue(
+				applicationArguments.getUsername(),
+				applicationArguments.getPassword()
 		);
 
-		XapService xapService = xapServiceBuilder
-				.locators(applicationArguments.locators)
-				//.groups(applicationArguments.groups)
-				.timeout(applicationArguments.timeoutDuration)
+		final XapService xapService = xapServiceBuilder
+				.locators(applicationArguments.getLocators())
+				.groups(applicationArguments.getGroups())
+				.timeout(applicationArguments.getTimeoutDuration())
 				.userDetails(userDetails)
 				.create();
 
-
-		final File archiveFileOrDirectory = new File(archiveFilename);
+		final File archiveFileOrDirectory;
+		try {
+			archiveFileOrDirectory = applicationFileLocator.locateApplicationFile(archiveFilename);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		log.info("Using archive file : {}", archiveFileOrDirectory);
 
 		final File deploymentDescriptorsDirectory = new File(deploymentDescriptorsDirectoryLocation);
 
-		final PropertiesMergeBuilder propertiesMergeBuilder = PropertiesMergeBuilder.createFromConvention(deploymentDescriptorsDirectory);
+		final ConfigAndSecretsHolder sharedProperties = PropertiesMergeBuilder.createFromConvention(deploymentDescriptorsDirectory);
 
 		final DefaultApplicationConfigBuilder appDeployBuilder;
 
@@ -53,17 +61,12 @@ public class DeployTask {
 				.withApplicationArchiveFileOrDirectory(archiveFileOrDirectory)
 				.withDeploymentDescriptorsDirectory(deploymentDescriptorsDirectory)
 				.withUserDetailsConfig(userDetails)
-				.withSharedProperties(propertiesMergeBuilder.getMergedProperties());
+				.withSharedProperties(sharedProperties);
 
 		ApplicationConfig applicationConfig = appDeployBuilder.create();
 
 		log.info("Will deploy ApplicationConfig : {}", applicationConfig);
 		userConfirmationService.askConfirmationAndWait();
-
-		if (archiveFileOrDirectory.isFile()) {
-			File outputDirectory = new File(".");
-			unzip(archiveFileOrDirectory, outputDirectory);
-		}
 
 		xapService.printReportOnContainersAndProcessingUnits();
 
@@ -77,22 +80,13 @@ public class DeployTask {
 		}
 
 		if (wholeMode) {
-			xapService.deployWhole(applicationConfig, applicationArguments.timeoutDuration);
+			xapService.deployWhole(applicationConfig, applicationArguments.getTimeoutDuration());
 		} else {
-			xapService.deployProcessingUnits(applicationConfig, applicationArguments.timeoutDuration, restartEmptyContainers);
+			xapService.deployProcessingUnits(applicationConfig, applicationArguments.getTimeoutDuration(), restartEmptyContainers);
 		}
 
 		xapService.printReportOnContainersAndProcessingUnits();
 	}
 
-
-	public static void unzip(File archiveFile, File destinationDirectory) {
-		try {
-			ZipFile zipFile = new ZipFile(archiveFile);
-			zipFile.extractAll(destinationDirectory.getPath());
-		} catch (ZipException e) {
-			throw new RuntimeException(e);
-		}
-	}
 
 }

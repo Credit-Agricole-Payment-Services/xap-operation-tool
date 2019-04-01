@@ -5,6 +5,7 @@ import gca.in.xap.tools.operationtool.predicates.container.StatefulBackupsOnlyPr
 import gca.in.xap.tools.operationtool.predicates.container.StatefulPrimariesOnlyPredicate;
 import gca.in.xap.tools.operationtool.predicates.pu.IsStatefulProcessingUnitPredicate;
 import gca.in.xap.tools.operationtool.service.RestartStrategy;
+import gca.in.xap.tools.operationtool.tasks.*;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.pu.ProcessingUnitInstance;
 import picocli.CommandLine;
@@ -144,6 +145,11 @@ public class Tool implements Runnable {
 				}
 				case trigger_gc: {
 					GarbageCollectorTask task = new GarbageCollectorTask();
+					task.executeTask(applicationArguments);
+					break;
+				}
+				case print_report: {
+					PrintReportTask task = new PrintReportTask();
 					task.executeTask(applicationArguments);
 					break;
 				}

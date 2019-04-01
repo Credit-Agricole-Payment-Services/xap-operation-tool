@@ -25,17 +25,23 @@ public class ApplicationArguments {
 	private static final String PROP_TIMEOUT = "timeout";
 	private static final String PROP_TIMEOUT_DEFAULT = "PT10M";
 
+	@Getter
 	final String username = System.getProperty(PROP_CREDENTIAL_USERNAME);
 
+	@Getter
 	final String password = System.getProperty(PROP_CREDENTIAL_SECRET, "");
 
-	final List<String> locators = findLookupLocators();
+	@Getter
+	final List<String> locators = Collections.unmodifiableList(findLookupLocators());
 
-	final List<String> groups = findLookupGroups();
+	@Getter
+	final List<String> groups = Collections.unmodifiableList(findLookupGroups());
 
+	@Getter
 	final Duration timeoutDuration = Duration.parse(System.getProperty(PROP_TIMEOUT, PROP_TIMEOUT_DEFAULT));
 
 	@Nullable
+	@Getter
 	final List<String> commandLineArgs;
 
 	@Setter
@@ -112,7 +118,7 @@ public class ApplicationArguments {
 		if (value == null) {
 			value = defaultValue;
 			log.info("Using default value {} because neither ENV variable {} nor System property {} are set", defaultValue, envVariableName, systemPropertyName);
-			log.info("It is recommended to run the following command before using the tool, in order to have ENV variables set : source $XAP_ROOT_PATH/bin/setenv.sh");
+			log.warn("It is recommended to run the following command before using the tool, in order to have ENV variables set : source $XAP_ROOT_PATH/bin/setenv.sh");
 		}
 		return Arrays.asList(value.split(","));
 	}

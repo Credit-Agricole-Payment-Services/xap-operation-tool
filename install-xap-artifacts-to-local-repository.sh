@@ -15,26 +15,30 @@ mvn org.apache.maven.plugins:maven-install-plugin:2.3.1:install-file -DlocalRepo
 
 mvn org.apache.maven.plugins:maven-install-plugin:2.3.1:install-file -DlocalRepositoryPath=${localRepositoryPath} \
 -Dfile=${XAP_HOME}/lib/required/xap-openspaces.jar -Dpackaging=jar \
--DgroupId=com.gigaspaces -DartifactId=xap-openspaces -Dversion=${XAP_VERSION}
+-DgroupId=org.gigaspaces -DartifactId=xap-openspaces -Dversion=${XAP_VERSION}
 
 mvn org.apache.maven.plugins:maven-install-plugin:2.3.1:install-file -DlocalRepositoryPath=${localRepositoryPath} \
 -Dfile=${XAP_HOME}/lib/required/xap-datagrid.jar -Dpackaging=jar \
--DgroupId=com.gigaspaces -DartifactId=xap-datagrid -Dversion=${XAP_VERSION}
+-DgroupId=org.gigaspaces -DartifactId=xap-datagrid -Dversion=${XAP_VERSION}
 
 mvn org.apache.maven.plugins:maven-install-plugin:2.3.1:install-file -DlocalRepositoryPath=${localRepositoryPath} \
 -Dfile=${XAP_HOME}/lib/required/xap-common.jar -Dpackaging=jar \
--DgroupId=com.gigaspaces -DartifactId=xap-common -Dversion=${XAP_VERSION}
+-DgroupId=org.gigaspaces -DartifactId=xap-common -Dversion=${XAP_VERSION}
 
 mvn org.apache.maven.plugins:maven-install-plugin:2.3.1:install-file -DlocalRepositoryPath=${localRepositoryPath} \
 -Dfile=${XAP_HOME}/lib/required/xap-trove.jar -Dpackaging=jar \
--DgroupId=com.gigaspaces -DartifactId=xap-trove -Dversion=${XAP_VERSION}
+-DgroupId=org.gigaspaces -DartifactId=xap-trove -Dversion=${XAP_VERSION}
 
 mvn org.apache.maven.plugins:maven-install-plugin:2.3.1:install-file -DlocalRepositoryPath=${localRepositoryPath} \
 -Dfile=${XAP_HOME}/lib/required/xap-asm.jar -Dpackaging=jar \
--DgroupId=com.gigaspaces -DartifactId=xap-asm -Dversion=${XAP_VERSION}
+-DgroupId=org.gigaspaces -DartifactId=xap-asm -Dversion=${XAP_VERSION}
 
 mvn org.apache.maven.plugins:maven-install-plugin:2.3.1:install-file -DlocalRepositoryPath=${localRepositoryPath} \
 -Dfile=${XAP_HOME}/lib/platform/service-grid/xap-service-grid.jar -Dpackaging=jar \
 -DgroupId=com.gigaspaces -DartifactId=xap-service-grid -Dversion=${XAP_VERSION}
+
+mvn org.apache.maven.plugins:maven-install-plugin:2.3.1:install-file -DlocalRepositoryPath=${localRepositoryPath} \
+-Dfile=${XAP_HOME}/lib/required/xap-premium-common.jar -Dpackaging=jar \
+-DgroupId=org.gigaspaces -DartifactId=xap-premium-common -Dversion=${XAP_VERSION}
 
 echo "Success"

@@ -1,12 +1,14 @@
 package gca.in.xap.tools.operationtool.model;
 
 import lombok.Data;
+import lombok.ToString;
 
 import java.util.List;
 import java.util.Map;
 
 @Data
 //@JsonIgnoreProperties(ignoreUnknown = true)
+@ToString(exclude = {"contextProperties"})
 public class DeploymentDescriptor {
 
 	@Data
