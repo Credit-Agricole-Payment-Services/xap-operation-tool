@@ -3,6 +3,7 @@ package gca.in.xap.tools.operationtool.tasks;
 import gca.in.xap.tools.operationtool.ApplicationArguments;
 import gca.in.xap.tools.operationtool.service.*;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
+import gca.in.xap.tools.operationtool.util.ConfigAndSecretsHolder;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.application.config.ApplicationConfig;
@@ -52,7 +53,7 @@ public class DeployTask {
 
 		final File deploymentDescriptorsDirectory = new File(deploymentDescriptorsDirectoryLocation);
 
-		final PropertiesMergeBuilder propertiesMergeBuilder = PropertiesMergeBuilder.createFromConvention(deploymentDescriptorsDirectory);
+		final ConfigAndSecretsHolder sharedProperties = PropertiesMergeBuilder.createFromConvention(deploymentDescriptorsDirectory);
 
 		final DefaultApplicationConfigBuilder appDeployBuilder;
 
@@ -60,7 +61,7 @@ public class DeployTask {
 				.withApplicationArchiveFileOrDirectory(archiveFileOrDirectory)
 				.withDeploymentDescriptorsDirectory(deploymentDescriptorsDirectory)
 				.withUserDetailsConfig(userDetails)
-				.withSharedProperties(propertiesMergeBuilder.getMergedProperties());
+				.withSharedProperties(sharedProperties);
 
 		ApplicationConfig applicationConfig = appDeployBuilder.create();
 

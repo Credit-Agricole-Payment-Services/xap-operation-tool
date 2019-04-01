@@ -14,8 +14,6 @@ public class DefaultApplicationConfigBuilderTest {
 	@Test
 	@Ignore
 	public void should_build_application_config() {
-		final PropertiesMergeBuilder propertiesMergeBuilder = new PropertiesMergeBuilder();
-
 		final DefaultApplicationConfigBuilder appDeployBuilder;
 
 		File archiveFileOrDirectory = new File(".");
@@ -23,7 +21,7 @@ public class DefaultApplicationConfigBuilderTest {
 
 		appDeployBuilder = new DefaultApplicationConfigBuilder()
 				.withApplicationArchiveFileOrDirectory(archiveFileOrDirectory)
-				.withSharedProperties(propertiesMergeBuilder.getMergedProperties())
+				.withSharedProperties(PropertiesMergeBuilder.createFromConvention(deploymentDescriptorsDirectory))
 				.withDeploymentDescriptorsDirectory(deploymentDescriptorsDirectory)
 		;
 		log.info("appDeployBuilder = {}", appDeployBuilder);
