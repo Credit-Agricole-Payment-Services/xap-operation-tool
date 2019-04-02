@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsc.GridServiceContainer;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 
 import java.util.function.Predicate;
 
@@ -17,13 +18,8 @@ import java.util.function.Predicate;
 public abstract class AbstractRestartContainersCommand extends HelpAwarePicocliCommand implements Runnable {
 
 	@Autowired
-	private XapClientUserDetailsConfigFactory xapClientUserDetailsConfigFactory;
-
-	@Autowired
-	private XapServiceBuilder xapServiceBuilder;
-
-	@Autowired
-	private XapClientDiscovery xapClientDiscovery;
+	@Lazy
+	private XapService xapService;
 
 	private final Predicate<GridServiceContainer> predicate;
 
@@ -36,18 +32,6 @@ public abstract class AbstractRestartContainersCommand extends HelpAwarePicocliC
 
 	@Override
 	public void run() {
-		final UserDetailsConfig userDetails = xapClientUserDetailsConfigFactory.createFromUrlEncodedValue(
-				xapClientDiscovery.getUsername(),
-				xapClientDiscovery.getPassword()
-		);
-
-		final XapService xapService = xapServiceBuilder
-				.locators(xapClientDiscovery.getLocators())
-				.groups(xapClientDiscovery.getGroups())
-				.timeout(xapClientDiscovery.getTimeoutDuration())
-				.userDetails(userDetails)
-				.create();
-
 		log.info("Report on all GSC :");
 		xapService.printReportOnContainersAndProcessingUnits();
 
