@@ -23,6 +23,7 @@
 		<!-- included in XAP distrib -->
 		<xap.version>12.3.1</xap.version>
 		<spring.version>4.3.17.RELEASE</spring.version>
+		<spring-boot.version>1.5.19.RELEASE</spring-boot.version>
 
 		<slf4j.version>1.7.26</slf4j.version>
 		<logback.version>1.2.3</logback.version>
@@ -235,6 +236,13 @@
 				<artifactId>commons-logging</artifactId>
 				<version>1.2</version>
 			</dependency>
+
+			<dependency>
+				<groupId>com.kakawait</groupId>
+				<artifactId>picocli-spring-boot-starter</artifactId>
+				<version>0.2.0</version>
+			</dependency>
+
 			<dependency>
 				<groupId>org.springframework</groupId>
 				<artifactId>spring-core</artifactId>
