@@ -45,6 +45,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class XapService {
@@ -148,6 +149,14 @@ public class XapService {
 		// we want the GSCs to be sorted by Id, for readability and reproducibility
 		Arrays.sort(containers, Comparator.comparing(GridServiceContainer::getId));
 		return containers;
+	}
+
+	public Set<String> findContainersHostsNames() {
+		GridServiceContainers gridServiceContainers = admin.getGridServiceContainers();
+		GridServiceContainer[] containers = gridServiceContainers.getContainers();
+		TreeSet<String> result = Arrays.stream(containers).map(container -> container.getMachine().getHostName()).collect(Collectors.toCollection(TreeSet::new));
+		log.info("findContainersHostsNames() : result = {}", result);
+		return result;
 	}
 
 	public void printReportOnContainersAndProcessingUnits() {
@@ -564,13 +573,14 @@ public class XapService {
 	}
 
 	public void shutdownHost(String hostname) {
+		log.info("Asked to shutdown any GSC/GSM/GSA on host {}", hostname);
 		final Predicate<Machine> machinePredicate = machine -> machine.getHostName().equals(hostname) || machine.getHostAddress().equals(hostname);
 
 		final Machines machines = gridServiceManagers.getAdmin().getMachines();
 		final Machine[] allMachines = machines.getMachines();
 		final Machine[] matchingMachines = Arrays.stream(allMachines).filter(machinePredicate).toArray(Machine[]::new);
 
-		log.info("allMachines.length = {}, matchingMachines.length = {}", allMachines.length, matchingMachines.length);
+		log.info("Found {} machines in XAP cluster, Found {} matching machines to shutdown", allMachines.length, matchingMachines.length);
 
 		boolean forbidWhenOnlyOneHost = false;
 		if (forbidWhenOnlyOneHost) {
