@@ -10,9 +10,8 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.stream;
@@ -91,7 +90,21 @@ public class XapServiceBuilder {
 
 		// the ThreadPool should be large enough
 		// in order to execute a task for each machine in the cluster, ideally, at the same time
-		ExecutorService executor = Executors.newFixedThreadPool(32);
+		ExecutorService executor = newCachedThreadPool(32, new ThreadFactory() {
+
+			private final String threadNamePrefix = XapServiceBuilder.class.getSimpleName();
+
+			private final AtomicInteger counter = new AtomicInteger(0);
+
+			@Override
+			public Thread newThread(Runnable runnable) {
+				final int threadIndex = counter.incrementAndGet();
+				final Thread thread = new Thread(runnable);
+				thread.setDaemon(true);
+				thread.setName(threadNamePrefix + "-" + String.format("%03d", threadIndex));
+				return thread;
+			}
+		});
 
 		XapService result = new XapService();
 		result.setAdmin(admin);
@@ -101,6 +114,13 @@ public class XapServiceBuilder {
 		result.setExecutorService(executor);
 		result.setUserConfirmationService(userConfirmationService);
 		return result;
+	}
+
+	public static ExecutorService newCachedThreadPool(int maxThreadsCount, ThreadFactory threadFactory) {
+		return new ThreadPoolExecutor(0, maxThreadsCount,
+				60L, TimeUnit.SECONDS,
+				new SynchronousQueue<>(),
+				threadFactory);
 	}
 
 	GridServiceManagers getGridServiceManagersFromAdmin(Admin admin) {
