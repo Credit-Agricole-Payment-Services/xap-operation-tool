@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.application.config.ApplicationConfig;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
@@ -24,6 +25,7 @@ import java.util.concurrent.TimeoutException;
 public class DeployCommand extends HelpAwarePicocliCommand implements Runnable {
 
 	@Autowired
+	@Lazy
 	private XapService xapService;
 
 	@Autowired
