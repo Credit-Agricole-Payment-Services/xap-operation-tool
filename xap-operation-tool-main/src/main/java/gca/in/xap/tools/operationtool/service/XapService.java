@@ -1,7 +1,9 @@
 package gca.in.xap.tools.operationtool.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import gca.in.xap.tools.operationtool.model.ComponentType;
 import gca.in.xap.tools.operationtool.model.HeapDumpReport;
+import gca.in.xap.tools.operationtool.model.VirtualMachineDescription;
 import gca.in.xap.tools.operationtool.predicates.NotPredicate;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.NonNull;
@@ -25,6 +27,9 @@ import org.openspaces.admin.pu.ProcessingUnits;
 import org.openspaces.admin.pu.config.ProcessingUnitConfig;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 import org.openspaces.admin.pu.topology.ProcessingUnitConfigHolder;
+import org.openspaces.admin.vm.VirtualMachine;
+import org.openspaces.admin.vm.VirtualMachineDetails;
+import org.openspaces.admin.vm.VirtualMachines;
 import org.openspaces.admin.zone.config.ExactZonesConfig;
 import org.openspaces.admin.zone.config.RequiredZonesConfig;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +45,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class XapService {
@@ -145,6 +151,14 @@ public class XapService {
 		return containers;
 	}
 
+	public Set<String> findContainersHostsNames() {
+		GridServiceContainers gridServiceContainers = admin.getGridServiceContainers();
+		GridServiceContainer[] containers = gridServiceContainers.getContainers();
+		TreeSet<String> result = Arrays.stream(containers).map(container -> container.getMachine().getHostName()).collect(Collectors.toCollection(TreeSet::new));
+		log.info("findContainersHostsNames() : result = {}", result);
+		return result;
+	}
+
 	public void printReportOnContainersAndProcessingUnits() {
 		printReportOnContainersAndProcessingUnits(gsc -> true);
 	}
@@ -169,6 +183,67 @@ public class XapService {
 		final int gsmCount = managers.getSize();
 		final Collection<String> managersIds = extractIds(managers);
 		log.info("Found {} running GSM instances : {}", gsmCount, managersIds);
+	}
+
+	public void printReportOnVirtualMachines() {
+		VirtualMachines virtualMachines = admin.getVirtualMachines();
+		final int jvmCount = virtualMachines.getSize();
+		log.info("Found {} JVMs", jvmCount);
+
+		final List<VirtualMachineDescription> virtualMachineDescriptions = new ArrayList<>();
+
+
+		for (VirtualMachine jvm : virtualMachines.getVirtualMachines()) {
+			final VirtualMachineDetails details = jvm.getDetails();
+			final String jvmDescription = details.getVmVendor() + " : " + details.getVmName() + " : " + details.getVmVersion();
+			//
+			VirtualMachineDescription vmDescription = new VirtualMachineDescription();
+			vmDescription.setUid(jvm.getUid());
+			vmDescription.setComponentType(getComponentType(jvm));
+			vmDescription.setUptime(Duration.ofMillis(jvm.getStatistics().getUptime()));
+			vmDescription.setHostName(jvm.getMachine().getHostName());
+			vmDescription.setJvmDescription(jvmDescription);
+			vmDescription.setHeapSizeInMBInit(Math.round(details.getMemoryHeapInitInMB()));
+			vmDescription.setHeapSizeInMBMax(Math.round(details.getMemoryHeapMaxInMB()));
+			virtualMachineDescriptions.add(vmDescription);
+		}
+
+		virtualMachineDescriptions.sort(new VirtualMachineDescriptionComparator());
+
+		for (VirtualMachineDescription jvm : virtualMachineDescriptions) {
+			log.info("{} : {} : running on {} for {} : Heap [{} MB, {} MB] : {}",
+					jvm.getComponentType(),
+					jvm.getUid().substring(0, 7) + "...",
+					jvm.getHostName(),
+					padRight(jvm.getUptime(), 17),
+					padLeft(jvm.getHeapSizeInMBInit(), 5),
+					padLeft(jvm.getHeapSizeInMBMax(), 5),
+					jvm.getJvmDescription());
+		}
+	}
+
+	public static String padLeft(Object value, int length) {
+		return String.format("%" + length + "s", value);
+	}
+
+	public static String padRight(Object value, int length) {
+		return String.format("%-" + length + "s", value);
+	}
+
+	public ComponentType getComponentType(VirtualMachine jvm) {
+		GridServiceContainer gridServiceContainer = jvm.getGridServiceContainer();
+		if (gridServiceContainer != null) {
+			return ComponentType.GSC;
+		}
+		GridServiceManager gridServiceManager = jvm.getGridServiceManager();
+		if (gridServiceManager != null) {
+			return ComponentType.GSM;
+		}
+		GridServiceAgent gridServiceAgent = jvm.getGridServiceAgent();
+		if (gridServiceAgent != null) {
+			return ComponentType.GSA;
+		}
+		return null;
 	}
 
 	public Collection<String> extractRunningProcessingUnitsNames(GridServiceContainer gsc) {
@@ -422,15 +497,20 @@ public class XapService {
 				applicationName,
 				operationTimeout,
 				application -> {
-					log.info("Undeploying application : {}", applicationName);
-					application.undeployAndWait(operationTimeout.toMillis(), TimeUnit.MILLISECONDS);
-					log.info("{} has been successfully undeployed.", applicationName);
+					undeploy(application);
 				},
 				appName -> {
 					throw new IllegalStateException(new TimeoutException(
 							"Application " + appName + " discovery timed-out. Check if it is deployed."));
 				}
 		);
+	}
+
+	public void undeploy(@NonNull Application application) {
+		final String applicationName = application.getName();
+		log.info("Undeploying application : {}", applicationName);
+		application.undeployAndWait(operationTimeout.toMillis(), TimeUnit.MILLISECONDS);
+		log.info("{} has been successfully undeployed.", applicationName);
 	}
 
 	public Collection<String> extractContainerIds(ProcessingUnit existingProcessingUnit) {
@@ -480,25 +560,27 @@ public class XapService {
 	}
 
 	public void undeployIfExists(String name) {
+		log.info("Undeploying application {} (if it exists) ...", name);
 		doWithApplication(
 				name,
 				Duration.of(5, ChronoUnit.SECONDS),
 				app -> {
-					final String appName = app.getName();
-					undeploy(appName);
+					undeploy(app);
 				},
 				appName -> {
+					log.warn("Application {} was not found, could not be undeployed", name);
 				});
 	}
 
 	public void shutdownHost(String hostname) {
+		log.info("Asked to shutdown any GSC/GSM/GSA on host {}", hostname);
 		final Predicate<Machine> machinePredicate = machine -> machine.getHostName().equals(hostname) || machine.getHostAddress().equals(hostname);
 
 		final Machines machines = gridServiceManagers.getAdmin().getMachines();
 		final Machine[] allMachines = machines.getMachines();
 		final Machine[] matchingMachines = Arrays.stream(allMachines).filter(machinePredicate).toArray(Machine[]::new);
 
-		log.info("allMachines.length = {}, matchingMachines.length = {}", allMachines.length, matchingMachines.length);
+		log.info("Found {} machines in XAP cluster, Found {} matching machines to shutdown", allMachines.length, matchingMachines.length);
 
 		boolean forbidWhenOnlyOneHost = false;
 		if (forbidWhenOnlyOneHost) {

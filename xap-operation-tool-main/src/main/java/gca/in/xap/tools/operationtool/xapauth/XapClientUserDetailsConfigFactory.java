@@ -1,11 +1,13 @@
-package gca.in.xap.tools.operationtool.service;
+package gca.in.xap.tools.operationtool.xapauth;
 
 import org.openspaces.admin.pu.config.UserDetailsConfig;
+import org.springframework.stereotype.Component;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 
-public class UserDetailsConfigFactory {
+@Component
+public class XapClientUserDetailsConfigFactory {
 
 	public UserDetailsConfig createFromUrlEncodedValue(String userLogin, String userPass) {
 		if (userLogin == null || userLogin.isEmpty()) {

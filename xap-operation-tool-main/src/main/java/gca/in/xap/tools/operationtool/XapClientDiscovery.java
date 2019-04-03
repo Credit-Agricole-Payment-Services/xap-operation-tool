@@ -2,10 +2,9 @@ package gca.in.xap.tools.operationtool;
 
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
-import javax.annotation.Nullable;
 import java.io.File;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -14,7 +13,8 @@ import java.time.Duration;
 import java.util.*;
 
 @Slf4j
-public class ApplicationArguments {
+@Component
+public class XapClientDiscovery {
 
 	private static final String PROP_CREDENTIAL_USERNAME = "credential.username";
 	private static final String PROP_CREDENTIAL_SECRET = "credential.password";
@@ -25,38 +25,28 @@ public class ApplicationArguments {
 	private static final String PROP_TIMEOUT = "timeout";
 	private static final String PROP_TIMEOUT_DEFAULT = "PT10M";
 
+	@Getter
 	final String username = System.getProperty(PROP_CREDENTIAL_USERNAME);
 
+	@Getter
 	final String password = System.getProperty(PROP_CREDENTIAL_SECRET, "");
 
-	final List<String> locators = findLookupLocators();
+	@Getter
+	final List<String> locators = Collections.unmodifiableList(findLookupLocators());
 
-	final List<String> groups = findLookupGroups();
+	@Getter
+	final List<String> groups = Collections.unmodifiableList(findLookupGroups());
 
+	@Getter
 	final Duration timeoutDuration = Duration.parse(System.getProperty(PROP_TIMEOUT, PROP_TIMEOUT_DEFAULT));
-
-	@Nullable
-	final List<String> commandLineArgs;
-
-	@Setter
-	@Getter
-	private String applicationPath = ".";
-
-	@Setter
-	@Getter
-	private String descriptorsPath = ".";
 
 	private final File workingDirectoryAtStartup = new File(".").getAbsoluteFile();
 
-	public ApplicationArguments(@Nullable List<String> commandLineArgs) {
-		this.commandLineArgs = commandLineArgs;
+	public XapClientDiscovery() {
 	}
 
 	public void printInfo() {
 		log.info("workingDirectoryAtStartup = {}", workingDirectoryAtStartup.getAbsolutePath());
-		log.info("applicationPath = {}", applicationPath);
-		log.info("descriptorsPath = {}", descriptorsPath);
-		log.info("commandLineArgs = {}", commandLineArgs);
 
 		log.info("locators = {}", locators);
 		log.info("groups = {}", groups);
@@ -65,16 +55,6 @@ public class ApplicationArguments {
 		log.info("password = **** (hidden)");
 
 		printNetworkInfo();
-	}
-
-	public void checkMinimalNumberOfCommandLineArgs(int minArgsCount) {
-		if (minArgsCount < 0) {
-			throw new IllegalArgumentException("minArgsCount should be at least zero : minArgsCount = " + minArgsCount);
-		}
-		int actualArgsCount = commandLineArgs == null ? 0 : commandLineArgs.size();
-		if (actualArgsCount < minArgsCount) {
-			throw new IllegalArgumentException("Expected at least " + minArgsCount + " args, found " + actualArgsCount);
-		}
 	}
 
 	public void printNetworkInfo() {
@@ -112,7 +92,7 @@ public class ApplicationArguments {
 		if (value == null) {
 			value = defaultValue;
 			log.info("Using default value {} because neither ENV variable {} nor System property {} are set", defaultValue, envVariableName, systemPropertyName);
-			log.info("It is recommended to run the following command before using the tool, in order to have ENV variables set : source $XAP_ROOT_PATH/bin/setenv.sh");
+			log.warn("It is recommended to run the following command before using the tool, in order to have ENV variables set : source $XAP_ROOT_PATH/bin/setenv.sh");
 		}
 		return Arrays.asList(value.split(","));
 	}
