@@ -1,6 +1,7 @@
 package gca.in.xap.tools.operationtool.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import gca.in.xap.tools.operationtool.MaxInstantPerZoneConfigParser;
 import gca.in.xap.tools.operationtool.model.DeploymentDescriptor;
 import gca.in.xap.tools.operationtool.userinput.SecretsConfigInteractiveCallback;
 import gca.in.xap.tools.operationtool.util.ConfigAndSecretsHolder;
@@ -187,7 +188,10 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 				processingUnitConfig.setMaxInstancesPerMachine(sla.getMaxInstancesPerMachine());
 				processingUnitConfig.setMaxInstancesPerVM(sla.getMaxInstancesPerVM());
 				processingUnitConfig.setRequiresIsolation(sla.getRequiresIsolation());
-				// TODO : processingUnitConfig.setMaxInstancesPerZoneConfig
+				if (sla.getZones() != null) {
+					processingUnitConfig.setZones(sla.getZones().toArray(new String[0]));
+				}
+				processingUnitConfig.setMaxInstancesPerZone(new MaxInstantPerZoneConfigParser().parseMaxInstancePerZone(sla.getMaxInstancesPerZone()));
 			}
 
 			DeploymentDescriptor.Topology topology = deploymentDescriptor.getTopology();
