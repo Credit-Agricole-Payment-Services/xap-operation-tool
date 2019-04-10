@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>gca.caps.xap</groupId>
-	<artifactId>xap-application-tool</artifactId>
+	<artifactId>xap-operation-tool</artifactId>
 	<version>1.2.1-SNAPSHOT</version>
 	<packaging>pom</packaging>
 

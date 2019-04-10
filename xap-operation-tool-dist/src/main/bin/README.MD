@@ -12,8 +12,9 @@ Le répertoire conseillé pour l'installation est ```/app/in/bin/${project.paren
 Un lien symbolique pointe vers la version en cours d'utilisation.
 
 ```
-mkdir -p /app/in/${project.parent.artifactId}
-cd /app/in/${project.parent.artifactId}
+umask 022
+mkdir -p /app/in/bin/${project.parent.artifactId}
+cd /app/in/bin/${project.parent.artifactId}
 tar xvfzp /tmp/${project.artifactId}-${project.version}-${git.commit.id.describe-short}-dist.tar.gz
 ln -sf ${project.artifactId}-${project.version}-${git.commit.id.describe-short} current 
 ```
