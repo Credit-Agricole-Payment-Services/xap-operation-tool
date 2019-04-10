@@ -10,7 +10,8 @@
 		<!--<format>dir</format>-->
 	</formats>
 
-	<includeBaseDirectory>false</includeBaseDirectory>
+	<includeBaseDirectory>true</includeBaseDirectory>
+	<!-- base directory is automatically generated from the artifactId and version -->
 
 	<dependencySets>
 		<dependencySet>

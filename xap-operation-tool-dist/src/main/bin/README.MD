@@ -1,4 +1,25 @@
-Usage
+# xap-operation-tool : version ${project.version}-${git.commit.id.describe-short}
+
+## Installation : 
+
+Le livrable est un fichier au format ```.tar.gz```` :
+```
+${project.artifactId}-${project.version}-${git.commit.id.describe-short}
+```
+
+Le répertoire conseillé pour l'installation est ```/app/in/bin/${project.parent.artifactId}```
+
+Un lien symbolique pointe vers la version en cours d'utilisation.
+
+```
+mkdir -p /app/in/${project.parent.artifactId}
+cd /app/in/${project.parent.artifactId}
+tar xvfzp /tmp/${project.artifactId}-${project.version}-${git.commit.id.describe-short}-dist.tar.gz
+ln -sf ${project.artifactId}-${project.version}-${git.commit.id.describe-short} current 
+```
+
+## Usage :
+
 ```
 /app/in/bin/xap-operation-tool/deploy.sh --restartEmptyContainers -c /app/in/exploit/gsxap -f /app/in/livraisons/current/b1134/capsin/xap/in-xap-app-1.2.0-SNAPSHOT-xa.zip
 
