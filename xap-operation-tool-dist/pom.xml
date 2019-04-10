@@ -9,7 +9,7 @@
 
 	<parent>
 		<groupId>gca.caps.xap</groupId>
-		<artifactId>xap-application-deployTask</artifactId>
+		<artifactId>xap-application-tool</artifactId>
 		<version>1.2.1-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
