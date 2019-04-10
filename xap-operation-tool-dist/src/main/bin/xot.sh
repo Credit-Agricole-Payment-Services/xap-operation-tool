@@ -9,6 +9,9 @@ SCRIPTS_DIR=$(dirname $0)
 # the lib directory contains all of the JAR files that are needed
 LIB_DIR=${SCRIPTS_DIR}/lib
 
+# check that every jar files is readable by the current user, we want to failfast if this is not the case
+find ${LIB_DIR} -name "*.jar" | xargs wc -c
+
 # the config directory can be use to override some of the default resources present in the JAR files
 # this allows the user to be able to edit configuration without having to rebuild
 CLASSPATH=${SCRIPTS_DIR}/config
