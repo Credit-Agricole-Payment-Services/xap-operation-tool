@@ -39,6 +39,7 @@
 			<includes>
 				<include>*.properties</include>
 				<include>*.MD</include>
+				<include>*.TXT</include>
 				<include>*.json</include>
 			</includes>
 		</fileSet>
