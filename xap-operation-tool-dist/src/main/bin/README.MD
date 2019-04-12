@@ -22,7 +22,7 @@ chmod 755 /app/in/bin/${project.parent.artifactId}
 cd /app/in/bin/${project.parent.artifactId}
 rm -rf ${project.artifactId}-${project.version}-${git.commit.id.describe-short}
 tar xvfzp /tmp/${project.artifactId}-${project.version}-${git.commit.id.describe-short}-dist.tar.gz
-ln -sf ${project.artifactId}-${project.version}-${git.commit.id.describe-short} current 
+rm -f current && ln -s ${project.artifactId}-${project.version}-${git.commit.id.describe-short} current 
 ```
 
 *ATTENTION* : à bien préserver le filemode (option ```p```) lors de l'extraction du ````tar.gz```` pour que les fichiers ai les droits attendus.
