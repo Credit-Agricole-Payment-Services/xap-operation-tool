@@ -13,8 +13,8 @@ import java.time.Duration;
 
 @Slf4j
 @Component
-@CommandLine.Command(name = "heapdump")
-public class HeapDumpCommand extends HelpAwarePicocliCommand implements Runnable {
+@CommandLine.Command(name = "threaddump")
+public class ThreadDumpCommand extends HelpAwarePicocliCommand implements Runnable {
 
 	@Autowired
 	@Lazy
@@ -25,7 +25,7 @@ public class HeapDumpCommand extends HelpAwarePicocliCommand implements Runnable
 		xapService.printReportOnContainersAndProcessingUnits();
 		xapService.setDefaultTimeout(Duration.ofMinutes(5));
 		try {
-			xapService.generateHeapDumpOnEachGsc();
+			xapService.generateThreadDumpOnEachGsc();
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}

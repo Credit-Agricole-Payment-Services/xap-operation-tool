@@ -2,7 +2,7 @@ package gca.in.xap.tools.operationtool.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gca.in.xap.tools.operationtool.model.ComponentType;
-import gca.in.xap.tools.operationtool.model.HeapDumpReport;
+import gca.in.xap.tools.operationtool.model.DumpReport;
 import gca.in.xap.tools.operationtool.model.VirtualMachineDescription;
 import gca.in.xap.tools.operationtool.predicates.NotPredicate;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
@@ -117,7 +117,7 @@ public class XapService {
 		return System.currentTimeMillis() - time;
 	}
 
-	private final DateTimeFormatter heapDumpsFileNamesDateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+	private final DateTimeFormatter dumpsFileNamesDateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
 
 	@Setter
 	private Admin admin;
@@ -361,16 +361,30 @@ public class XapService {
 		log.info("Triggered GC on GSC instances : {}", containersIds);
 	}
 
-	public void generateHeapDumpOnEachGsc() {
+
+	public void generateHeapDumpOnEachGsc() throws IOException {
+		String[] dumpTypes = {"heap"};
+		final File outputDirectory = new File("dumps/heap");
+		generateDumpOnEachGsc(outputDirectory, dumpTypes);
+	}
+
+	public void generateThreadDumpOnEachGsc() throws IOException {
+		String[] dumpTypes = {"thread"};
+		final File outputDirectory = new File("dumps/thread");
+		generateDumpOnEachGsc(outputDirectory, dumpTypes);
+	}
+
+	private void generateDumpOnEachGsc(final File outputDirectory, final String[] dumpTypes) throws IOException {
 		final GridServiceContainer[] containers = findContainers();
 		final int gscCount = containers.length;
 		final Collection<String> containersIds = extractIds(containers);
 		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
 
-
-		final File outputDirectory = new File("dumps/heap");
 		boolean outputDirectoryCreated = outputDirectory.mkdirs();
 		log.debug("outputDirectoryCreated = {]", outputDirectoryCreated);
+		if (!outputDirectory.canWrite()) {
+			throw new IOException("Cannot write to directory " + outputDirectory);
+		}
 
 		final List<Future<?>> taskResults = new ArrayList<>();
 		// this can be done in parallel to perform quicker when there are a lot of containers
@@ -378,7 +392,7 @@ public class XapService {
 			Future<?> taskResult = executorService.submit(() -> {
 				final String gscId = gsc.getId();
 				try {
-					generateHeapDump(gsc, outputDirectory);
+					generateDump(gsc, outputDirectory, dumpTypes);
 				} catch (RuntimeException | IOException e) {
 					log.error("Failure while generating a Heap Dump on GSC {}", gscId, e);
 				}
@@ -389,7 +403,7 @@ public class XapService {
 		log.info("Triggered Heap Dump on GSC instances : {}", containersIds);
 	}
 
-	private void generateHeapDump(@NonNull GridServiceContainer gsc, @NonNull final File outputDirectory) throws IOException {
+	private void generateDump(@NonNull GridServiceContainer gsc, @NonNull final File outputDirectory, String[] dumpTypes) throws IOException {
 		final String gscId = gsc.getId();
 
 		final Machine machine = gsc.getMachine();
@@ -400,26 +414,29 @@ public class XapService {
 		Collection<String> processingUnitsNames = extractProcessingUnitsNames(processingUnitInstances);
 
 		final ZonedDateTime time = ZonedDateTime.now();
-		final String dumpFileName = "heapdump-" + gscId + "-" + time.format(heapDumpsFileNamesDateTimeFormatter) + ".zip";
-		final String reportFileName = "heapdump-" + gscId + "-" + time.format(heapDumpsFileNamesDateTimeFormatter) + ".json";
+		final String dumpFileName = "dump-" + gscId + "-" + time.format(dumpsFileNamesDateTimeFormatter) + ".zip";
+		final String reportFileName = "dump-" + gscId + "-" + time.format(dumpsFileNamesDateTimeFormatter) + ".json";
 		final File dumpFile = new File(outputDirectory, dumpFileName);
 		final File reportFile = new File(outputDirectory, reportFileName);
 		//
 
-		HeapDumpReport heapDumpReport = new HeapDumpReport();
-		heapDumpReport.setGscId(gscId);
-		heapDumpReport.setPid(pid);
-		heapDumpReport.setStartTime(time);
-		heapDumpReport.setHeapDumpFileName(dumpFileName);
-		heapDumpReport.setProcessingUnitsNames(new ArrayList<>(processingUnitsNames));
-		heapDumpReport.setHostName(machine.getHostName());
-		heapDumpReport.setHostAddress(machine.getHostAddress());
-		objectMapper.writeValue(reportFile, heapDumpReport);
+		final List<String> dumpsTypesList = Arrays.asList(dumpTypes);
+
+		DumpReport dumpReport = new DumpReport();
+		dumpReport.setDumpsTypes(dumpsTypesList);
+		dumpReport.setGscId(gscId);
+		dumpReport.setPid(pid);
+		dumpReport.setStartTime(time);
+		dumpReport.setDumpFileName(dumpFileName);
+		dumpReport.setProcessingUnitsNames(new ArrayList<>(processingUnitsNames));
+		dumpReport.setHostName(machine.getHostName());
+		dumpReport.setHostAddress(machine.getHostAddress());
+		objectMapper.writeValue(reportFile, dumpReport);
 
 		//
-		log.info("Asking GSC {} for a heap dump ...", gscId);
-		final DumpResult dumpResult = gsc.generateDump("Generating a heap dump with XAP operation tool", null, "heap");
-		log.info("Downloading heap dump from gsc {} to file {} ...", gscId, dumpFile.getAbsolutePath());
+		log.info("Asking GSC {} for a dump of {} ...", gscId, dumpsTypesList);
+		final DumpResult dumpResult = gsc.generateDump("Generating a dump with XAP operation tool for " + dumpsTypesList, null, dumpTypes);
+		log.info("Downloading dump from gsc {} to file {} ...", gscId, dumpFile.getAbsolutePath());
 		dumpResult.download(dumpFile, null);
 		log.info("Wrote file {} : size = {} bytes", dumpFile.getAbsolutePath(), dumpFile.length());
 	}
