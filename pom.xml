@@ -5,7 +5,7 @@
 
 	<groupId>gca.caps.xap</groupId>
 	<artifactId>xap-operation-tool</artifactId>
-	<version>1.4.0</version>
+	<version>1.4.1-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
 	<parent>
