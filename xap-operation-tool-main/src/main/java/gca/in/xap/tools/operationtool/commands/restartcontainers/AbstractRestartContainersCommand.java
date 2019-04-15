@@ -1,21 +1,23 @@
 package gca.in.xap.tools.operationtool.commands.restartcontainers;
 
 import com.kakawait.spring.boot.picocli.autoconfigure.HelpAwarePicocliCommand;
-import gca.in.xap.tools.operationtool.XapClientDiscovery;
 import gca.in.xap.tools.operationtool.service.RestartStrategy;
-import gca.in.xap.tools.operationtool.xapauth.XapClientUserDetailsConfigFactory;
 import gca.in.xap.tools.operationtool.service.XapService;
-import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsc.GridServiceContainer;
-import org.openspaces.admin.pu.config.UserDetailsConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
 @Slf4j
 public abstract class AbstractRestartContainersCommand extends HelpAwarePicocliCommand implements Runnable {
+
+	static final RestartStrategy noIntervalRestartStrategy = new RestartStrategy(Duration.ZERO);
+
+	static final RestartStrategy defaultIntervalRestartStrategy = new RestartStrategy(Duration.ofMinutes(2));
 
 	@Autowired
 	@Lazy
@@ -34,6 +36,13 @@ public abstract class AbstractRestartContainersCommand extends HelpAwarePicocliC
 	public void run() {
 		log.info("Report on all GSC :");
 		xapService.printReportOnContainersAndProcessingUnits();
+
+		try {
+			log.info("Waiting in order to get a cluster state as accurate as possible ...");
+			TimeUnit.MILLISECONDS.sleep(2000);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
 
 		log.info("Report on GSC to restart :");
 		xapService.printReportOnContainersAndProcessingUnits(predicate);

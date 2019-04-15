@@ -84,9 +84,20 @@ public class XapServiceBuilder {
 		return gridServiceManagers;
 	}
 
+	private static void waitForClusterInfoToUpdate() {
+		try {
+			log.info("Waiting in order to get a cluster state as accurate as possible ...");
+			TimeUnit.MILLISECONDS.sleep(2000);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
 	public XapService create() {
 		Admin admin = createAdmin();
 		GridServiceManagers gridServiceManagers = awaitGSM(admin);
+
+		waitForClusterInfoToUpdate();
 
 		// the ThreadPool should be large enough
 		// in order to execute a task for each machine in the cluster, ideally, at the same time

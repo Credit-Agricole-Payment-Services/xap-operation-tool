@@ -11,6 +11,8 @@ import java.util.function.Predicate;
 @Slf4j
 public class IsStatelessProcessingUnitPredicate implements Predicate<ProcessingUnitInstance> {
 
+	private final IsStatefulProcessingUnitPredicate isStatefulProcessingUnitPredicate = new IsStatefulProcessingUnitPredicate();
+
 	@Override
 	public boolean test(ProcessingUnitInstance pu) {
 		final String puName = pu.getName();
@@ -20,21 +22,7 @@ public class IsStatelessProcessingUnitPredicate implements Predicate<ProcessingU
 	}
 
 	private boolean doTest(ProcessingUnitInstance pu) {
-		boolean useEmbeddedSpaces = pu.isEmbeddedSpaces();
-		if (useEmbeddedSpaces) {
-			final SpaceServiceDetails[] embeddedSpacesDetails = pu.getEmbeddedSpacesDetails();
-			for (SpaceServiceDetails spaceServiceDetails : embeddedSpacesDetails) {
-				log.debug("spaceServiceDetails = {}", ToStringBuilder.reflectionToString(spaceServiceDetails));
-				// il n'y a pas l'air d'y avoir une propriete qui indique que le space est un space specifique au mirror
-				// on va donc partir du principe que par convention, le space interne du mirror contient la String "mirror" dans son ID
-				if (!spaceServiceDetails.getId().toLowerCase(Locale.ENGLISH).contains("mirror")) {
-					return false;
-				}
-			}
-			return true;
-		} else {
-			return true;
-		}
+		return !isStatefulProcessingUnitPredicate.test(pu);
 	}
 
 }
