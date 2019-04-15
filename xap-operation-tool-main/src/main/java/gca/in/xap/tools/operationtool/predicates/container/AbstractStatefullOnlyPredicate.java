@@ -18,11 +18,12 @@ public abstract class AbstractStatefullOnlyPredicate implements Predicate<GridSe
 		}
 		// if the GSC is running an stateful Primary PU, then we do not want to restart it
 		// else, it means that we are only running backup PU(s) in this GSC
-		boolean containsStatefulBackupPU = Arrays.stream(processingUnitInstances).anyMatch(PredicatesFactory.containsStatefulBackupPUPredicate());
-		boolean containsStatefulPrimaryPU = Arrays.stream(processingUnitInstances).anyMatch(PredicatesFactory.containsStatefulPrimaryPUPredicate());
-		return this.test(containsStatefulBackupPU, containsStatefulPrimaryPU);
+		final boolean containsStatefulBackupPU = Arrays.stream(processingUnitInstances).anyMatch(PredicatesFactory.containsStatefulBackupPUPredicate());
+		final boolean containsStatefulPrimaryPU = Arrays.stream(processingUnitInstances).anyMatch(PredicatesFactory.containsStatefulPrimaryPUPredicate());
+		final String gscId = gsc.getId();
+		return this.test(gscId, containsStatefulBackupPU, containsStatefulPrimaryPU);
 	}
 
-	protected abstract boolean test(boolean containsStatefulBackupPU, boolean containsStatefulPrimaryPU);
+	protected abstract boolean test(String gscId, boolean containsStatefulBackupPU, boolean containsStatefulPrimaryPU);
 
 }
