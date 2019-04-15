@@ -9,15 +9,18 @@ import java.time.Duration;
 @Slf4j
 public class RestartStrategy {
 
+	private final Duration intervalBetweenEachComponentRestartDuration;
+
 	private final long intervalBetweenEachComponentRestartInMilliseconds;
 
-	public RestartStrategy(Duration duration) {
-		this.intervalBetweenEachComponentRestartInMilliseconds = duration.toMillis();
+	public RestartStrategy(Duration intervalBetweenEachComponentRestartDuration) {
+		this.intervalBetweenEachComponentRestartDuration = intervalBetweenEachComponentRestartDuration;
+		this.intervalBetweenEachComponentRestartInMilliseconds = intervalBetweenEachComponentRestartDuration.toMillis();
 	}
 
 	public void waitBetweenComponent() {
 		if (intervalBetweenEachComponentRestartInMilliseconds > 0) {
-			log.info("Waiting for {} ms before next container restart", intervalBetweenEachComponentRestartInMilliseconds);
+			log.info("Waiting for {} before next container restart", intervalBetweenEachComponentRestartDuration);
 			try {
 				Thread.sleep(intervalBetweenEachComponentRestartInMilliseconds);
 			} catch (InterruptedException e) {

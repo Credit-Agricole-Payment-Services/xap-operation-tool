@@ -13,7 +13,7 @@ import java.util.Arrays;
 @CommandLine.Command(name = "restart-containers-stateless-only")
 public class RestartContainersStatelessOnlyCommand extends AbstractRestartContainersCommand {
 
-	private static final RestartStrategy restartStrategy = new RestartStrategy(Duration.ofMinutes(1));
+	private static final RestartStrategy restartStrategy = defaultIntervalRestartStrategy;
 
 	public RestartContainersStatelessOnlyCommand() {
 		super(gsc -> {

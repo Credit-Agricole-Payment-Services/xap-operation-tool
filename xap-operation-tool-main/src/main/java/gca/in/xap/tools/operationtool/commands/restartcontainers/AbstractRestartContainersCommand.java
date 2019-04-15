@@ -8,11 +8,16 @@ import org.openspaces.admin.gsc.GridServiceContainer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
 @Slf4j
 public abstract class AbstractRestartContainersCommand extends HelpAwarePicocliCommand implements Runnable {
+
+	static final RestartStrategy noIntervalRestartStrategy = new RestartStrategy(Duration.ZERO);
+
+	static final RestartStrategy defaultIntervalRestartStrategy = new RestartStrategy(Duration.ofMinutes(2));
 
 	@Autowired
 	@Lazy

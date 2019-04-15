@@ -5,12 +5,14 @@ import gca.in.xap.tools.operationtool.service.RestartStrategy;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
-import java.time.Duration;
-
 @Component
 @CommandLine.Command(name = "restart-containers-each-non-empty")
 public class RestartContainersEachNonEmptyCommand extends AbstractRestartContainersCommand {
+
+	private static final RestartStrategy restartStrategy = defaultIntervalRestartStrategy;
+
 	public RestartContainersEachNonEmptyCommand() {
-		super(new IsNonEmptyContainerPredicate(), new RestartStrategy(Duration.ofMinutes(1)));
+		super(new IsNonEmptyContainerPredicate(), restartStrategy);
 	}
+
 }

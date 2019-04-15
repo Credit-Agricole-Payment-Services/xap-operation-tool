@@ -11,7 +11,7 @@ import java.time.Duration;
 @CommandLine.Command(name = "restart-containers-stateful-primaries-only")
 public class RestartContainersStatefulPrimariesOnlyCommand extends AbstractRestartContainersCommand {
 
-	private static final RestartStrategy restartStrategy = new RestartStrategy(Duration.ofMinutes(1));
+	private static final RestartStrategy restartStrategy = defaultIntervalRestartStrategy;
 
 	public RestartContainersStatefulPrimariesOnlyCommand() {
 		super(new StatefulPrimariesOnlyPredicate(), restartStrategy);
