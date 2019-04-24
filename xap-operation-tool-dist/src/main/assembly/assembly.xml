@@ -55,6 +55,16 @@
 				<include>*.sh</include>
 			</includes>
 		</fileSet>
+
+		<fileSet>
+			<directory>${project.basedir}/src/main/self-install/</directory>
+			<outputDirectory></outputDirectory>
+			<filtered>true</filtered>
+			<fileMode>0755</fileMode>
+			<includes>
+				<include>*.sh</include>
+			</includes>
+		</fileSet>
 	</fileSets>
 
 </assembly>
