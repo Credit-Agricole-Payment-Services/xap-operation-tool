@@ -9,6 +9,7 @@ import gca.in.xap.tools.operationtool.util.MergeMap;
 import gca.in.xap.tools.operationtool.util.ZipUtil;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.builder.ToStringBuilder;
 import org.openspaces.admin.application.ApplicationFileDeployment;
 import org.openspaces.admin.application.config.ApplicationConfig;
 import org.openspaces.admin.pu.config.ProcessingUnitConfig;
@@ -18,7 +19,10 @@ import org.openspaces.admin.pu.topology.ProcessingUnitConfigHolder;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -191,7 +195,9 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 				if (sla.getZones() != null) {
 					processingUnitConfig.setZones(sla.getZones().toArray(new String[0]));
 				}
-				processingUnitConfig.setMaxInstancesPerZone(new MaxInstantPerZoneConfigParser().parseMaxInstancePerZone(sla.getMaxInstancesPerZone()));
+				if (sla.getMaxInstancesPerZone() != null) {
+					processingUnitConfig.setMaxInstancesPerZone(new MaxInstantPerZoneConfigParser().parseMaxInstancePerZone(sla.getMaxInstancesPerZone()));
+				}
 			}
 
 			DeploymentDescriptor.Topology topology = deploymentDescriptor.getTopology();
@@ -231,17 +237,13 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 		}
 
 		log.debug("processingUnitConfig = {}", processingUnitConfig);
-	}
+		log.debug("processingUnitConfig (reflection) = {}", ToStringBuilder.reflectionToString(processingUnitConfig));
 
-	private static Map<String, String> toMap(@Nullable Properties properties) {
-		Map<String, String> result = new TreeMap<>();
-		if (properties != null) {
-			for (Map.Entry entry : properties.entrySet()) {
-				result.put((String) entry.getKey(), (String) entry.getValue());
-			}
-		}
-		return Collections.unmodifiableMap(result);
+		// call early the toDeploymentOptions() method in order to fail fast, not waiting for the deploy task to execute
+		// this method is called internally during in the deploy method
+		String[] deploymentOptions = processingUnitConfig.toDeploymentOptions();
+		String deploymentOptionsString = String.join(" ", deploymentOptions);
+		log.info("deploymentOptionsString = {}", deploymentOptionsString);
 	}
-
 
 }

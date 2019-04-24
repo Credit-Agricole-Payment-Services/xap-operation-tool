@@ -46,6 +46,8 @@
 
 	<logger name="gca.in.xap.tools.operationtool.service.DefaultApplicationConfigBuilder" level="INFO"/>
 
+	<logger name="gca.in.xap.tools.operationtool.service.XapService" level="INFO"/>
+
 	<logger name="gca.in.xap.tools.operationtool.predicates.pu" level="DEBUG"/>
 
 	<logger name="org.openspaces.pu.container.support.ResourceApplicationContext" level="WARN"/>

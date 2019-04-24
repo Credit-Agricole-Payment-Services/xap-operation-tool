@@ -32,7 +32,7 @@ public class ApplicationFileLocator {
 			String entryFilePath = filesPath[1];
 			File archiveFile = new File(archiveFilePath);
 			if (!archiveFile.exists()) {
-				throw new FileNotFoundException("File not found : " + archiveFile);
+				throw new FileNotFoundException("File not found : " + archiveFile.getAbsolutePath());
 			}
 			return locateApplicationFileInArchive(archiveFile, entryFilePath);
 		} else {
