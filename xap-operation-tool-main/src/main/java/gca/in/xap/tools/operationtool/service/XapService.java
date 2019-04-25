@@ -179,8 +179,8 @@ public class XapService {
 	}
 
 	public void printReportOnManagers() {
-		final GridServiceManagers managers = admin.getGridServiceManagers();
-		final int gsmCount = managers.getSize();
+		final GridServiceManager[] managers = admin.getGridServiceManagers().getManagers();
+		final int gsmCount = managers.length;
 		final Collection<String> managersIds = extractIds(managers);
 		log.info("Found {} running GSM instances : {}", gsmCount, managersIds);
 	}
@@ -307,33 +307,30 @@ public class XapService {
 		log.info("Triggered restart of GSC instances : {}", containersIds);
 	}
 
-	public void restartAllManagers() {
-		final GridServiceManagers managers = admin.getGridServiceManagers();
-		final int gsmCount = managers.getSize();
+	public void restartManagers(@NonNull Predicate<GridServiceManager> predicate, @NonNull RestartStrategy restartStrategy) {
+		GridServiceManager[] managers = admin.getGridServiceManagers().getManagers();
+		managers = Arrays.stream(managers).filter(predicate).toArray(GridServiceManager[]::new);
+		final int gsmCount = managers.length;
 		final Collection<String> managersIds = extractIds(managers);
 		log.info("Found {} running GSM instances : {}", gsmCount, managersIds);
 
 		log.info("Will restart all GSM instances : {}", managersIds);
-
-		final List<Future<?>> taskResults = new ArrayList<>();
-		// this can be done in parallel to perform quicker when there are a lot of containers
-		Arrays.stream(managers.getManagers()).forEach(gsm -> {
-			Future<?> taskResult = executorService.submit(() -> {
-				Machine machine = gsm.getMachine();
-				String hostname = machine.getHostName();
-				String hostAddress = machine.getHostAddress();
-				log.info("Asking GSM {} ({}) to restart ...", hostname, hostAddress);
-				gsm.restart();
-				log.info("Waiting 1 minute for GSM {} ({}) to restart ...", hostname, hostAddress);
-				try {
-					TimeUnit.MINUTES.sleep(1);
-				} catch (InterruptedException e) {
-					throw new RuntimeException(e);
-				}
-			});
-			taskResults.add(taskResult);
-		});
-		awaitTermination(taskResults);
+		userConfirmationService.askConfirmationAndWait();
+		boolean firstIteration = true;
+		for (GridServiceManager gsm : managers) {
+			if (!firstIteration) {
+				// we want to wait between each component restart
+				// we don't want to wait before first restart, nor after last restart
+				restartStrategy.waitBetweenComponent();
+			}
+			Machine machine = gsm.getMachine();
+			String hostname = machine.getHostName();
+			String hostAddress = machine.getHostAddress();
+			log.info("Asking GSM {} ({}) to restart ...", hostname, hostAddress);
+			gsm.restart();
+			log.info("GSM {} ({}) restarted", hostname, hostAddress);
+			firstIteration = false;
+		}
 		log.info("Triggered restart of GSM instances : {}", managersIds);
 	}
 
@@ -550,7 +547,7 @@ public class XapService {
 		return gscIds;
 	}
 
-	private Collection<String> extractIds(GridServiceManagers managers) {
+	private Collection<String> extractIds(GridServiceManager[] managers) {
 		Set<String> gscIds = new TreeSet<>();
 		for (GridServiceManager gsm : managers) {
 			gscIds.add(gsm.getMachine().getHostName());

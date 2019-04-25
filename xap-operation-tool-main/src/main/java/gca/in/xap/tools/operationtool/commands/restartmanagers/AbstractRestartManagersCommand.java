@@ -1,10 +1,10 @@
-package gca.in.xap.tools.operationtool.commands.restartcontainers;
+package gca.in.xap.tools.operationtool.commands.restartmanagers;
 
 import com.kakawait.spring.boot.picocli.autoconfigure.HelpAwarePicocliCommand;
 import gca.in.xap.tools.operationtool.service.RestartStrategy;
 import gca.in.xap.tools.operationtool.service.XapService;
 import lombok.extern.slf4j.Slf4j;
-import org.openspaces.admin.gsc.GridServiceContainer;
+import org.openspaces.admin.gsm.GridServiceManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 
@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
 @Slf4j
-public abstract class AbstractRestartContainersCommand extends HelpAwarePicocliCommand implements Runnable {
+public abstract class AbstractRestartManagersCommand extends HelpAwarePicocliCommand implements Runnable {
 
 	static final RestartStrategy noIntervalRestartStrategy = new RestartStrategy(Duration.ZERO);
 
@@ -23,11 +23,11 @@ public abstract class AbstractRestartContainersCommand extends HelpAwarePicocliC
 	@Lazy
 	private XapService xapService;
 
-	private final Predicate<GridServiceContainer> predicate;
+	private final Predicate<GridServiceManager> predicate;
 
 	private final RestartStrategy restartStrategy;
 
-	public AbstractRestartContainersCommand(Predicate<GridServiceContainer> predicate, RestartStrategy restartStrategy) {
+	public AbstractRestartManagersCommand(Predicate<GridServiceManager> predicate, RestartStrategy restartStrategy) {
 		this.predicate = predicate;
 		this.restartStrategy = restartStrategy;
 	}
@@ -41,15 +41,12 @@ public abstract class AbstractRestartContainersCommand extends HelpAwarePicocliC
 			throw new RuntimeException(e);
 		}
 
-		log.info("Report on all GSC :");
-		xapService.printReportOnContainersAndProcessingUnits();
-
-		log.info("Report on GSC to restart :");
-		xapService.printReportOnContainersAndProcessingUnits(predicate);
+		log.info("Report on all GSM :");
+		xapService.printReportOnManagers();
 
 		log.info("RestartStrategy is : {}", restartStrategy);
 
-		xapService.restartContainers(predicate, restartStrategy);
+		xapService.restartManagers(predicate, restartStrategy);
 	}
 
 }
