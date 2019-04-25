@@ -84,7 +84,7 @@ public class XapServiceBuilder {
 		return gridServiceManagers;
 	}
 
-	private static void waitForClusterInfoToUpdate() {
+	public static void waitForClusterInfoToUpdate() {
 		try {
 			log.info("Waiting in order to get a cluster state as accurate as possible ...");
 			TimeUnit.MILLISECONDS.sleep(2000);

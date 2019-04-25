@@ -3,6 +3,7 @@ package gca.in.xap.tools.operationtool.commands.restartmanagers;
 import com.kakawait.spring.boot.picocli.autoconfigure.HelpAwarePicocliCommand;
 import gca.in.xap.tools.operationtool.service.RestartStrategy;
 import gca.in.xap.tools.operationtool.service.XapService;
+import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsm.GridServiceManager;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,12 +35,7 @@ public abstract class AbstractRestartManagersCommand extends HelpAwarePicocliCom
 
 	@Override
 	public void run() {
-		try {
-			log.info("Waiting in order to get a cluster state as accurate as possible ...");
-			TimeUnit.MILLISECONDS.sleep(2000);
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
+		XapServiceBuilder.waitForClusterInfoToUpdate();
 
 		log.info("Report on all GSM :");
 		xapService.printReportOnManagers();
