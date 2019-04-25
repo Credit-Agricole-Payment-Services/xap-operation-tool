@@ -334,6 +334,33 @@ public class XapService {
 		log.info("Triggered restart of GSM instances : {}", managersIds);
 	}
 
+	public void shutdownAgents(@NonNull Predicate<GridServiceAgent> predicate, @NonNull RestartStrategy restartStrategy) {
+		GridServiceAgent[] agents = admin.getGridServiceAgents().getAgents();
+		agents = Arrays.stream(agents).filter(predicate).toArray(GridServiceAgent[]::new);
+		final int gsaCount = agents.length;
+		final Collection<String> agentIds = extractIds(agents);
+		log.info("Found {} running GSA instances : {}", gsaCount, agentIds);
+
+		log.info("Will shutdown all GSA instances : {}", agentIds);
+		userConfirmationService.askConfirmationAndWait();
+		boolean firstIteration = true;
+		for (GridServiceAgent gsa : agents) {
+			if (!firstIteration) {
+				// we want to wait between each component restart
+				// we don't want to wait before first restart, nor after last restart
+				restartStrategy.waitBetweenComponent();
+			}
+			Machine machine = gsa.getMachine();
+			String hostname = machine.getHostName();
+			String hostAddress = machine.getHostAddress();
+			log.info("Asking GSA {} ({}) to shutdown ...", hostname, hostAddress);
+			gsa.shutdown();
+			log.info("GSA {} ({}) shutdown", hostname, hostAddress);
+			firstIteration = false;
+		}
+		log.info("Triggered shutdown of GSA instances : {}", agentIds);
+	}
+
 	public void triggerGarbageCollectorOnEachGsc() {
 		final GridServiceContainer[] containers = findContainers();
 		final int gscCount = containers.length;
@@ -357,7 +384,6 @@ public class XapService {
 		awaitTermination(taskResults);
 		log.info("Triggered GC on GSC instances : {}", containersIds);
 	}
-
 
 	public void generateHeapDumpOnEachGsc() throws IOException {
 		String[] dumpTypes = {"heap"};
@@ -551,6 +577,14 @@ public class XapService {
 		Set<String> gscIds = new TreeSet<>();
 		for (GridServiceManager gsm : managers) {
 			gscIds.add(gsm.getMachine().getHostName());
+		}
+		return gscIds;
+	}
+
+	private Collection<String> extractIds(GridServiceAgent[] agents) {
+		Set<String> gscIds = new TreeSet<>();
+		for (GridServiceAgent gsa : agents) {
+			gscIds.add(gsa.getMachine().getHostName());
 		}
 		return gscIds;
 	}
