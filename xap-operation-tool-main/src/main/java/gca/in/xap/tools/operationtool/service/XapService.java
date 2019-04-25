@@ -406,7 +406,7 @@ public class XapService {
 		boolean outputDirectoryCreated = outputDirectory.mkdirs();
 		log.debug("outputDirectoryCreated = {]", outputDirectoryCreated);
 		if (!outputDirectory.canWrite()) {
-			throw new IOException("Cannot write to directory " + outputDirectory);
+			throw new IOException("Cannot write to directory " + outputDirectory + " (" + outputDirectory.getAbsolutePath() + "). Please execute the command from a working directory where you have write access.");
 		}
 
 		final List<Future<?>> taskResults = new ArrayList<>();
