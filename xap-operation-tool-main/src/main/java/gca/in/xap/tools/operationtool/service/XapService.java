@@ -138,8 +138,10 @@ public class XapService {
 	private ExecutorService executorService;
 
 	@Setter
-	@Autowired
 	private UserConfirmationService userConfirmationService;
+
+	@Setter
+	private IdExtractor idExtractor;
 
 	private final ObjectMapper objectMapper = new ObjectMapperFactory().createObjectMapper();
 
@@ -167,7 +169,7 @@ public class XapService {
 		GridServiceContainer[] containers = findContainers();
 		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
 		final int gscCount = containers.length;
-		final Collection<String> containersIds = extractIds(containers);
+		final Collection<String> containersIds = idExtractor.extractIds(containers);
 		log.info("Found {} matching running GSC instances : {}", gscCount, containersIds);
 		for (GridServiceContainer gsc : containers) {
 			String gscId = gsc.getId();
@@ -181,7 +183,7 @@ public class XapService {
 	public void printReportOnManagers() {
 		final GridServiceManager[] managers = admin.getGridServiceManagers().getManagers();
 		final int gsmCount = managers.length;
-		final Collection<String> managersIds = extractIds(managers);
+		final Collection<String> managersIds = idExtractor.extractIds(managers);
 		log.info("Found {} running GSM instances : {}", gsmCount, managersIds);
 	}
 
@@ -266,7 +268,7 @@ public class XapService {
 	public void restartEmptyContainers() {
 		final GridServiceContainer[] containers = findContainers();
 		final int gscCount = containers.length;
-		final Collection<String> containersIds = extractIds(containers);
+		final Collection<String> containersIds = idExtractor.extractIds(containers);
 		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
 
 		List<GridServiceContainer> containersToRestart = new ArrayList<>();
@@ -277,18 +279,18 @@ public class XapService {
 				containersToRestart.add(gsc);
 			}
 		}
-		log.info("Will restart all empty GSC instances : {}", extractIds(containersToRestart));
+		log.info("Will restart all empty GSC instances : {}", idExtractor.extractIds(containersToRestart));
 		for (GridServiceContainer gsc : containersToRestart) {
 			gsc.restart();
 		}
-		log.info("Triggered restart of GSC instances : {}", extractIds(containersToRestart));
+		log.info("Triggered restart of GSC instances : {}", idExtractor.extractIds(containersToRestart));
 	}
 
 	public void restartContainers(@NonNull Predicate<GridServiceContainer> predicate, @NonNull RestartStrategy restartStrategy) {
 		GridServiceContainer[] containers = findContainers();
 		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
 		final int gscCount = containers.length;
-		final Collection<String> containersIds = extractIds(containers);
+		final Collection<String> containersIds = idExtractor.extractIds(containers);
 		log.info("Found {} matching GSC instances : {}", gscCount, containersIds);
 
 		log.info("Will restart {} GSC instances : {}", gscCount, containersIds);
@@ -311,7 +313,7 @@ public class XapService {
 		GridServiceManager[] managers = admin.getGridServiceManagers().getManagers();
 		managers = Arrays.stream(managers).filter(predicate).toArray(GridServiceManager[]::new);
 		final int gsmCount = managers.length;
-		final Collection<String> managersIds = extractIds(managers);
+		final Collection<String> managersIds = idExtractor.extractIds(managers);
 		log.info("Found {} running GSM instances : {}", gsmCount, managersIds);
 
 		log.info("Will restart all GSM instances : {}", managersIds);
@@ -338,7 +340,7 @@ public class XapService {
 		GridServiceAgent[] agents = admin.getGridServiceAgents().getAgents();
 		agents = Arrays.stream(agents).filter(predicate).toArray(GridServiceAgent[]::new);
 		final int gsaCount = agents.length;
-		final Collection<String> agentIds = extractIds(agents);
+		final Collection<String> agentIds = idExtractor.extractIds(agents);
 		log.info("Found {} running GSA instances : {}", gsaCount, agentIds);
 
 		log.info("Will shutdown all GSA instances : {}", agentIds);
@@ -364,7 +366,7 @@ public class XapService {
 	public void triggerGarbageCollectorOnEachGsc() {
 		final GridServiceContainer[] containers = findContainers();
 		final int gscCount = containers.length;
-		final Collection<String> containersIds = extractIds(containers);
+		final Collection<String> containersIds = idExtractor.extractIds(containers);
 		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
 
 		final List<Future<?>> taskResults = new ArrayList<>();
@@ -400,7 +402,7 @@ public class XapService {
 	private void generateDumpOnEachGsc(final File outputDirectory, final String[] dumpTypes) throws IOException {
 		final GridServiceContainer[] containers = findContainers();
 		final int gscCount = containers.length;
-		final Collection<String> containersIds = extractIds(containers);
+		final Collection<String> containersIds = idExtractor.extractIds(containers);
 		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
 
 		boolean outputDirectoryCreated = outputDirectory.mkdirs();
@@ -505,7 +507,7 @@ public class XapService {
 
 			doWithProcessingUnit(pu.getName(), Duration.of(10, ChronoUnit.SECONDS), existingProcessingUnit -> {
 				final int instancesCount = existingProcessingUnit.getInstances().length;
-				log.info("Undeploying pu {} ... ({} instances are running on GSCs {})", pu.getName(), instancesCount, extractContainerIds(existingProcessingUnit));
+				log.info("Undeploying pu {} ... ({} instances are running on GSCs {})", pu.getName(), instancesCount, idExtractor.extractContainerIds(existingProcessingUnit));
 				long startTime = System.currentTimeMillis();
 				boolean undeployedSuccessful = existingProcessingUnit.undeployAndWait(1, TimeUnit.MINUTES);
 				long endTime = System.currentTimeMillis();
@@ -553,41 +555,6 @@ public class XapService {
 		log.info("{} has been successfully undeployed.", applicationName);
 	}
 
-	public Collection<String> extractContainerIds(ProcessingUnit existingProcessingUnit) {
-		return extractIds(existingProcessingUnit.getGridServiceContainers());
-	}
-
-	public Collection<String> extractIds(Collection<GridServiceContainer> containers) {
-		Set<String> gscIds = new TreeSet<>();
-		for (GridServiceContainer gsc : containers) {
-			gscIds.add(gsc.getId());
-		}
-		return gscIds;
-	}
-
-	public Collection<String> extractIds(GridServiceContainer[] containers) {
-		Set<String> gscIds = new TreeSet<>();
-		for (GridServiceContainer gsc : containers) {
-			gscIds.add(gsc.getId());
-		}
-		return gscIds;
-	}
-
-	private Collection<String> extractIds(GridServiceManager[] managers) {
-		Set<String> gscIds = new TreeSet<>();
-		for (GridServiceManager gsm : managers) {
-			gscIds.add(gsm.getMachine().getHostName());
-		}
-		return gscIds;
-	}
-
-	private Collection<String> extractIds(GridServiceAgent[] agents) {
-		Set<String> gscIds = new TreeSet<>();
-		for (GridServiceAgent gsa : agents) {
-			gscIds.add(gsa.getMachine().getHostName());
-		}
-		return gscIds;
-	}
 
 	public void doWithApplication(String name, Duration timeout, Consumer<Application> ifFound, Consumer<String> ifNotFound) {
 		Application application = gridServiceManagers.getAdmin().getApplications().waitFor(name, timeout.toMillis(), TimeUnit.MILLISECONDS);

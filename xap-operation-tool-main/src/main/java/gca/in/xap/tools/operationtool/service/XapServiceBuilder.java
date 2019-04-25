@@ -6,6 +6,7 @@ import org.openspaces.admin.Admin;
 import org.openspaces.admin.AdminFactory;
 import org.openspaces.admin.gsm.GridServiceManagers;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -20,7 +21,11 @@ import static java.util.Arrays.stream;
 @Component
 public class XapServiceBuilder {
 
-	private final UserConfirmationService userConfirmationService = new UserConfirmationService();
+	@Autowired
+	private UserConfirmationService userConfirmationService;
+
+	@Autowired
+	private IdExtractor idExtractor;
 
 	private List<String> locators;
 
@@ -124,6 +129,7 @@ public class XapServiceBuilder {
 		result.setUserDetails(userDetails);
 		result.setExecutorService(executor);
 		result.setUserConfirmationService(userConfirmationService);
+		result.setIdExtractor(idExtractor);
 		return result;
 	}
 
