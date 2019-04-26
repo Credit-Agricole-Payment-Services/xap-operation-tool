@@ -19,7 +19,7 @@ public class XapServiceFactoryBean implements FactoryBean<XapService> {
 	private XapServiceBuilder xapServiceBuilder;
 
 	@Override
-	public XapService getObject() throws Exception {
+	public XapService getObject() {
 		return xapServiceBuilder
 				.locators(xapClientDiscovery.getLocators())
 				.groups(xapClientDiscovery.getGroups())

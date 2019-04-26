@@ -1,6 +1,8 @@
 package gca.in.xap.tools.operationtool.commands;
 
 import com.kakawait.spring.boot.picocli.autoconfigure.HelpAwarePicocliCommand;
+import gca.in.xap.tools.operationtool.service.IdExtractor;
+import gca.in.xap.tools.operationtool.service.ShutdownHostService;
 import gca.in.xap.tools.operationtool.service.XapService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -21,11 +23,13 @@ public class ShutdownHostCommand extends HelpAwarePicocliCommand implements Runn
 
 		private static XapService xapService;
 
+		private static IdExtractor idExtractor;
+
 		private HostnamesCandidates() {
 		}
 
 		public Iterator<String> iterator() {
-			Set<String> containersHostsNames = xapService.findContainersHostsNames();
+			Set<String> containersHostsNames = idExtractor.extractHostNames(xapService.findAllMachines());
 			return containersHostsNames.iterator();
 		}
 	}
@@ -35,19 +39,26 @@ public class ShutdownHostCommand extends HelpAwarePicocliCommand implements Runn
 	@Lazy
 	private XapService xapService;
 
+	@Autowired
+	private IdExtractor idExtractor;
+
+	@Autowired
+	private ShutdownHostService shutdownHostService;
+
 	@CommandLine.Parameters(index = "0", arity = "1", description = "name of the host to shutdown", completionCandidates = HostnamesCandidates.class)
 	private InetAddress hostname;
 
 	@PostConstruct
 	public void init() {
 		HostnamesCandidates.xapService = this.xapService;
+		HostnamesCandidates.idExtractor = this.idExtractor;
 	}
 
 	@Override
 	public void run() {
 		xapService.printReportOnContainersAndProcessingUnits();
 		xapService.setDefaultTimeout(Duration.ofMinutes(5));
-		xapService.shutdownHost(hostname.toString());
+		shutdownHostService.shutdownHost(hostname.getHostName());
 	}
 
 }

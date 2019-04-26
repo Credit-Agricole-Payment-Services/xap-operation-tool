@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import gca.in.xap.tools.operationtool.model.ComponentType;
 import gca.in.xap.tools.operationtool.model.DumpReport;
 import gca.in.xap.tools.operationtool.model.VirtualMachineDescription;
-import gca.in.xap.tools.operationtool.predicates.NotPredicate;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.NonNull;
 import lombok.Setter;
@@ -19,7 +18,6 @@ import org.openspaces.admin.gsc.GridServiceContainers;
 import org.openspaces.admin.gsm.GridServiceManager;
 import org.openspaces.admin.gsm.GridServiceManagers;
 import org.openspaces.admin.machine.Machine;
-import org.openspaces.admin.machine.Machines;
 import org.openspaces.admin.pu.ProcessingUnit;
 import org.openspaces.admin.pu.ProcessingUnitDeployment;
 import org.openspaces.admin.pu.ProcessingUnitInstance;
@@ -30,9 +28,6 @@ import org.openspaces.admin.pu.topology.ProcessingUnitConfigHolder;
 import org.openspaces.admin.vm.VirtualMachine;
 import org.openspaces.admin.vm.VirtualMachineDetails;
 import org.openspaces.admin.vm.VirtualMachines;
-import org.openspaces.admin.zone.config.ExactZonesConfig;
-import org.openspaces.admin.zone.config.RequiredZonesConfig;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,10 +37,8 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 @Slf4j
 public class XapService {
@@ -143,9 +136,12 @@ public class XapService {
 	@Setter
 	private IdExtractor idExtractor;
 
+	@Setter
+	private PuRelocateService puRelocateService;
+
 	private final ObjectMapper objectMapper = new ObjectMapperFactory().createObjectMapper();
 
-	private GridServiceContainer[] findContainers() {
+	public GridServiceContainer[] findContainers() {
 		GridServiceContainers gridServiceContainers = admin.getGridServiceContainers();
 		GridServiceContainer[] containers = gridServiceContainers.getContainers();
 		// we want the GSCs to be sorted by Id, for readability and reproducibility
@@ -153,12 +149,11 @@ public class XapService {
 		return containers;
 	}
 
-	public Set<String> findContainersHostsNames() {
-		GridServiceContainers gridServiceContainers = admin.getGridServiceContainers();
-		GridServiceContainer[] containers = gridServiceContainers.getContainers();
-		TreeSet<String> result = Arrays.stream(containers).map(container -> container.getMachine().getHostName()).collect(Collectors.toCollection(TreeSet::new));
-		log.info("findContainersHostsNames() : result = {}", result);
-		return result;
+
+	public Machine[] findAllMachines() {
+		Machine[] machines = admin.getMachines().getMachines();
+		Arrays.sort(machines, Comparator.comparing(Machine::getHostName));
+		return machines;
 	}
 
 	public void printReportOnContainersAndProcessingUnits() {
@@ -175,7 +170,7 @@ public class XapService {
 			String gscId = gsc.getId();
 			ProcessingUnitInstance[] puInstances = gsc.getProcessingUnitInstances();
 			final int puCount = puInstances.length;
-			final Collection<String> puNames = extractProcessingUnitsNames(puInstances);
+			final Collection<String> puNames = idExtractor.extractProcessingUnitsNames(puInstances);
 			log.info("GSC {} is running {} Processing Units : {}", gscId, puCount, puNames);
 		}
 	}
@@ -248,19 +243,6 @@ public class XapService {
 		return null;
 	}
 
-	public Collection<String> extractRunningProcessingUnitsNames(GridServiceContainer gsc) {
-		ProcessingUnitInstance[] puInstances = gsc.getProcessingUnitInstances();
-		return extractProcessingUnitsNames(puInstances);
-	}
-
-	private Collection<String> extractProcessingUnitsNames(ProcessingUnitInstance[] puInstances) {
-		List<String> names = new ArrayList<>();
-		for (ProcessingUnitInstance pu : puInstances) {
-			names.add(pu.getName());
-		}
-		Collections.sort(names);
-		return names;
-	}
 
 	/**
 	 * you may want to restart containers after a PU has been undeployed, in order to make sure no unreleased resources remains.
@@ -436,7 +418,7 @@ public class XapService {
 		long pid = gsc.getVirtualMachine().getDetails().getPid();
 
 		ProcessingUnitInstance[] processingUnitInstances = gsc.getProcessingUnitInstances();
-		Collection<String> processingUnitsNames = extractProcessingUnitsNames(processingUnitInstances);
+		Collection<String> processingUnitsNames = idExtractor.extractProcessingUnitsNames(processingUnitInstances);
 
 		final ZonedDateTime time = ZonedDateTime.now();
 		final String dumpFileName = "dump-" + gscId + "-" + time.format(dumpsFileNamesDateTimeFormatter) + ".zip";
@@ -585,99 +567,6 @@ public class XapService {
 				appName -> {
 					log.warn("Application {} was not found, could not be undeployed", name);
 				});
-	}
-
-	public void shutdownHost(String hostname) {
-		log.info("Asked to shutdown any GSC/GSM/GSA on host {}", hostname);
-		final Predicate<Machine> machinePredicate = machine -> machine.getHostName().equals(hostname) || machine.getHostAddress().equals(hostname);
-
-		final Machines machines = gridServiceManagers.getAdmin().getMachines();
-		final Machine[] allMachines = machines.getMachines();
-		final Machine[] matchingMachines = Arrays.stream(allMachines).filter(machinePredicate).toArray(Machine[]::new);
-
-		log.info("Found {} machines in XAP cluster, Found {} matching machines to shutdown", allMachines.length, matchingMachines.length);
-
-		boolean forbidWhenOnlyOneHost = false;
-		if (forbidWhenOnlyOneHost) {
-			if (matchingMachines.length == allMachines.length) {
-				String message = "This will effectively shutdown all Machines in the XAP cluster, this is not supported in order to prevent service interruption";
-				log.error(message);
-				throw new IllegalStateException(message);
-			}
-		}
-
-		AtomicInteger foundPuInstanceCount = null;
-
-		final int maxRelocateAttemptCount = 2;
-		AtomicInteger attemptCount = new AtomicInteger(0);
-
-		while (attemptCount.get() < maxRelocateAttemptCount && (foundPuInstanceCount == null || foundPuInstanceCount.get() > 0)) {
-			attemptCount.incrementAndGet();
-			//
-			final AtomicInteger remainingPuInstanceCount = new AtomicInteger(0);
-			Arrays.stream(matchingMachines).forEach(machine -> {
-
-				ProcessingUnitInstance[] processingUnitInstances = machine.getProcessingUnitInstances();
-				log.info("Found {} ProcessingUnitInstance¨running on Machine {}", processingUnitInstances.length, machine.getHostName());
-				Arrays.stream(processingUnitInstances).forEach(puInstance -> {
-					final GridServiceContainer gsc = puInstance.getGridServiceContainer();
-					log.info("Processing Unit {} Instance {} is running on GSC {}. Relocating to another GSC ...", puInstance.getName(), puInstance.getId(), gsc.getId());
-					remainingPuInstanceCount.incrementAndGet();
-
-					try {
-						relocatePuInstance(puInstance, new NotPredicate<>(machinePredicate));
-					} catch (RuntimeException e) {
-						// if there is a failure on 1 PU, maybe other PUs can be relocated, so we continue
-						// this exception needs to be catched in order to be able to proceed on other PUs if any
-						log.error("Failure while trying to relocate PU instance", e);
-					}
-				});
-			});
-			//
-			foundPuInstanceCount = remainingPuInstanceCount;
-		}
-
-		if (foundPuInstanceCount.get() == 0) {
-			Arrays.stream(matchingMachines).forEach(machine -> {
-				GridServiceAgent gridServiceAgent = machine.getGridServiceAgent();
-				log.info("Shutting down GSA {} on Machine {} ...", gridServiceAgent.getUid(), machine.getHostName());
-				gridServiceAgent.shutdown();
-				log.info("Successfully shut down GSA {} on Machine {}", gridServiceAgent.getUid(), machine.getHostName());
-			});
-		} else {
-			log.info("Found {} ProcessingUnitInstance¨running on Machine {}", foundPuInstanceCount.get(), hostname);
-		}
-
-	}
-
-	public void relocatePuInstance(ProcessingUnitInstance puInstance, Predicate<Machine> machinePredicate) {
-		final GridServiceContainer gscWherePuIsCurrentlyRunning = puInstance.getGridServiceContainer();
-		//
-		final ProcessingUnit processingUnit = puInstance.getProcessingUnit();
-		final RequiredZonesConfig puRequiredContainerZones = processingUnit.getRequiredContainerZones();
-		log.info("Looking for a GSC with Zones configuration that matches : {}", puRequiredContainerZones);
-
-		//
-		Predicate<GridServiceContainer> containerPredicate = gsc -> {
-			final ExactZonesConfig containerExactZones = gsc.getExactZones();
-			return puRequiredContainerZones.isSatisfiedBy(containerExactZones);
-		};
-
-		GridServiceContainer[] containers = gridServiceManagers.getAdmin().getGridServiceContainers().getContainers();
-
-		GridServiceContainer container = Arrays.stream(containers)
-				.filter(gsc -> machinePredicate.test(gsc.getMachine()))
-				.filter(gsc -> !gsc.getId().equals(gscWherePuIsCurrentlyRunning.getId()))
-				.filter(containerPredicate)
-				.min(Comparator.comparingInt(gsc -> gsc.getProcessingUnitInstances().length))
-				.orElseThrow(() -> new UnsupportedOperationException("Did not find any GSC matching requirements, with puRequiredContainerZones = " + puRequiredContainerZones));
-
-		log.info("Identified a matching GSC to relocate the PU instance {} of PU {} : {} (having zone config : {})",
-				puInstance.getId(),
-				processingUnit.getName(),
-				container.getId(),
-				container.getExactZones());
-		puInstance.relocate(container);
 	}
 
 
