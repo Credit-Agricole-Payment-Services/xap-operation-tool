@@ -156,6 +156,11 @@ public class XapService {
 		return machines;
 	}
 
+	public ProcessingUnit findProcessingUnitByName(String processingUnitName) {
+		ProcessingUnit processingUnit = admin.getProcessingUnits().getProcessingUnit(processingUnitName);
+		return processingUnit;
+	}
+
 	public void printReportOnContainersAndProcessingUnits() {
 		printReportOnContainersAndProcessingUnits(gsc -> true);
 	}
