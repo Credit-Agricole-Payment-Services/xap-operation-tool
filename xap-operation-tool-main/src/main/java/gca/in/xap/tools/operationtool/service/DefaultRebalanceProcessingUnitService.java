@@ -1,8 +1,10 @@
 package gca.in.xap.tools.operationtool.service;
 
 import com.google.common.util.concurrent.AtomicLongMap;
+import gca.in.xap.tools.operationtool.predicates.machine.MachinePredicateFactory;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.extern.slf4j.Slf4j;
+import org.openspaces.admin.machine.Machine;
 import org.openspaces.admin.pu.ProcessingUnit;
 import org.openspaces.admin.pu.ProcessingUnitInstance;
 import org.openspaces.admin.zone.config.ExactZonesConfig;
@@ -23,6 +25,9 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 
 	@Autowired
 	private UserConfirmationService userConfirmationService;
+
+	@Autowired
+	private MachinePredicateFactory machinePredicateFactory;
 
 	@Override
 	public void rebalanceProcessingUnit(String processingUnitName, RestartStrategy restartStrategy) {
@@ -67,7 +72,8 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 			if (!firstIteration) {
 				restartStrategy.waitBetweenComponent();
 			}
-			puRelocateService.relocatePuInstance(puInstance, machine -> true, true);
+			final Machine puInstanceMachine = puInstance.getMachine();
+			puRelocateService.relocatePuInstance(puInstance, machinePredicateFactory.createDifferentMachinePredicate(puInstanceMachine), true);
 			//
 			firstIteration = false;
 		}
