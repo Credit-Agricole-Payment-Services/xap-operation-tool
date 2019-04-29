@@ -1,7 +1,7 @@
 package gca.in.xap.tools.operationtool.service;
 
 import gca.in.xap.tools.operationtool.predicates.NotPredicate;
-import gca.in.xap.tools.operationtool.predicates.machine.MachinePredicateFactory;
+import gca.in.xap.tools.operationtool.predicates.machine.MachineWithSameNamePredicate;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsa.GridServiceAgent;
@@ -31,9 +31,6 @@ public class DefaultShutdownHostService implements ShutdownHostService {
 	@Autowired
 	private IdExtractor idExtractor;
 
-	@Autowired
-	private MachinePredicateFactory machinePredicateFactory;
-
 	/**
 	 * enables failfast
 	 */
@@ -43,7 +40,7 @@ public class DefaultShutdownHostService implements ShutdownHostService {
 	@Override
 	public void shutdownHost(String hostNameOrAddress) {
 		log.info("Asked to shutdown any GSC/GSM/GSA on host {}", hostNameOrAddress);
-		final Predicate<Machine> machinePredicate = machinePredicateFactory.createMachinePredicate(hostNameOrAddress);
+		final Predicate<Machine> machinePredicate = new MachineWithSameNamePredicate(hostNameOrAddress);
 
 		final Machine[] allMachines = xapService.findAllMachines();
 		final Machine[] matchingMachines = Arrays.stream(allMachines).filter(machinePredicate).toArray(Machine[]::new);
