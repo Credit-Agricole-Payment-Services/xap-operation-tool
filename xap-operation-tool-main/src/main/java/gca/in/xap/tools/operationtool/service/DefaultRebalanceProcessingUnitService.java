@@ -46,6 +46,43 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 			throw new IllegalStateException("ProcessingUnit with name " + processingUnitName + " was not found");
 		}
 
+		final ProcessingUnitInstanceRepartitionSnapshot processingUnitInstanceRepartitionSnapshotBefore = takeSnapshot(processingUnit);
+		log.info("processingUnitInstanceRepartitionSnapshotBefore = {}", processingUnitInstanceRepartitionSnapshotBefore);
+
+		MinAndMax<String> minAndMaxByMachine = findMinAndMax(processingUnitInstanceRepartitionSnapshotBefore.actualCountByMachine);
+		boolean needsRebalancedByMachine = needsRebalanced(minAndMaxByMachine);
+		if (needsRebalancedByMachine) {
+			rebalanceByMachine(processingUnitInstanceRepartitionSnapshotBefore.processingUnitInstances, minAndMaxByMachine);
+		} else {
+			MinAndMax<String> minAndMaxByGSC = findMinAndMax(processingUnitInstanceRepartitionSnapshotBefore.actualCountByGSC);
+			boolean needsRebalancedByGSC = needsRebalanced(minAndMaxByGSC);
+			if (needsRebalancedByGSC) {
+				rebalanceByGSC(processingUnitInstanceRepartitionSnapshotBefore.processingUnitInstances, minAndMaxByGSC);
+			} else {
+				log.info("Does not need to relocate any PU Instance");
+				return;
+			}
+		}
+
+		final ProcessingUnitInstanceRepartitionSnapshot processingUnitInstanceRepartitionSnapshotAfter = takeSnapshot(processingUnit);
+		log.info("processingUnitInstanceRepartitionSnapshotAfter = {}", processingUnitInstanceRepartitionSnapshotAfter);
+	}
+
+	@Data
+	public static class ProcessingUnitInstanceRepartitionSnapshot {
+		private final ProcessingUnitInstance[] processingUnitInstances;
+
+		private final AtomicLongMap<String> potentialCountByMachine;
+		private final AtomicLongMap<String> potentialCountByZone;
+		private final AtomicLongMap<String> potentialCountByGSC;
+
+		private final AtomicLongMap<String> actualCountByMachine;
+		private final AtomicLongMap<String> actualCountByZone;
+		private final AtomicLongMap<String> actualCountByGSC;
+	}
+
+	public ProcessingUnitInstanceRepartitionSnapshot takeSnapshot(ProcessingUnit processingUnit) {
+
 		final GridServiceContainer[] allMatchingContainersForPu = puRelocateService.findBestContainersToRelocate(processingUnit, machine -> true, gsc -> true);
 		final long allMatchingContainersForPuCount = allMatchingContainersForPu.length;
 		log.info("allMatchingContainersForPuCount = {}", allMatchingContainersForPuCount);
@@ -104,22 +141,44 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		log.info("actualCountByMachine = {}", actualCountByMachine);
 		log.info("actualCountByGSC = {}", actualCountByGSC);
 
-		MinAndMax<String> minAndMax = findMinAndMax(actualCountByMachine);
-		if (minAndMax != null && minAndMax.getMax().getValue() > minAndMax.getMin().getValue() + 1) {
-			Optional<ProcessingUnitInstance> processingUnitInstanceToRelocate = Arrays.stream(processingUnitInstances).filter(processingUnitInstance -> processingUnitInstance.getGridServiceContainer().getMachine().getHostName().equals(minAndMax.getMax().getKey())).findFirst();
-			ProcessingUnitInstance processingUnitInstance = processingUnitInstanceToRelocate.get();
-
-			log.info("Will relocate instance of Processing Unit Instance {} from Machine {} to Machine {}", processingUnitInstance.getId(), minAndMax.getMax().getKey(), minAndMax.getMin().getKey());
-			userConfirmationService.askConfirmationAndWait();
-
-			final Predicate<Machine> targetMachinePredicate = new MachineWithSameNamePredicate(minAndMax.getMin().getKey());
-			//
-			puRelocateService.relocatePuInstance(processingUnitInstance, targetMachinePredicate, true);
-		} else {
-			log.info("Does not need to relocate any PU Instance");
-		}
+		return new ProcessingUnitInstanceRepartitionSnapshot(
+				processingUnitInstances,
+				potentialCountByMachine, potentialCountByZone, potentialCountByGSC,
+				actualCountByMachine, actualCountByZone, actualCountByGSC
+		);
 	}
 
+	private void rebalanceByMachine(ProcessingUnitInstance[] processingUnitInstances, MinAndMax<String> minAndMaxByMachine) {
+		Optional<ProcessingUnitInstance> processingUnitInstanceToRelocate = Arrays.stream(processingUnitInstances)
+				.filter(processingUnitInstance -> processingUnitInstance.getGridServiceContainer().getMachine().getHostName().equals(minAndMaxByMachine.getMax().getKey()))
+				.findFirst();
+		ProcessingUnitInstance processingUnitInstance = processingUnitInstanceToRelocate.get();
+
+		log.info("Will relocate instance of Processing Unit Instance {} from Machine {} to Machine {}", processingUnitInstance.getId(), minAndMaxByMachine.getMax().getKey(), minAndMaxByMachine.getMin().getKey());
+		userConfirmationService.askConfirmationAndWait();
+
+		final Predicate<Machine> targetMachinePredicate = new MachineWithSameNamePredicate(minAndMaxByMachine.getMin().getKey());
+		//
+		puRelocateService.relocatePuInstance(processingUnitInstance, targetMachinePredicate, true);
+	}
+
+	private void rebalanceByGSC(ProcessingUnitInstance[] processingUnitInstances, MinAndMax<String> minAndMaxByGSC) {
+		Optional<ProcessingUnitInstance> processingUnitInstanceToRelocate = Arrays.stream(processingUnitInstances)
+				.filter(processingUnitInstance -> processingUnitInstance.getGridServiceContainer().getId().equals(minAndMaxByGSC.getMax().getKey()))
+				.findFirst();
+		ProcessingUnitInstance processingUnitInstance = processingUnitInstanceToRelocate.get();
+
+		log.info("Will relocate instance of Processing Unit Instance {} from GSC {} to GSC {}", processingUnitInstance.getId(), minAndMaxByGSC.getMax().getKey(), minAndMaxByGSC.getMin().getKey());
+		userConfirmationService.askConfirmationAndWait();
+
+		final Predicate<Machine> targetMachinePredicate = machine -> true;
+		//
+		puRelocateService.relocatePuInstance(processingUnitInstance, targetMachinePredicate, true);
+	}
+
+	private boolean needsRebalanced(MinAndMax<String> minAndMax) {
+		return minAndMax != null && minAndMax.getMax().getValue() > minAndMax.getMin().getValue() + 1;
+	}
 
 	private static AtomicLongMap<String> initAtomicLongMapCounterWithZeroValues(AtomicLongMap<String> potentialCounter) {
 		final AtomicLongMap<String> newInstance = AtomicLongMap.create();

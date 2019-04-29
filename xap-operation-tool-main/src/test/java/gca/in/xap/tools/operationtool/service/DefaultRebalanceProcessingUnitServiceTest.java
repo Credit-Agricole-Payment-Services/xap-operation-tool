@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentMatcher;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -157,9 +156,34 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 
 		service.rebalanceProcessingUnit(processingUnitName, new RestartStrategy(Duration.ZERO));
 
-		ArgumentMatcher matcher = o -> o == processingUnitInstance1 || o == processingUnitInstance2;
-
 		verify(puRelocateService).relocatePuInstance(any(ProcessingUnitInstance.class), eq(new MachineWithSameNamePredicate("machine2")), eq(true));
+	}
+
+	@Test
+	public void should_rebalance_when_two_puInstance_onSameGSC_but_multiple_GSC_available() {
+		final String processingUnitName = "my-pu";
+
+		doReturn(new GridServiceContainer[]{gridServiceContainer1, gridServiceContainer2}).when(puRelocateService).findBestContainersToRelocate(same(processingUnit), any(Predicate.class), any(Predicate.class));
+		doReturn(machine1).when(gridServiceContainer1).getMachine();
+		doReturn(machine1).when(gridServiceContainer2).getMachine();
+		//
+		doReturn(processingUnit).when(xapService).findProcessingUnitByName(processingUnitName);
+		doReturn(new ProcessingUnitInstance[]{processingUnitInstance1, processingUnitInstance2}).when(processingUnit).getInstances();
+		//
+		doReturn(gridServiceContainer1).when(processingUnitInstance1).getGridServiceContainer();
+		doReturn(gridServiceContainer1).when(processingUnitInstance2).getGridServiceContainer();
+		//
+		doReturn("machine1").when(machine1).getHostName();
+		//
+		doReturn(new ExactZonesConfig()).when(gridServiceContainer1).getExactZones();
+		doReturn(new ExactZonesConfig()).when(gridServiceContainer2).getExactZones();
+		//
+		doReturn("machine1~1234").when(gridServiceContainer1).getId();
+		doReturn("machine1~1235").when(gridServiceContainer2).getId();
+
+		service.rebalanceProcessingUnit(processingUnitName, new RestartStrategy(Duration.ZERO));
+
+		verify(puRelocateService).relocatePuInstance(any(ProcessingUnitInstance.class), any(Predicate.class), eq(true));
 	}
 
 }
