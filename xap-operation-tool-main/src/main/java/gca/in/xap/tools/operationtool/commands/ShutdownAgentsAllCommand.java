@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
 import java.time.Duration;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -32,6 +33,12 @@ public class ShutdownAgentsAllCommand extends HelpAwarePicocliCommand implements
 
 		log.info("RestartStrategy is : {}", noIntervalRestartStrategy);
 
+		log.info("Shutting down all agents on non-managers hosts ...");
+		final List<String> managersHostnames = xapService.findManagersHostnames();
+		xapService.shutdownAgents(
+				gsa -> !managersHostnames.contains(gsa.getMachine().getHostName())
+				, noIntervalRestartStrategy);
+		log.info("Shutting down all agents on managers hosts ...");
 		xapService.shutdownAgents(gsa -> true, noIntervalRestartStrategy);
 	}
 

@@ -39,6 +39,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class XapService {
@@ -149,6 +150,18 @@ public class XapService {
 		return containers;
 	}
 
+	public GridServiceManager[] findManagers() {
+		GridServiceManagers gridServiceManagers = admin.getGridServiceManagers();
+		GridServiceManager[] managers = gridServiceManagers.getManagers();
+		// we want the GSCs to be sorted by Id, for readability and reproducibility
+		Arrays.sort(managers, Comparator.comparing(gsm -> gsm.getMachine().getHostName()));
+		return managers;
+	}
+
+	public List<String> findManagersHostnames() {
+		final GridServiceManager[] managers = findManagers();
+		return Arrays.stream(managers).map(gsm -> gsm.getMachine().getHostName()).collect(Collectors.toList());
+	}
 
 	public Machine[] findAllMachines() {
 		Machine[] machines = admin.getMachines().getMachines();
@@ -181,7 +194,7 @@ public class XapService {
 	}
 
 	public void printReportOnManagers() {
-		final GridServiceManager[] managers = admin.getGridServiceManagers().getManagers();
+		final GridServiceManager[] managers = findManagers();
 		final int gsmCount = managers.length;
 		final Collection<String> managersIds = idExtractor.extractIds(managers);
 		log.info("Found {} running GSM instances : {}", gsmCount, managersIds);
@@ -297,13 +310,13 @@ public class XapService {
 	}
 
 	public void restartManagers(@NonNull Predicate<GridServiceManager> predicate, @NonNull RestartStrategy restartStrategy) {
-		GridServiceManager[] managers = admin.getGridServiceManagers().getManagers();
+		GridServiceManager[] managers = findManagers();
 		managers = Arrays.stream(managers).filter(predicate).toArray(GridServiceManager[]::new);
 		final int gsmCount = managers.length;
 		final Collection<String> managersIds = idExtractor.extractIds(managers);
-		log.info("Found {} running GSM instances : {}", gsmCount, managersIds);
+		log.info("Found {} matching GSM instances : {}", gsmCount, managersIds);
 
-		log.info("Will restart all GSM instances : {}", managersIds);
+		log.info("Will restart {] GSM instances : {}", gsmCount, managersIds);
 		userConfirmationService.askConfirmationAndWait();
 		boolean firstIteration = true;
 		for (GridServiceManager gsm : managers) {
@@ -328,9 +341,9 @@ public class XapService {
 		agents = Arrays.stream(agents).filter(predicate).toArray(GridServiceAgent[]::new);
 		final int gsaCount = agents.length;
 		final Collection<String> agentIds = idExtractor.extractIds(agents);
-		log.info("Found {} running GSA instances : {}", gsaCount, agentIds);
+		log.info("Found {} matching GSA instances : {}", gsaCount, agentIds);
 
-		log.info("Will shutdown all GSA instances : {}", agentIds);
+		log.info("Will shutdown {} GSA instances : {}", gsaCount, agentIds);
 		userConfirmationService.askConfirmationAndWait();
 		boolean firstIteration = true;
 		for (GridServiceAgent gsa : agents) {
