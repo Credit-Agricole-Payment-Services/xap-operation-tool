@@ -1,5 +1,7 @@
 package gca.in.xap.tools.operationtool.service;
 
+import gca.in.xap.tools.operationtool.service.deployer.DefaultApplicationDeployer;
+import gca.in.xap.tools.operationtool.service.deployer.DefaultProcessingUnitDeployer;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.Admin;
@@ -100,7 +102,7 @@ public class XapServiceBuilder {
 
 	public XapService create() {
 		Admin admin = createAdmin();
-		GridServiceManagers gridServiceManagers = awaitGSM(admin);
+		awaitGSM(admin);
 
 		waitForClusterInfoToUpdate();
 
@@ -124,12 +126,13 @@ public class XapServiceBuilder {
 
 		XapService result = new XapService();
 		result.setAdmin(admin);
-		result.setGridServiceManagers(gridServiceManagers);
 		result.setOperationTimeout(timeout);
 		result.setUserDetails(userDetails);
 		result.setExecutorService(executor);
 		result.setUserConfirmationService(userConfirmationService);
 		result.setIdExtractor(idExtractor);
+		result.setApplicationDeployer(new DefaultApplicationDeployer(admin));
+		result.setProcessingUnitDeployer(new DefaultProcessingUnitDeployer(admin));
 		return result;
 	}
 

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import gca.in.xap.tools.operationtool.model.ComponentType;
 import gca.in.xap.tools.operationtool.model.DumpReport;
 import gca.in.xap.tools.operationtool.model.VirtualMachineDescription;
+import gca.in.xap.tools.operationtool.service.deployer.ApplicationDeployer;
+import gca.in.xap.tools.operationtool.service.deployer.ProcessingUnitDeployer;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.NonNull;
 import lombok.Setter;
@@ -116,9 +118,6 @@ public class XapService {
 	@Setter
 	private Admin admin;
 
-	@Setter
-	private GridServiceManagers gridServiceManagers;
-
 	/**
 	 * the timeout of the operation (deployment, undeployment)
 	 */
@@ -139,6 +138,12 @@ public class XapService {
 
 	@Setter
 	private PuRelocateService puRelocateService;
+
+	@Setter
+	private ProcessingUnitDeployer processingUnitDeployer;
+
+	@Setter
+	private ApplicationDeployer applicationDeployer;
 
 	private final ObjectMapper objectMapper = new ObjectMapperFactory().createObjectMapper();
 
@@ -475,7 +480,7 @@ public class XapService {
 		);
 
 		long deployRequestStartTime = System.currentTimeMillis();
-		Application dataApp = gridServiceManagers.deploy(applicationConfig, timeout.toMillis(), TimeUnit.MILLISECONDS);
+		Application dataApp = applicationDeployer.deploy(applicationConfig, timeout.toMillis(), TimeUnit.MILLISECONDS);
 		long deployRequestEndTime = System.currentTimeMillis();
 		long deployRequestDuration = deployRequestEndTime - deployRequestStartTime;
 		log.info("Requested deployment of application : duration = {} ms", deployRequestDuration);
@@ -523,7 +528,7 @@ public class XapService {
 
 			log.info("Deploying pu {} ...", pu.getName());
 			long puDeploymentStartTime = System.currentTimeMillis();
-			ProcessingUnit processingUnit = gridServiceManagers.deploy(processingUnitDeployment);
+			ProcessingUnit processingUnit = processingUnitDeployer.deploy(processingUnitDeployment);
 			awaitDeployment(processingUnit, puDeploymentStartTime, timeout, expectedMaximumEndDate);
 		}
 
@@ -557,7 +562,7 @@ public class XapService {
 
 
 	public void doWithApplication(String name, Duration timeout, Consumer<Application> ifFound, Consumer<String> ifNotFound) {
-		Application application = gridServiceManagers.getAdmin().getApplications().waitFor(name, timeout.toMillis(), TimeUnit.MILLISECONDS);
+		Application application = admin.getApplications().waitFor(name, timeout.toMillis(), TimeUnit.MILLISECONDS);
 		if (application == null) {
 			ifNotFound.accept(name);
 		} else {
@@ -566,7 +571,7 @@ public class XapService {
 	}
 
 	public void doWithProcessingUnit(String name, Duration timeout, Consumer<ProcessingUnit> ifFound, Consumer<String> ifNotFound) {
-		ProcessingUnit processingUnit = gridServiceManagers.getAdmin().getProcessingUnits().waitFor(name, timeout.toMillis(), TimeUnit.MILLISECONDS);
+		ProcessingUnit processingUnit = admin.getProcessingUnits().waitFor(name, timeout.toMillis(), TimeUnit.MILLISECONDS);
 		if (processingUnit == null) {
 			ifNotFound.accept(name);
 		} else {
