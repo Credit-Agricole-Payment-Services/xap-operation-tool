@@ -1,6 +1,7 @@
 package gca.in.xap.tools.operationtool.service;
 
 import gca.in.xap.tools.operationtool.XapClientDiscovery;
+import gca.in.xap.tools.operationtool.service.deployer.ProcessingUnitDeployerType;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +26,7 @@ public class XapServiceFactoryBean implements FactoryBean<XapService> {
 				.groups(xapClientDiscovery.getGroups())
 				.timeout(xapClientDiscovery.getTimeoutDuration())
 				.userDetails(userDetailsConfig)
+				.processingUnitDeployerType(ProcessingUnitDeployerType.REST_API)
 				.create();
 	}
 

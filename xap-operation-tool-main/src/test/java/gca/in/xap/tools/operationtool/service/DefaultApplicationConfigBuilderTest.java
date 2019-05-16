@@ -19,14 +19,14 @@ public class DefaultApplicationConfigBuilderTest {
 		File archiveFileOrDirectory = new File(".");
 		File deploymentDescriptorsDirectory = new File("src/test/resources/deploymentdescriptors-sample01");
 
-		appDeployBuilder = new DefaultApplicationConfigBuilder()
-				.withApplicationArchiveFileOrDirectory(archiveFileOrDirectory)
-				.withSharedProperties(PropertiesMergeBuilder.createFromConvention(deploymentDescriptorsDirectory))
-				.withDeploymentDescriptorsDirectory(deploymentDescriptorsDirectory)
-		;
+		appDeployBuilder = DefaultApplicationConfigBuilder.builder()
+				.applicationArchiveFileOrDirectory(archiveFileOrDirectory)
+				.sharedProperties(PropertiesMergeBuilder.createFromConvention(deploymentDescriptorsDirectory))
+				.deploymentDescriptorsDirectory(deploymentDescriptorsDirectory)
+				.build();
 		log.info("appDeployBuilder = {}", appDeployBuilder);
 
-		ApplicationConfig applicationConfig = appDeployBuilder.create();
+		ApplicationConfig applicationConfig = appDeployBuilder.loadApplicationConfig();
 		log.info("applicationConfig = {}", applicationConfig);
 	}
 

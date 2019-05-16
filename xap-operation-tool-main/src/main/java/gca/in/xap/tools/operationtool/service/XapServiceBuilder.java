@@ -1,7 +1,11 @@
 package gca.in.xap.tools.operationtool.service;
 
+import gca.in.xap.tools.operationtool.deploymentdescriptors.json.DeploymentDescriptorMarshaller;
+import gca.in.xap.tools.operationtool.deploymentdescriptors.puconfig.ProcessingUnitConfigToDeploymentDescriptorMapper;
 import gca.in.xap.tools.operationtool.service.deployer.DefaultApplicationDeployer;
 import gca.in.xap.tools.operationtool.service.deployer.DefaultProcessingUnitDeployer;
+import gca.in.xap.tools.operationtool.service.deployer.HttpProcessingUnitDeployer;
+import gca.in.xap.tools.operationtool.service.deployer.ProcessingUnitDeployerType;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.Admin;
@@ -29,6 +33,12 @@ public class XapServiceBuilder {
 	@Autowired
 	private IdExtractor idExtractor;
 
+	@Autowired
+	private DeploymentDescriptorMarshaller deploymentDescriptorMarshaller;
+
+	@Autowired
+	private  ProcessingUnitConfigToDeploymentDescriptorMapper processingUnitConfigToDeploymentDescriptorMapper;
+
 	private List<String> locators;
 
 	private List<String> groups;
@@ -36,6 +46,8 @@ public class XapServiceBuilder {
 	private UserDetailsConfig userDetails;
 
 	private Duration timeout;
+
+	private ProcessingUnitDeployerType processingUnitDeployerType = ProcessingUnitDeployerType.REST_API;
 
 	public XapServiceBuilder locators(List<String> locators) {
 		this.locators = locators;
@@ -54,6 +66,11 @@ public class XapServiceBuilder {
 
 	public XapServiceBuilder timeout(Duration timeout) {
 		this.timeout = timeout;
+		return this;
+	}
+
+	public XapServiceBuilder processingUnitDeployerType(ProcessingUnitDeployerType processingUnitDeployerType) {
+		this.processingUnitDeployerType = processingUnitDeployerType;
 		return this;
 	}
 
@@ -132,7 +149,14 @@ public class XapServiceBuilder {
 		result.setUserConfirmationService(userConfirmationService);
 		result.setIdExtractor(idExtractor);
 		result.setApplicationDeployer(new DefaultApplicationDeployer(admin));
-		result.setProcessingUnitDeployer(new DefaultProcessingUnitDeployer(admin));
+		switch (processingUnitDeployerType) {
+			case JAVA_API:
+				result.setProcessingUnitDeployer(new DefaultProcessingUnitDeployer(admin));
+				break;
+			case REST_API:
+				result.setProcessingUnitDeployer(new HttpProcessingUnitDeployer(admin, deploymentDescriptorMarshaller, processingUnitConfigToDeploymentDescriptorMapper));
+				break;
+		}
 		return result;
 	}
 

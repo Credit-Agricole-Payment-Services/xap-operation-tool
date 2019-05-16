@@ -266,6 +266,12 @@
 			<scope>provided</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>io.vertx</groupId>
+			<artifactId>vertx-web-client</artifactId>
+			<version>3.7.0</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>

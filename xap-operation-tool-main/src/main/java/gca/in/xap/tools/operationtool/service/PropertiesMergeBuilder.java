@@ -36,7 +36,7 @@ public class PropertiesMergeBuilder {
 	}
 
 
-	public void addContextPropertiesIfExists(File propertiesFile, Map<String, String> targetProperties) {
+	public void addContextPropertiesIfExists(File propertiesFile, Map<String, Object> targetProperties) {
 		if (propertiesFile.exists()) {
 			addContextProperties(propertiesFile, targetProperties);
 		} else {
@@ -44,7 +44,7 @@ public class PropertiesMergeBuilder {
 		}
 	}
 
-	public PropertiesMergeBuilder addContextProperties(File file, Map<String, String> targetProperties) {
+	public PropertiesMergeBuilder addContextProperties(File file, Map<String, Object> targetProperties) {
 		Properties properties = new Properties();
 		try (InputStream inputStream = new FileInputStream(file)) {
 			properties.load(inputStream);
@@ -54,9 +54,9 @@ public class PropertiesMergeBuilder {
 		return this.addContextProperties(properties, targetProperties);
 	}
 
-	public PropertiesMergeBuilder addContextProperties(Properties sourceProperties, Map<String, String> targetProperties) {
+	public PropertiesMergeBuilder addContextProperties(Properties sourceProperties, Map<String, Object> targetProperties) {
 		sourceProperties.forEach((key, value) -> {
-			targetProperties.put((String) key, (String) value);
+			targetProperties.put((String) key, value);
 		});
 		return this;
 	}

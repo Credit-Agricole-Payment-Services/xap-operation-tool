@@ -2,10 +2,13 @@ package gca.in.xap.tools.operationtool.commands;
 
 import com.kakawait.spring.boot.picocli.autoconfigure.HelpAwarePicocliCommand;
 import gca.in.xap.tools.operationtool.XapClientDiscovery;
-import gca.in.xap.tools.operationtool.service.*;
+import gca.in.xap.tools.operationtool.deploymentdescriptors.json.DeploymentDescriptorUnmarshaller;
+import gca.in.xap.tools.operationtool.service.ApplicationFileLocator;
+import gca.in.xap.tools.operationtool.service.DefaultApplicationConfigBuilder;
+import gca.in.xap.tools.operationtool.service.PropertiesMergeBuilder;
+import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import gca.in.xap.tools.operationtool.util.ConfigAndSecretsHolder;
-import gca.in.xap.tools.operationtool.xapauth.XapClientUserDetailsConfigFactory;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.application.config.ApplicationConfig;
@@ -40,6 +43,9 @@ public class DeployCommand extends HelpAwarePicocliCommand implements Runnable {
 	@Autowired
 	private XapClientDiscovery xapClientDiscovery;
 
+	@Autowired
+	private DeploymentDescriptorUnmarshaller deploymentDescriptorUnmarshaller;
+
 	@CommandLine.Option(names = {"--whole"}, description = "Upload the application in whole")
 	private boolean wholeMode;
 
@@ -71,13 +77,15 @@ public class DeployCommand extends HelpAwarePicocliCommand implements Runnable {
 
 		final DefaultApplicationConfigBuilder appDeployBuilder;
 
-		appDeployBuilder = new DefaultApplicationConfigBuilder()
-				.withApplicationArchiveFileOrDirectory(archiveFileOrDirectory)
-				.withDeploymentDescriptorsDirectory(deploymentDescriptorsDirectory)
-				.withUserDetailsConfig(userDetailsConfig)
-				.withSharedProperties(sharedProperties);
+		appDeployBuilder = DefaultApplicationConfigBuilder.builder()
+				.applicationArchiveFileOrDirectory(archiveFileOrDirectory)
+				.deploymentDescriptorsDirectory(deploymentDescriptorsDirectory)
+				.userDetailsConfig(userDetailsConfig)
+				.deploymentDescriptorUnmarshaller(deploymentDescriptorUnmarshaller)
+				.sharedProperties(sharedProperties)
+				.build();
 
-		ApplicationConfig applicationConfig = appDeployBuilder.create();
+		ApplicationConfig applicationConfig = appDeployBuilder.loadApplicationConfig();
 
 		log.info("Will deploy ApplicationConfig : {}", applicationConfig);
 		userConfirmationService.askConfirmationAndWait();

@@ -88,7 +88,7 @@ public class XapService {
 		log.info("Application deployed in : {} ms", appDeploymentDuration);
 	}
 
-	static void awaitDeployment(ProcessingUnit pu, long deploymentStartTime, @NonNull Duration timeout, long expectedMaximumEndDate) throws TimeoutException {
+	static void awaitDeployment(@NonNull ProcessingUnit pu, long deploymentStartTime, @NonNull Duration timeout, long expectedMaximumEndDate) throws TimeoutException {
 		String puName = pu.getName();
 		final int plannedNumberOfInstances = pu.getPlannedNumberOfInstances();
 		log.info("Waiting for PU {} to deploy {} instances ...", puName, plannedNumberOfInstances);
@@ -504,31 +504,30 @@ public class XapService {
 		final long expectedMaximumEndDate = deploymentStartTime + timeout.toMillis();
 
 		for (ProcessingUnitConfigHolder pu : applicationConfig.getProcessingUnits()) {
+			final String puName = pu.getName();
 			ProcessingUnitConfig processingUnitConfig = pu.toProcessingUnitConfig();
-			ProcessingUnitDeployment processingUnitDeployment = new CustomProcessingUnitDeployment(pu.getName(), processingUnitConfig);
+			log.debug("puName = {}, processingUnitConfig = {}", puName, processingUnitConfig);
 
-			log.debug("processingUnitConfig = {}", processingUnitConfig);
-			log.debug("processingUnitDeployment = {}", processingUnitDeployment);
-
-			doWithProcessingUnit(pu.getName(), Duration.of(10, ChronoUnit.SECONDS), existingProcessingUnit -> {
+			doWithProcessingUnit(puName, Duration.of(10, ChronoUnit.SECONDS), existingProcessingUnit -> {
 				final int instancesCount = existingProcessingUnit.getInstances().length;
-				log.info("Undeploying pu {} ... ({} instances are running on GSCs {})", pu.getName(), instancesCount, idExtractor.extractContainerIds(existingProcessingUnit));
+				log.info("Undeploying pu {} ... ({} instances are running on GSCs {})", puName, instancesCount, idExtractor.extractContainerIds(existingProcessingUnit));
 				long startTime = System.currentTimeMillis();
 				boolean undeployedSuccessful = existingProcessingUnit.undeployAndWait(1, TimeUnit.MINUTES);
 				long endTime = System.currentTimeMillis();
 				long duration = endTime - startTime;
 				if (undeployedSuccessful) {
-					log.info("Undeployed pu {} in {} ms", pu.getName(), duration);
+					log.info("Undeployed pu {} in {} ms", puName, duration);
 				} else {
-					log.warn("Timeout waiting for pu {} to undeploy after {} ms", pu.getName(), duration);
+					log.warn("Timeout waiting for pu {} to undeploy after {} ms", puName, duration);
 				}
 			}, s -> {
-				log.info("ProcessingUnit " + pu.getName() + " is not already deployed");
+				log.info("ProcessingUnit " + puName + " is not already deployed");
 			});
 
-			log.info("Deploying pu {} ...", pu.getName());
+			log.info("Deploying pu {} ...", puName);
 			long puDeploymentStartTime = System.currentTimeMillis();
-			ProcessingUnit processingUnit = processingUnitDeployer.deploy(processingUnitDeployment);
+
+			ProcessingUnit processingUnit = processingUnitDeployer.deploy(puName, processingUnitConfig);
 			awaitDeployment(processingUnit, puDeploymentStartTime, timeout, expectedMaximumEndDate);
 		}
 

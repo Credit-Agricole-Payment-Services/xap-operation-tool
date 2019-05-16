@@ -1,12 +1,13 @@
 package gca.in.xap.tools.operationtool.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import gca.in.xap.tools.operationtool.MaxInstantPerZoneConfigParser;
-import gca.in.xap.tools.operationtool.model.DeploymentDescriptor;
+import gca.in.xap.tools.operationtool.deploymentdescriptors.DeploymentDescriptor;
+import gca.in.xap.tools.operationtool.deploymentdescriptors.json.DeploymentDescriptorUnmarshaller;
 import gca.in.xap.tools.operationtool.userinput.SecretsConfigInteractiveCallback;
 import gca.in.xap.tools.operationtool.util.ConfigAndSecretsHolder;
 import gca.in.xap.tools.operationtool.util.MergeMap;
 import gca.in.xap.tools.operationtool.util.ZipUtil;
+import lombok.Builder;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.builder.ToStringBuilder;
@@ -16,17 +17,16 @@ import org.openspaces.admin.pu.config.ProcessingUnitConfig;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 import org.openspaces.admin.pu.topology.ProcessingUnitConfigHolder;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
 @ToString
+@Builder
 public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder {
 
 	@Nullable
@@ -44,30 +44,11 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 	@Nullable
 	private ConfigAndSecretsHolder sharedProperties;
 
-	private final ObjectMapper objectMapper = new ObjectMapperFactory().createObjectMapper();
-
-	public DefaultApplicationConfigBuilder withApplicationArchiveFileOrDirectory(File applicationArchiveFileOrDirectory) {
-		this.applicationArchiveFileOrDirectory = applicationArchiveFileOrDirectory;
-		return this;
-	}
-
-	public DefaultApplicationConfigBuilder withDeploymentDescriptorsDirectory(File deploymentDescriptorsDirectory) {
-		this.deploymentDescriptorsDirectory = deploymentDescriptorsDirectory;
-		return this;
-	}
-
-	public DefaultApplicationConfigBuilder withUserDetailsConfig(UserDetailsConfig userDetails) {
-		this.userDetailsConfig = userDetails;
-		return this;
-	}
-
-	public DefaultApplicationConfigBuilder withSharedProperties(ConfigAndSecretsHolder sharedProperties) {
-		this.sharedProperties = sharedProperties;
-		return this;
-	}
+	@Nonnull
+	private DeploymentDescriptorUnmarshaller deploymentDescriptorUnmarshaller;
 
 	@Override
-	public ApplicationConfig create() {
+	public ApplicationConfig loadApplicationConfig() {
 		log.info("applicationArchiveFileOrDirectory = {}", applicationArchiveFileOrDirectory);
 		log.info("deploymentDescriptorsDirectory = {}", deploymentDescriptorsDirectory);
 		//
@@ -139,30 +120,18 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 			File puDirectory
 	) {
 		final File deploymentDescriptorFile = new File(deploymentDescriptorsDirectoryFile, puConfig.getName() + ".json");
-		DeploymentDescriptor deploymentDescriptor;
-		if (!deploymentDescriptorFile.exists()) {
-			log.warn("Deployment Descriptor File : Not Found : {}", deploymentDescriptorFile.getAbsolutePath());
-			deploymentDescriptor = null;
-		} else {
-			log.info("Loading Deployment Descriptor File : {}", deploymentDescriptorFile.getAbsolutePath());
-			try {
-				deploymentDescriptor = objectMapper.readValue(deploymentDescriptorFile, DeploymentDescriptor.class);
-			} catch (IOException e) {
-				throw new RuntimeException("Failure while loading DeploymentDescriptor from File " + deploymentDescriptorFile, e);
-			}
-			log.info("Deployment Descriptor = {}", deploymentDescriptor);
-		}
+		final DeploymentDescriptor deploymentDescriptor = deploymentDescriptorUnmarshaller.parseFile(deploymentDescriptorFile);
 
-		final Map<String, String> originalContextProperties = Collections.unmodifiableMap(puConfig.getContextProperties());
+		final Map<String, Object> originalContextProperties = Collections.unmodifiableMap(puConfig.getContextProperties());
 
-		final List<Map<String, String>> contextPropertiesList = new ArrayList<>();
+		final List<Map<String, Object>> contextPropertiesList = new ArrayList<>();
 
 		contextPropertiesList.add(originalContextProperties);
 		contextPropertiesList.add(sharedPropertiesHolder.getConfigMap());
 		contextPropertiesList.add(sharedPropertiesHolder.getSecretsMap());
 
 		if (deploymentDescriptor != null) {
-			final Map<String, String> additionalContextProperties = deploymentDescriptor.getContextProperties();
+			final Map<String, Object> additionalContextProperties = deploymentDescriptor.getContextProperties();
 			if (additionalContextProperties != null) {
 				if (!additionalContextProperties.isEmpty()) {
 					ConfigAndSecretsHolder additionalContextPropertiesHolder;
@@ -177,8 +146,12 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 			}
 		}
 
-		final MergeMap<String, String> finalContextProperties = new MergeMap<>(contextPropertiesList.stream().filter(list -> !list.isEmpty()).collect(Collectors.toList()));
-		puConfig.setContextProperties(finalContextProperties);
+		final MergeMap<String, Object> finalContextProperties = new MergeMap<>(contextPropertiesList.stream().filter(list -> !list.isEmpty()).collect(Collectors.toList()));
+		final Map<String, String> finalContextPropertiesFinal = new HashMap<>();
+		for (Map.Entry<String, Object> entry : finalContextProperties.entrySet()) {
+			finalContextPropertiesFinal.put(entry.getKey(), String.valueOf(entry.getValue()));
+		}
+		puConfig.setContextProperties(finalContextPropertiesFinal);
 
 		if (userDetailsConfig != null) {
 			puConfig.setUserDetails(userDetailsConfig);

@@ -1,36 +1,45 @@
 {
-  "name": "in-core",
-  "resource": "in-core.jar",
-  "topology": {
-	"schema": "partitioned",
-	"partitions": 1,
-	"backupsPerPartition": 1
+  "name" : "in-core",
+  "resource" : "in-core.jar",
+  "topology" : {
+    "schema" : "partitioned",
+    "partitions" : 2,
+    "backupsPerPartition" : 1
   },
-  "sla": {
-	"requiresIsolation": true,
-	"maxInstancesPerVM": 4,
-	"maxInstancesPerMachine": 4,
-	"max-instances-per-zone": "ZONE_A,DAL_2G/1,ZONE_B,DID_4G/1"
+  "sla" : {
+    "requiresIsolation" : true,
+    "zones" : [
+      "LARGE_HEAP"
+    ],
+    "maxInstancesPerVM" : 1,
+    "maxInstancesPerMachine" : 1,
+    "maxInstancesPerZone" : "ZONE_A/1,ZONE_B/1"
   },
-  "contextProperties": {
-	"app.jms.bindings.late.path": "file:///app/in/awq/sctinst/current/config/late/jndi",
-	"app.jms.bindings.stetbox.path": "file:///app/in/awq/sctinst/current/config/jndi",
-	"app.jms.stet.concurrency": "5-50",
-	"app.jms.late.concurrency": "5-50",
-	"app.jms.xml.persistance": "true",
-	"app.core.sla.instances": "1",
-	"app.core.sla.backups": "1",
-	"app.core.polling.reception.concurrency": "10",
-	"app.core.polling.emission.concurrency": "10",
-	"app.core.gdr.daEntryPointConf.location": "/app/in/awq/sctinst/current/config/gdr/gdr-da.conf",
-	"app.core.gdr.naEntryPointConf.location": "/app/in/awq/sctinst/current/config/gdr/gdr-na.conf",
-	"app.core.gdr.daEntryPointConf.version": "0",
-	"app.core.gdr.naEntryPointConf.version": "0",
-	"app.core.gdr.daTransactionType": "DA1",
-	"app.core.gdr.naTransactionType": "NA1",
-	"capsin.database.jdbcUrl": "jdbc:oracle:thin:@***REMOVED***:12992:inq1",
-	"capsin.database.username": "***REMOVED***",
-	"capsin.database.password": "password",
-	"capsin.hibernate.hbm2ddl.auto": "none"
+  "contextProperties" : {
+    "app.jms.bindings.stetbox.path.1" : "file:///app/in/etc/sctinst/config/stetbox/jndi11",
+    "app.jms.bindings.stetbox.path.2" : "file:///app/in/etc/sctinst/config/stetbox/jndi12",
+    "app.jms.bindings.stetbox.path.3" : "file:///app/in/etc/sctinst/config/stetbox/jndi13",
+    "app.jms.bindings.stetbox.path.4" : "file:///app/in/etc/sctinst/config/stetbox/jndi14",
+    "app.jms.bindings.stetbox.path.5" : "file:///app/in/etc/sctinst/config/stetbox/jndi21",
+    "app.jms.bindings.stetbox.path.6" : "file:///app/in/etc/sctinst/config/stetbox/jndi22",
+    "app.jms.bindings.stetbox.path.7" : "file:///app/in/etc/sctinst/config/stetbox/jndi23",
+    "app.jms.bindings.stetbox.path.8" : "file:///app/in/etc/sctinst/config/stetbox/jndi24",
+    "app.jms.xml.persistance" : "false",
+    "app.core.polling.reception.concurrency" : "12",
+    "app.core.polling.emission.concurrency" : "12",
+    "app.core.sla.instances" : "1",
+    "app.core.sla.backups" : "1",
+    "capsin.database.jdbcUrl" : "jdbc:oracle:thin:@(DESCRIPTION =(CONNECT_TIMEOUT=0)(TRANSPORT_CONNECT_TIMEOUT=1)(RETRY_COUNT=120)(ADDRESS = (PROTOCOL = TCP)(HOST = ***REMOVED***)(PORT = 12992))(ADDRESS = (PROTOCOL = TCP)(HOST =***REMOVED***)(PORT = 12992))(FAILOVER = ON)(CONNECT_DATA =(SERVER = DEDICATED)(SERVICE_NAME = ***REMOVED***)))",
+    "capsin.database.username" : "***REMOVED***",
+    "capsin.database.password" : "***REMOVED***",
+    "app.http.cats.config" : "{\"basePath\": \"http://***REMOVED***\", \"maxPoolSize\": 100}",
+    "app.jms.bindings.late.path" : "file:///app/in/etc/sctinst/config/late/jndi11",
+    "app.core.gdr.daEntryPointConf.location" : "/app/in/etc/sctinst/config/gdr/gdr-da.conf",
+    "app.core.gdr.naEntryPointConf.location" : "/app/in/etc/sctinst/config/gdr/gdr-na.conf",
+    "app.core.gdr.daEntryPointConf.version" : "0",
+    "app.core.gdr.naEntryPointConf.version" : "0",
+    "app.core.gdr.daTransactionType" : "DA1",
+    "app.core.gdr.naTransactionType" : "NA1",
+    "app.core.gdr.entryPointConf.version" : "0"
   }
 }

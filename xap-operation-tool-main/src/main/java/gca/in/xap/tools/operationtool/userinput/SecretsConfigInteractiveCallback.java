@@ -25,18 +25,18 @@ public class SecretsConfigInteractiveCallback {
 		return ConfigAndSecretsHolder.merge(holder1, holder2);
 	}
 
-	public ConfigAndSecretsHolder requestForSecrets(Map<String, String> inputMap) throws IOException {
+	public ConfigAndSecretsHolder requestForSecrets(Map<String, Object> inputMap) throws IOException {
 		return requestForSecrets(inputMap, false);
 	}
 
-	public ConfigAndSecretsHolder requestForSecrets(Map<String, String> inputMap, boolean markEveryThinkgsAsSecret) throws IOException {
-		final TreeMap<String, String> configMap = new TreeMap<>();
-		final SecretsMap<String, String> secretsMap = new SecretsMap<>();
+	public ConfigAndSecretsHolder requestForSecrets(Map<String, Object> inputMap, boolean markEveryThinkgsAsSecret) throws IOException {
+		final TreeMap<String, Object> configMap = new TreeMap<>();
+		final SecretsMap<String, Object> secretsMap = new SecretsMap<>();
 		//
 		try (BufferedReader br = new BufferedReader(new InputStreamReader(System.in))) {
-			for (Map.Entry<String, String> entry : inputMap.entrySet()) {
+			for (Map.Entry<String, Object> entry : inputMap.entrySet()) {
 				final String propertyName = entry.getKey();
-				final String originalPropertyValue = entry.getValue();
+				final Object originalPropertyValue = entry.getValue();
 				//log.info("Original Property Value for {} : {}", propertyName, originalPropertyValue);
 				if (shouldRequestForUserCallback(propertyName, originalPropertyValue)) {
 					String inputPropertValue;
@@ -68,7 +68,7 @@ public class SecretsConfigInteractiveCallback {
 		return propertyName.toLowerCase(Locale.ENGLISH).contains("password");
 	}
 
-	private boolean shouldRequestForUserCallback(String propertyName, String originalPropertyValue) {
+	private boolean shouldRequestForUserCallback(String propertyName, Object originalPropertyValue) {
 		return secretContextPropertyPlaceholderValue.equals(originalPropertyValue);
 	}
 
