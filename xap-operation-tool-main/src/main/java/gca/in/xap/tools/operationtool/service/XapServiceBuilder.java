@@ -7,6 +7,7 @@ import gca.in.xap.tools.operationtool.service.deployer.DefaultProcessingUnitDepl
 import gca.in.xap.tools.operationtool.service.deployer.HttpProcessingUnitDeployer;
 import gca.in.xap.tools.operationtool.service.deployer.ProcessingUnitDeployerType;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
+import io.vertx.core.Vertx;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.Admin;
 import org.openspaces.admin.AdminFactory;
@@ -32,6 +33,9 @@ public class XapServiceBuilder {
 
 	@Autowired
 	private IdExtractor idExtractor;
+
+	@Autowired
+	private Vertx vertx;
 
 	@Autowired
 	private DeploymentDescriptorMarshaller deploymentDescriptorMarshaller;
@@ -154,7 +158,7 @@ public class XapServiceBuilder {
 				result.setProcessingUnitDeployer(new DefaultProcessingUnitDeployer(admin));
 				break;
 			case REST_API:
-				result.setProcessingUnitDeployer(new HttpProcessingUnitDeployer(admin, deploymentDescriptorMarshaller, processingUnitConfigToDeploymentDescriptorMapper));
+				result.setProcessingUnitDeployer(new HttpProcessingUnitDeployer(admin, vertx, deploymentDescriptorMarshaller, processingUnitConfigToDeploymentDescriptorMapper));
 				break;
 		}
 		return result;

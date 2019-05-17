@@ -35,7 +35,7 @@ public class ProcessingUnitConfigToDeploymentDescriptorMapper {
 			sla = lazyInit(sla);
 			sla.setMaxInstancesPerZone(maxInstancesPerZone);
 		}
-		if (processingUnitConfig.getZones() != null) {
+		if (processingUnitConfig.getZones() != null && processingUnitConfig.getZones().length > 0) {
 			sla = lazyInit(sla);
 			sla.setZones(Arrays.asList(processingUnitConfig.getZones()));
 		}
@@ -45,14 +45,15 @@ public class ProcessingUnitConfigToDeploymentDescriptorMapper {
 		if (PARTITIONED_SCHEMA.equals(processingUnitConfig.getClusterSchema())) {
 			topology = lazyInit(topology);
 			topology.setPartitions(processingUnitConfig.getNumberOfInstances());
+		} else {
+			if (processingUnitConfig.getNumberOfInstances() != null) {
+				topology = lazyInit(topology);
+				topology.setInstances(processingUnitConfig.getNumberOfInstances());
+			}
 		}
 		if (processingUnitConfig.getClusterSchema() != null) {
 			topology = lazyInit(topology);
 			topology.setSchema(processingUnitConfig.getClusterSchema());
-		}
-		if (processingUnitConfig.getNumberOfInstances() != null) {
-			topology = lazyInit(topology);
-			topology.setInstances(processingUnitConfig.getNumberOfInstances());
 		}
 		if (processingUnitConfig.getNumberOfBackups() != null) {
 			topology = lazyInit(topology);
