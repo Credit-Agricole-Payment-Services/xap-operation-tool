@@ -36,6 +36,9 @@ options :
 --restartEmptyContainers : les GSC, qui au départ ne contiennent aucune PU, sont d'abord redemarrée
 -c : chemin vers le répertoire qui contient les descripteurs de déploiement JSON (nom de la pu suivi de ".json")
 -f : chemin vers le fichier ZIP (ou le répertoire) qui oontient les JAR des PU, ainsi que le fichier appplication.xml
+--puIncludes : liste des noms (séparées par une virgule) des PU à inclure. Permet de ne deployer qu'une sous partie des PU disponibles dans le application.xml
+--puExcludes : liste des noms (séparées par une virgule) des PU à exclure. Permet de ne deployer qu'une sous partie des PU disponibles dans le application.xml
+--whole : permet de deployer l'ensemble des PU en tant d'une application entière. Envoi toutes les PU d'un coup au manager. Le deploiement sera plus rapide. Mais il n'est ensuite plus possible de faire de déploiement PU par PU, il faut faire un undeploy de toute l'application pour pouvoir redeployer. A n'utiliser qu'en developpement.
 ```
 
 Example d'usages : 
