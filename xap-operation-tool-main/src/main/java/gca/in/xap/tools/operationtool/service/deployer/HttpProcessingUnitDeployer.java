@@ -33,8 +33,6 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 
 	private final DeploymentDescriptorMarshaller deploymentDescriptorMarshaller;
 
-	private final Vertx vertx;
-
 	private final WebClient client;
 
 	private final ProcessingUnitConfigToDeploymentDescriptorMapper processingUnitConfigToDeploymentDescriptorMapper;
@@ -64,14 +62,13 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 			ProcessingUnitConfigToDeploymentDescriptorMapper processingUnitConfigToDeploymentDescriptorMapper
 	) {
 		this.admin = admin;
-		this.vertx = vertx;
 		this.deploymentDescriptorMarshaller = deploymentDescriptorMarshaller;
 		this.processingUnitConfigToDeploymentDescriptorMapper = processingUnitConfigToDeploymentDescriptorMapper;
 		//
 		WebClientOptions options = new WebClientOptions()
-				.setUserAgent("xap-operation-tool");
-		options.setKeepAlive(false);
-		client = WebClient.create(vertx);
+				.setUserAgent("xap-operation-tool")
+				.setKeepAlive(false);
+		client = WebClient.create(vertx, options);
 	}
 
 	@Override
@@ -93,7 +90,12 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 
 		deploymentDescriptor.setResource(puName + ".jar");
 		final String processingUnitJson = marshall(deploymentDescriptor);
-		log.info("processingUnitJson = {}", processingUnitJson);
+
+		// warning : printing the JSON is not recommended for production use
+		// because this may print sensitive info into the logs
+		// printing in trace level only is OK
+		log.trace("processingUnitJson = {}", processingUnitJson);
+
 		doDeploy(managerHostName, processingUnitJson);
 
 		sleepALittleBit(10);
