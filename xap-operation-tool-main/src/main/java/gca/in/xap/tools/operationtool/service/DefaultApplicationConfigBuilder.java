@@ -197,7 +197,7 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 		// so that the PU can support hot deployment later
 		// (by simply overwriting files in the /work/deploy directory on the managers)
 		final String originalProcessingUnitResourceName = processingUnitConfig.getProcessingUnit();
-		String newProcessingUnitResourceName = processingUnitConfig.getName() + "-pu.jar";
+		String newProcessingUnitResourceName = processingUnitConfig.getName() + ".jar";
 		if (deploymentDescriptor != null) {
 			newProcessingUnitResourceName = deploymentDescriptor.getResource();
 		}
