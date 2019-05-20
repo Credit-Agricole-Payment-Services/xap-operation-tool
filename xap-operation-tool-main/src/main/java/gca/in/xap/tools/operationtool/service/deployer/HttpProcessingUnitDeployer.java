@@ -98,7 +98,7 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 
 		doDeploy(managerHostName, processingUnitJson);
 
-		sleepALittleBit(10);
+		//sleepALittleBit(10);
 
 		log.info("Waiting {} for PU to become available ...", deployWaitTimeout);
 		ProcessingUnit processingUnit = admin.getProcessingUnits().waitFor(puName, deployWaitTimeout.toMillis(), TimeUnit.MILLISECONDS);
