@@ -6,6 +6,7 @@ import org.junit.Test;
 import org.openspaces.admin.application.config.ApplicationConfig;
 
 import java.io.File;
+import java.util.function.Predicate;
 
 @Slf4j
 @Ignore
@@ -19,14 +20,15 @@ public class DefaultApplicationConfigBuilderTest {
 		File archiveFileOrDirectory = new File(".");
 		File deploymentDescriptorsDirectory = new File("src/test/resources/deploymentdescriptors-sample01");
 
-		appDeployBuilder = new DefaultApplicationConfigBuilder()
-				.withApplicationArchiveFileOrDirectory(archiveFileOrDirectory)
-				.withSharedProperties(PropertiesMergeBuilder.createFromConvention(deploymentDescriptorsDirectory))
-				.withDeploymentDescriptorsDirectory(deploymentDescriptorsDirectory)
-		;
+		appDeployBuilder = DefaultApplicationConfigBuilder.builder()
+				.applicationArchiveFileOrDirectory(archiveFileOrDirectory)
+				.sharedProperties(PropertiesMergeBuilder.createFromConvention(deploymentDescriptorsDirectory))
+				.deploymentDescriptorsDirectory(deploymentDescriptorsDirectory)
+				.build();
 		log.info("appDeployBuilder = {}", appDeployBuilder);
 
-		ApplicationConfig applicationConfig = appDeployBuilder.create();
+		Predicate<String> procesingUnitNamesPredicates = s -> true;
+		ApplicationConfig applicationConfig = appDeployBuilder.loadApplicationConfig(procesingUnitNamesPredicates);
 		log.info("applicationConfig = {}", applicationConfig);
 	}
 

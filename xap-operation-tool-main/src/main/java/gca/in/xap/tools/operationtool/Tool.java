@@ -1,6 +1,7 @@
 package gca.in.xap.tools.operationtool;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.Banner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import uk.org.lidalia.sysoutslf4j.context.SysOutOverSLF4J;
@@ -20,7 +21,16 @@ public class Tool {
 		log.info("args = {}", Arrays.asList(args));
 
 		// start the actual application using Spring Boot ...
-		SpringApplication.run(Tool.class, args);
+		SpringApplication app = new SpringApplication(Tool.class);
+		app.setBannerMode(Banner.Mode.OFF);
+		app.setLogStartupInfo(false);
+		//app.setRegisterShutdownHook(false);
+		app.run(args);
+
+		// the application should exit explicitly
+		// because we may have pending non-daemon threads that prevent the application for exiting
+		log.info("Finished successfully");
+		System.exit(0);
 	}
 
 	private static void uncaughtException(Thread t, Throwable e) {

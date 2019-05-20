@@ -9,8 +9,8 @@ import java.util.TreeMap;
 public class ConfigAndSecretsHolder {
 
 	public static ConfigAndSecretsHolder merge(ConfigAndSecretsHolder holder1, ConfigAndSecretsHolder holder2) {
-		final TreeMap<String, String> mergedConfigMap = new TreeMap<>();
-		final SecretsMap<String, String> mergedSecretsMap = new SecretsMap<>();
+		final TreeMap<String, Object> mergedConfigMap = new TreeMap<>();
+		final SecretsMap<String, Object> mergedSecretsMap = new SecretsMap<>();
 		//
 		mergedConfigMap.putAll(holder1.getConfigMap());
 		mergedConfigMap.putAll(holder2.getConfigMap());
@@ -21,17 +21,17 @@ public class ConfigAndSecretsHolder {
 		return new ConfigAndSecretsHolder(mergedConfigMap, mergedSecretsMap);
 	}
 
-	private SortedMap<String, String> configMap;
+	private SortedMap<String, Object> configMap;
 
-	private SecretsMap<String, String> secretsMap;
+	private SecretsMap<String, Object> secretsMap;
 
 	public ConfigAndSecretsHolder() {
 		super();
 	}
 
 	public ConfigAndSecretsHolder(
-			SortedMap<String, String> configMap,
-			SecretsMap<String, String> secretsMap
+			SortedMap<String, Object> configMap,
+			SecretsMap<String, Object> secretsMap
 	) {
 		super();
 		this.configMap = configMap;

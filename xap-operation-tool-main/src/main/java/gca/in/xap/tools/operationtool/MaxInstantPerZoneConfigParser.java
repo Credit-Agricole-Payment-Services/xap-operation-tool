@@ -1,5 +1,7 @@
 package gca.in.xap.tools.operationtool;
 
+import lombok.NonNull;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -12,9 +14,10 @@ public class MaxInstantPerZoneConfigParser {
 	/**
 	 * example of value = "DAL/1,DID/1"
 	 */
+	@NonNull
 	public Map<String, Integer> parseMaxInstancePerZone(String value) {
 		if (value == null) {
-			return null;
+			return new HashMap<>();
 		}
 		if (value.equals("")) {
 			return new HashMap<>();

@@ -5,7 +5,7 @@
 
 	<groupId>gca.caps.xap</groupId>
 	<artifactId>xap-operation-tool</artifactId>
-	<version>1.4.0</version>
+	<version>1.5.0</version>
 	<packaging>pom</packaging>
 
 	<parent>
@@ -21,9 +21,9 @@
 		<java.version>1.8</java.version>
 
 		<!-- included in XAP distrib -->
-		<xap.version>12.3.1</xap.version>
+		<xap.version>14.2.0</xap.version>
 		<spring.version>4.3.17.RELEASE</spring.version>
-		<spring-boot.version>1.5.19.RELEASE</spring-boot.version>
+		<spring-boot.version>1.5.21.RELEASE</spring-boot.version>
 
 		<slf4j.version>1.7.26</slf4j.version>
 		<logback.version>1.2.3</logback.version>
@@ -348,8 +348,14 @@
 
 			<dependency>
 				<groupId>org.mockito</groupId>
-				<artifactId>mockito-all</artifactId>
-				<version>1.10.19</version>
+				<artifactId>mockito-core</artifactId>
+				<version>2.23.0</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.mockito</groupId>
+				<artifactId>mockito-junit-jupiter</artifactId>
+				<version>2.23.0</version>
 				<scope>test</scope>
 			</dependency>
 

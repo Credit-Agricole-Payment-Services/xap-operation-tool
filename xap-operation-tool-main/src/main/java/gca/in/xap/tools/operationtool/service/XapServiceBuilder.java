@@ -1,11 +1,20 @@
 package gca.in.xap.tools.operationtool.service;
 
+import gca.in.xap.tools.operationtool.deploymentdescriptors.json.DeploymentDescriptorMarshaller;
+import gca.in.xap.tools.operationtool.deploymentdescriptors.puconfig.ProcessingUnitConfigToDeploymentDescriptorMapper;
+import gca.in.xap.tools.operationtool.service.deployer.DefaultApplicationDeployer;
+import gca.in.xap.tools.operationtool.service.deployer.DefaultProcessingUnitDeployer;
+import gca.in.xap.tools.operationtool.service.deployer.HttpProcessingUnitDeployer;
+import gca.in.xap.tools.operationtool.service.deployer.ProcessingUnitDeployerType;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
+import io.vertx.ext.web.client.WebClient;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.Admin;
 import org.openspaces.admin.AdminFactory;
 import org.openspaces.admin.gsm.GridServiceManagers;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -20,7 +29,21 @@ import static java.util.Arrays.stream;
 @Component
 public class XapServiceBuilder {
 
-	private final UserConfirmationService userConfirmationService = new UserConfirmationService();
+	@Autowired
+	private UserConfirmationService userConfirmationService;
+
+	@Autowired
+	private IdExtractor idExtractor;
+
+	@Autowired
+	@Lazy
+	private WebClient webClient;
+
+	@Autowired
+	private DeploymentDescriptorMarshaller deploymentDescriptorMarshaller;
+
+	@Autowired
+	private ProcessingUnitConfigToDeploymentDescriptorMapper processingUnitConfigToDeploymentDescriptorMapper;
 
 	private List<String> locators;
 
@@ -29,6 +52,8 @@ public class XapServiceBuilder {
 	private UserDetailsConfig userDetails;
 
 	private Duration timeout;
+
+	private ProcessingUnitDeployerType processingUnitDeployerType = ProcessingUnitDeployerType.REST_API;
 
 	public XapServiceBuilder locators(List<String> locators) {
 		this.locators = locators;
@@ -47,6 +72,11 @@ public class XapServiceBuilder {
 
 	public XapServiceBuilder timeout(Duration timeout) {
 		this.timeout = timeout;
+		return this;
+	}
+
+	public XapServiceBuilder processingUnitDeployerType(ProcessingUnitDeployerType processingUnitDeployerType) {
+		this.processingUnitDeployerType = processingUnitDeployerType;
 		return this;
 	}
 
@@ -84,7 +114,7 @@ public class XapServiceBuilder {
 		return gridServiceManagers;
 	}
 
-	private static void waitForClusterInfoToUpdate() {
+	public static void waitForClusterInfoToUpdate() {
 		try {
 			log.info("Waiting in order to get a cluster state as accurate as possible ...");
 			TimeUnit.MILLISECONDS.sleep(2000);
@@ -95,7 +125,7 @@ public class XapServiceBuilder {
 
 	public XapService create() {
 		Admin admin = createAdmin();
-		GridServiceManagers gridServiceManagers = awaitGSM(admin);
+		awaitGSM(admin);
 
 		waitForClusterInfoToUpdate();
 
@@ -119,11 +149,20 @@ public class XapServiceBuilder {
 
 		XapService result = new XapService();
 		result.setAdmin(admin);
-		result.setGridServiceManagers(gridServiceManagers);
 		result.setOperationTimeout(timeout);
 		result.setUserDetails(userDetails);
 		result.setExecutorService(executor);
 		result.setUserConfirmationService(userConfirmationService);
+		result.setIdExtractor(idExtractor);
+		result.setApplicationDeployer(new DefaultApplicationDeployer(admin));
+		switch (processingUnitDeployerType) {
+			case JAVA_API:
+				result.setProcessingUnitDeployer(new DefaultProcessingUnitDeployer(admin));
+				break;
+			case REST_API:
+				result.setProcessingUnitDeployer(new HttpProcessingUnitDeployer(admin, webClient, deploymentDescriptorMarshaller, processingUnitConfigToDeploymentDescriptorMapper));
+				break;
+		}
 		return result;
 	}
 

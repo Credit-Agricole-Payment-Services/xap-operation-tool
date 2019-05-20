@@ -14,7 +14,7 @@ public class MaxInstantPerZoneConfigParserTest {
 		String value = null;
 		MaxInstantPerZoneConfigParser parser = new MaxInstantPerZoneConfigParser();
 		Map<String, Integer> actualResult = parser.parseMaxInstancePerZone(value);
-		Map<String, Integer> expectedResult = null;
+		Map<String, Integer> expectedResult = new HashMap<>();
 		assertEquals(expectedResult, actualResult);
 	}
 

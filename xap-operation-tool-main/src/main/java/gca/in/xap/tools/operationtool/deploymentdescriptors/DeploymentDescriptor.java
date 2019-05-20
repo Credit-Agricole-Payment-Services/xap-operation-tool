@@ -1,4 +1,4 @@
-package gca.in.xap.tools.operationtool.model;
+package gca.in.xap.tools.operationtool.deploymentdescriptors;
 
 import lombok.Data;
 import lombok.ToString;
@@ -24,10 +24,10 @@ public class DeploymentDescriptor {
 	//@JsonIgnoreProperties(ignoreUnknown = true)
 	public static class ServiceLevelAgreement {
 		private Boolean requiresIsolation;
+		private List<String> zones;
 		private Integer maxInstancesPerVM;
 		private Integer maxInstancesPerMachine;
 		private String maxInstancesPerZone;
-		private List<String> zones;
 	}
 
 	private String name;
@@ -38,6 +38,6 @@ public class DeploymentDescriptor {
 	/**
 	 * Values can either be String, Integer, Boolean, ...
 	 */
-	private Map<String, String> contextProperties;
+	private Map<String, Object> contextProperties;
 
 }

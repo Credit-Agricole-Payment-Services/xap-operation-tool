@@ -1,11 +1,14 @@
 package gca.in.xap.tools.operationtool.commands;
 
-import com.kakawait.spring.boot.picocli.autoconfigure.HelpAwarePicocliCommand;
 import gca.in.xap.tools.operationtool.XapClientDiscovery;
-import gca.in.xap.tools.operationtool.service.*;
+import gca.in.xap.tools.operationtool.deploymentdescriptors.json.DeploymentDescriptorUnmarshaller;
+import gca.in.xap.tools.operationtool.service.ApplicationFileLocator;
+import gca.in.xap.tools.operationtool.service.DefaultApplicationConfigBuilder;
+import gca.in.xap.tools.operationtool.service.PropertiesMergeBuilder;
+import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import gca.in.xap.tools.operationtool.util.ConfigAndSecretsHolder;
-import gca.in.xap.tools.operationtool.xapauth.XapClientUserDetailsConfigFactory;
+import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.application.config.ApplicationConfig;
@@ -17,12 +20,14 @@ import picocli.CommandLine;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 
 @Slf4j
 @Component
 @CommandLine.Command(name = "deploy")
-public class DeployCommand extends HelpAwarePicocliCommand implements Runnable {
+public class DeployCommand extends AbstractAppCommand implements Runnable {
 
 	@Autowired
 	@Lazy
@@ -40,8 +45,17 @@ public class DeployCommand extends HelpAwarePicocliCommand implements Runnable {
 	@Autowired
 	private XapClientDiscovery xapClientDiscovery;
 
-	@CommandLine.Option(names = {"--whole"}, description = "Upload the application in whole")
+	@Autowired
+	private DeploymentDescriptorUnmarshaller deploymentDescriptorUnmarshaller;
+
+	@CommandLine.Option(names = {"--whole"}, description = "Upload the application in whole.")
 	private boolean wholeMode;
+
+	@CommandLine.Option(names = {"--puIncludes"}, description = "List of names of the Processing Units to include. If you only want to deploy a subset of the Processing Units, you can specify 1 or more processing units to include in this deployment.")
+	private List<String> processingUnitsIncludes;
+
+	@CommandLine.Option(names = {"--puExcludes"}, description = "List of names of the Processing Units to exclude. If you only want to deploy a subset of the Processing Units, you can specify 1 or more processing units to exclude from this deployment.")
+	private List<String> processingUnitsExcludes;
 
 	@CommandLine.Option(names = {"--restartEmptyContainers"}, description = "Restart all GSC that have no running Processing Unit, in order to make mitigate any memory leak")
 	private boolean restartEmptyContainers;
@@ -71,13 +85,17 @@ public class DeployCommand extends HelpAwarePicocliCommand implements Runnable {
 
 		final DefaultApplicationConfigBuilder appDeployBuilder;
 
-		appDeployBuilder = new DefaultApplicationConfigBuilder()
-				.withApplicationArchiveFileOrDirectory(archiveFileOrDirectory)
-				.withDeploymentDescriptorsDirectory(deploymentDescriptorsDirectory)
-				.withUserDetailsConfig(userDetailsConfig)
-				.withSharedProperties(sharedProperties);
+		appDeployBuilder = DefaultApplicationConfigBuilder.builder()
+				.applicationArchiveFileOrDirectory(archiveFileOrDirectory)
+				.deploymentDescriptorsDirectory(deploymentDescriptorsDirectory)
+				.userDetailsConfig(userDetailsConfig)
+				.deploymentDescriptorUnmarshaller(deploymentDescriptorUnmarshaller)
+				.sharedProperties(sharedProperties)
+				.build();
 
-		ApplicationConfig applicationConfig = appDeployBuilder.create();
+
+		final Predicate<String> processingUnitsPredicate = createProcessingUnitsPredicate();
+		final ApplicationConfig applicationConfig = appDeployBuilder.loadApplicationConfig(processingUnitsPredicate);
 
 		log.info("Will deploy ApplicationConfig : {}", applicationConfig);
 		userConfirmationService.askConfirmationAndWait();
@@ -97,7 +115,7 @@ public class DeployCommand extends HelpAwarePicocliCommand implements Runnable {
 			if (wholeMode) {
 				xapService.deployWhole(applicationConfig, xapClientDiscovery.getTimeoutDuration());
 			} else {
-				xapService.deployProcessingUnits(applicationConfig, xapClientDiscovery.getTimeoutDuration(), restartEmptyContainers);
+				xapService.deployProcessingUnits(applicationConfig, processingUnitsPredicate, xapClientDiscovery.getTimeoutDuration(), restartEmptyContainers);
 			}
 		} catch (TimeoutException e) {
 			throw new RuntimeException(e);
@@ -106,5 +124,19 @@ public class DeployCommand extends HelpAwarePicocliCommand implements Runnable {
 		xapService.printReportOnContainersAndProcessingUnits();
 	}
 
+
+	public Predicate<String> createProcessingUnitsPredicate() {
+		Predicate<String> includePredicate;
+		if (this.processingUnitsIncludes != null) {
+			includePredicate = value -> processingUnitsIncludes.contains(value);
+		} else {
+			includePredicate = value -> true;
+		}
+		if (this.processingUnitsExcludes != null) {
+			return value -> !processingUnitsIncludes.contains(value) && includePredicate.test(value);
+		} else {
+			return includePredicate;
+		}
+	}
 
 }
