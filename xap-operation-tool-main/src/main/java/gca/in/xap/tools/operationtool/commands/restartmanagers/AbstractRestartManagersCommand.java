@@ -1,20 +1,19 @@
 package gca.in.xap.tools.operationtool.commands.restartmanagers;
 
-import com.kakawait.spring.boot.picocli.autoconfigure.HelpAwarePicocliCommand;
 import gca.in.xap.tools.operationtool.service.RestartStrategy;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
+import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsm.GridServiceManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
 @Slf4j
-public abstract class AbstractRestartManagersCommand extends HelpAwarePicocliCommand implements Runnable {
+public abstract class AbstractRestartManagersCommand extends AbstractAppCommand implements Runnable {
 
 	static final RestartStrategy noIntervalRestartStrategy = new RestartStrategy(Duration.ZERO);
 

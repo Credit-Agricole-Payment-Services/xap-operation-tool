@@ -1,11 +1,8 @@
 package gca.in.xap.tools.operationtool.predicates.pu;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.builder.ToStringBuilder;
 import org.openspaces.admin.pu.ProcessingUnitInstance;
-import org.openspaces.core.space.SpaceServiceDetails;
 
-import java.util.Locale;
 import java.util.function.Predicate;
 
 @Slf4j

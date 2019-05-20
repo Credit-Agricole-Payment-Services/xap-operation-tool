@@ -1,8 +1,8 @@
 package gca.in.xap.tools.operationtool.commands;
 
-import com.kakawait.spring.boot.picocli.autoconfigure.HelpAwarePicocliCommand;
 import gca.in.xap.tools.operationtool.service.RestartStrategy;
 import gca.in.xap.tools.operationtool.service.XapService;
+import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -15,7 +15,7 @@ import java.util.List;
 @Slf4j
 @Component
 @CommandLine.Command(name = "shutdown-agents-all")
-public class ShutdownAgentsAllCommand extends HelpAwarePicocliCommand implements Runnable {
+public class ShutdownAgentsAllCommand extends AbstractAppCommand implements Runnable {
 
 	static final RestartStrategy noIntervalRestartStrategy = new RestartStrategy(Duration.ZERO);
 

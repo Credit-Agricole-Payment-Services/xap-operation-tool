@@ -1,9 +1,9 @@
 package gca.in.xap.tools.operationtool.commands;
 
-import com.kakawait.spring.boot.picocli.autoconfigure.HelpAwarePicocliCommand;
 import gca.in.xap.tools.operationtool.service.IdExtractor;
 import gca.in.xap.tools.operationtool.service.ShutdownHostService;
 import gca.in.xap.tools.operationtool.service.XapService;
+import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
@@ -17,7 +17,7 @@ import java.util.Set;
 
 @Component
 @CommandLine.Command(name = "shutdown-host")
-public class ShutdownHostCommand extends HelpAwarePicocliCommand implements Runnable {
+public class ShutdownHostCommand extends AbstractAppCommand implements Runnable {
 
 	private static class HostnamesCandidates implements Iterable<String> {
 

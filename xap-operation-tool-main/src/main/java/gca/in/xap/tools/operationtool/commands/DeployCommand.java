@@ -1,6 +1,5 @@
 package gca.in.xap.tools.operationtool.commands;
 
-import com.kakawait.spring.boot.picocli.autoconfigure.HelpAwarePicocliCommand;
 import gca.in.xap.tools.operationtool.XapClientDiscovery;
 import gca.in.xap.tools.operationtool.deploymentdescriptors.json.DeploymentDescriptorUnmarshaller;
 import gca.in.xap.tools.operationtool.service.ApplicationFileLocator;
@@ -9,6 +8,7 @@ import gca.in.xap.tools.operationtool.service.PropertiesMergeBuilder;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import gca.in.xap.tools.operationtool.util.ConfigAndSecretsHolder;
+import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.application.config.ApplicationConfig;
@@ -25,7 +25,7 @@ import java.util.concurrent.TimeoutException;
 @Slf4j
 @Component
 @CommandLine.Command(name = "deploy")
-public class DeployCommand extends HelpAwarePicocliCommand implements Runnable {
+public class DeployCommand extends AbstractAppCommand implements Runnable {
 
 	@Autowired
 	@Lazy

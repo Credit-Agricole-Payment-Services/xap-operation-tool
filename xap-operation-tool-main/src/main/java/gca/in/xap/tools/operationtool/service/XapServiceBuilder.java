@@ -7,7 +7,6 @@ import gca.in.xap.tools.operationtool.service.deployer.DefaultProcessingUnitDepl
 import gca.in.xap.tools.operationtool.service.deployer.HttpProcessingUnitDeployer;
 import gca.in.xap.tools.operationtool.service.deployer.ProcessingUnitDeployerType;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
-import io.vertx.core.Vertx;
 import io.vertx.ext.web.client.WebClient;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.Admin;
@@ -15,6 +14,7 @@ import org.openspaces.admin.AdminFactory;
 import org.openspaces.admin.gsm.GridServiceManagers;
 import org.openspaces.admin.pu.config.UserDetailsConfig;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -36,13 +36,14 @@ public class XapServiceBuilder {
 	private IdExtractor idExtractor;
 
 	@Autowired
+	@Lazy
 	private WebClient webClient;
 
 	@Autowired
 	private DeploymentDescriptorMarshaller deploymentDescriptorMarshaller;
 
 	@Autowired
-	private  ProcessingUnitConfigToDeploymentDescriptorMapper processingUnitConfigToDeploymentDescriptorMapper;
+	private ProcessingUnitConfigToDeploymentDescriptorMapper processingUnitConfigToDeploymentDescriptorMapper;
 
 	private List<String> locators;
 

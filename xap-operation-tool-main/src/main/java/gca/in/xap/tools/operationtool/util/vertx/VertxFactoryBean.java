@@ -35,6 +35,7 @@ public class VertxFactoryBean implements FactoryBean<Vertx>, BeanNameAware, Disp
 	}
 
 	private Vertx createNewObject() {
+		log.info("Creating instance of Vertx ...");
 		VertxJsonMapperConfigurer.configure();
 
 		VertxOptions options = new VertxOptions();

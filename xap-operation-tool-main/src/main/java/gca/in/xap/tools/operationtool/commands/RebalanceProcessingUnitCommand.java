@@ -1,9 +1,9 @@
 package gca.in.xap.tools.operationtool.commands;
 
-import com.kakawait.spring.boot.picocli.autoconfigure.HelpAwarePicocliCommand;
 import gca.in.xap.tools.operationtool.service.RebalanceProcessingUnitService;
 import gca.in.xap.tools.operationtool.service.RestartStrategy;
 import gca.in.xap.tools.operationtool.service.XapService;
+import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
@@ -13,7 +13,7 @@ import java.time.Duration;
 
 @Component
 @CommandLine.Command(name = "rebalance-processing-unit")
-public class RebalanceProcessingUnitCommand extends HelpAwarePicocliCommand implements Runnable {
+public class RebalanceProcessingUnitCommand extends AbstractAppCommand implements Runnable {
 
 	static final RestartStrategy defaultIntervalRestartStrategy = new RestartStrategy(Duration.ofMinutes(2));
 

@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 public class WebClientFactoryBean implements FactoryBean<WebClient>, DisposableBean {
 
 	@Autowired
+	@Lazy
 	private Vertx vertx;
 
 	private WebClient singletonInstance;
@@ -25,6 +27,7 @@ public class WebClientFactoryBean implements FactoryBean<WebClient>, DisposableB
 	}
 
 	private WebClient createNewObject() {
+		log.info("Creating instance of WebClient ...");
 		WebClientOptions options = new WebClientOptions()
 				.setUserAgent("xap-operation-tool")
 				.setKeepAlive(false);
