@@ -22,6 +22,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -48,7 +49,7 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 	private DeploymentDescriptorUnmarshaller deploymentDescriptorUnmarshaller;
 
 	@Override
-	public ApplicationConfig loadApplicationConfig() {
+	public ApplicationConfig loadApplicationConfig(Predicate<String> procesingUnitNamesPredicates) {
 		log.info("applicationArchiveFileOrDirectory = {}", applicationArchiveFileOrDirectory);
 		log.info("deploymentDescriptorsDirectory = {}", deploymentDescriptorsDirectory);
 		//
@@ -97,7 +98,12 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 		}
 
 		for (ProcessingUnitConfigHolder puConfig : applicationConfig.getProcessingUnits()) {
-			configure(secretsConfigInteractiveCallback, puConfig, sharedPropertiesHolder, deploymentDescriptorsDirectoryFile, puDirectory);
+			String puName = puConfig.getName();
+			if (!procesingUnitNamesPredicates.test(puName)) {
+				log.info("Skipping Processing Unit {} as requested by user", puName);
+			} else {
+				configure(secretsConfigInteractiveCallback, puConfig, sharedPropertiesHolder, deploymentDescriptorsDirectoryFile, puDirectory);
+			}
 		}
 		log.info("Created ApplicationConfig for application '{}' composed of : {}",
 				applicationConfig.getName(),

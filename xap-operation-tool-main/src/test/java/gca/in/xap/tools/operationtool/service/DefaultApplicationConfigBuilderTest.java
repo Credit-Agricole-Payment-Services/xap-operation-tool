@@ -6,6 +6,7 @@ import org.junit.Test;
 import org.openspaces.admin.application.config.ApplicationConfig;
 
 import java.io.File;
+import java.util.function.Predicate;
 
 @Slf4j
 @Ignore
@@ -26,7 +27,8 @@ public class DefaultApplicationConfigBuilderTest {
 				.build();
 		log.info("appDeployBuilder = {}", appDeployBuilder);
 
-		ApplicationConfig applicationConfig = appDeployBuilder.loadApplicationConfig();
+		Predicate<String> procesingUnitNamesPredicates = s -> true;
+		ApplicationConfig applicationConfig = appDeployBuilder.loadApplicationConfig(procesingUnitNamesPredicates);
 		log.info("applicationConfig = {}", applicationConfig);
 	}
 

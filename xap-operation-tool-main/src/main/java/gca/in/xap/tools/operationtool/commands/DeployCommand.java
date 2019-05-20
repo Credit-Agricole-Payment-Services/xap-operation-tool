@@ -51,10 +51,10 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 	@CommandLine.Option(names = {"--whole"}, description = "Upload the application in whole.")
 	private boolean wholeMode;
 
-	@CommandLine.Option(names = {"--puIncludes"}, description = "List of names of the Processing Units to include. If you only want to deploy a subset of the Processing Units, you can specify 1 or more processing units to include in this deployment. This option is ignored with the --whole option.")
+	@CommandLine.Option(names = {"--puIncludes"}, description = "List of names of the Processing Units to include. If you only want to deploy a subset of the Processing Units, you can specify 1 or more processing units to include in this deployment.")
 	private List<String> processingUnitsIncludes;
 
-	@CommandLine.Option(names = {"--puExcludes"}, description = "List of names of the Processing Units to exclude. If you only want to deploy a subset of the Processing Units, you can specify 1 or more processing units to exclude from this deployment. This option is ignored with the --whole option.")
+	@CommandLine.Option(names = {"--puExcludes"}, description = "List of names of the Processing Units to exclude. If you only want to deploy a subset of the Processing Units, you can specify 1 or more processing units to exclude from this deployment.")
 	private List<String> processingUnitsExcludes;
 
 	@CommandLine.Option(names = {"--restartEmptyContainers"}, description = "Restart all GSC that have no running Processing Unit, in order to make mitigate any memory leak")
@@ -93,7 +93,9 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 				.sharedProperties(sharedProperties)
 				.build();
 
-		ApplicationConfig applicationConfig = appDeployBuilder.loadApplicationConfig();
+
+		final Predicate<String> processingUnitsPredicate = createProcessingUnitsPredicate();
+		final ApplicationConfig applicationConfig = appDeployBuilder.loadApplicationConfig(processingUnitsPredicate);
 
 		log.info("Will deploy ApplicationConfig : {}", applicationConfig);
 		userConfirmationService.askConfirmationAndWait();
@@ -113,7 +115,6 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 			if (wholeMode) {
 				xapService.deployWhole(applicationConfig, xapClientDiscovery.getTimeoutDuration());
 			} else {
-				final Predicate<String> processingUnitsPredicate = createProcessingUnitsPredicate();
 				xapService.deployProcessingUnits(applicationConfig, processingUnitsPredicate, xapClientDiscovery.getTimeoutDuration(), restartEmptyContainers);
 			}
 		} catch (TimeoutException e) {
