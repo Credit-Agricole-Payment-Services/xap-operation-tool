@@ -5,11 +5,9 @@ import gca.in.xap.tools.operationtool.deploymentdescriptors.json.DeploymentDescr
 import gca.in.xap.tools.operationtool.deploymentdescriptors.puconfig.ProcessingUnitConfigToDeploymentDescriptorMapper;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
-import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
-import io.vertx.ext.web.client.WebClientOptions;
 import io.vertx.ext.web.multipart.MultipartForm;
 import lombok.Data;
 import lombok.Setter;
@@ -31,9 +29,9 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 
 	private final Admin admin;
 
-	private final DeploymentDescriptorMarshaller deploymentDescriptorMarshaller;
+	private final WebClient webClient;
 
-	private final WebClient client;
+	private final DeploymentDescriptorMarshaller deploymentDescriptorMarshaller;
 
 	private final ProcessingUnitConfigToDeploymentDescriptorMapper processingUnitConfigToDeploymentDescriptorMapper;
 
@@ -57,18 +55,14 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 
 	public HttpProcessingUnitDeployer(
 			Admin admin,
-			Vertx vertx,
+			WebClient webClient,
 			DeploymentDescriptorMarshaller deploymentDescriptorMarshaller,
 			ProcessingUnitConfigToDeploymentDescriptorMapper processingUnitConfigToDeploymentDescriptorMapper
 	) {
 		this.admin = admin;
+		this.webClient = webClient;
 		this.deploymentDescriptorMarshaller = deploymentDescriptorMarshaller;
 		this.processingUnitConfigToDeploymentDescriptorMapper = processingUnitConfigToDeploymentDescriptorMapper;
-		//
-		WebClientOptions options = new WebClientOptions()
-				.setUserAgent("xap-operation-tool")
-				.setKeepAlive(false);
-		client = WebClient.create(vertx, options);
 	}
 
 	@Override
@@ -79,10 +73,10 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 		String managerHostName = firstManager.getMachine().getHostName();
 
 		final DeploymentDescriptor deploymentDescriptor = processingUnitConfigToDeploymentDescriptorMapper.map(processingUnitConfig);
-		log.info("deploymentDescriptor = {}", deploymentDescriptor);
+		log.debug("deploymentDescriptor = {}", deploymentDescriptor);
 
 		String processingUnitArchiveFilePath = processingUnitConfig.getProcessingUnit();
-		log.info("processingUnitArchiveFilePath = {}", processingUnitArchiveFilePath);
+		log.debug("processingUnitArchiveFilePath = {}", processingUnitArchiveFilePath);
 
 		doUploadResourcesWithRetries(managerHostName, puName, deploymentDescriptor, 5);
 
@@ -100,7 +94,7 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 
 		//sleepALittleBit(10);
 
-		log.info("Waiting {} for PU to become available ...", deployWaitTimeout);
+		log.info("Waiting up to {} for PU {} to start deployment ...", deployWaitTimeout, puName);
 		ProcessingUnit processingUnit = admin.getProcessingUnits().waitFor(puName, deployWaitTimeout.toMillis(), TimeUnit.MILLISECONDS);
 		//ProcessingUnit processingUnit = admin.getProcessingUnits().getProcessingUnit(puName);
 		if (processingUnit == null) {
@@ -158,7 +152,7 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 
 		log.info("Sending HTTP put request to {} ...", uploadResourceEndpoint);
 
-		client
+		webClient
 				.put(httpPort, managerHostName, uploadResourceEndpoint)
 				.putHeader("Content-Type", "multipart/form-data")
 				.putHeader("Accept", "text/plain")
@@ -171,7 +165,7 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 		AsyncResultHandler handler = new AsyncResultHandler(deployPuEndpoint, deployHttpRequestTimeout);
 
 		log.info("Sending HTTP post request to {} ...", deployPuEndpoint);
-		client
+		webClient
 				.post(httpPort, managerHostName, deployPuEndpoint)
 				.putHeader("Content-Type", "application/json")
 				.putHeader("Accept", "text/plain")

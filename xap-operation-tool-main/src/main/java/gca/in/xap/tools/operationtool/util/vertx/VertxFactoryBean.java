@@ -67,6 +67,7 @@ public class VertxFactoryBean implements FactoryBean<Vertx>, BeanNameAware, Disp
 	public void destroy() {
 		Vertx object = this.singletonInstance;
 		if (object != null) {
+			log.info("Closing Vertx ...");
 			object.close(voidAsyncResult -> log.info("Successfully closed Vertx instance"));
 		}
 	}
