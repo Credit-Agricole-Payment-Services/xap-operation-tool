@@ -20,7 +20,9 @@ import picocli.CommandLine;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 
 @Slf4j
 @Component
@@ -46,8 +48,14 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 	@Autowired
 	private DeploymentDescriptorUnmarshaller deploymentDescriptorUnmarshaller;
 
-	@CommandLine.Option(names = {"--whole"}, description = "Upload the application in whole")
+	@CommandLine.Option(names = {"--whole"}, description = "Upload the application in whole.")
 	private boolean wholeMode;
+
+	@CommandLine.Option(names = {"--puIncludes"}, description = "List of names of the Processing Units to include. If you only want to deploy a subset of the Processing Units, you can specify 1 or more processing units to include in this deployment. This option is ignored with the --whole option.")
+	private List<String> processingUnitsIncludes;
+
+	@CommandLine.Option(names = {"--puExcludes"}, description = "List of names of the Processing Units to exclude. If you only want to deploy a subset of the Processing Units, you can specify 1 or more processing units to exclude from this deployment. This option is ignored with the --whole option.")
+	private List<String> processingUnitsExcludes;
 
 	@CommandLine.Option(names = {"--restartEmptyContainers"}, description = "Restart all GSC that have no running Processing Unit, in order to make mitigate any memory leak")
 	private boolean restartEmptyContainers;
@@ -105,7 +113,8 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 			if (wholeMode) {
 				xapService.deployWhole(applicationConfig, xapClientDiscovery.getTimeoutDuration());
 			} else {
-				xapService.deployProcessingUnits(applicationConfig, xapClientDiscovery.getTimeoutDuration(), restartEmptyContainers);
+				final Predicate<String> processingUnitsPredicate = createProcessingUnitsPredicate();
+				xapService.deployProcessingUnits(applicationConfig, processingUnitsPredicate, xapClientDiscovery.getTimeoutDuration(), restartEmptyContainers);
 			}
 		} catch (TimeoutException e) {
 			throw new RuntimeException(e);
@@ -114,5 +123,19 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 		xapService.printReportOnContainersAndProcessingUnits();
 	}
 
+
+	public Predicate<String> createProcessingUnitsPredicate() {
+		Predicate<String> includePredicate;
+		if (this.processingUnitsIncludes != null) {
+			includePredicate = value -> processingUnitsIncludes.contains(value);
+		} else {
+			includePredicate = value -> true;
+		}
+		if (this.processingUnitsExcludes != null) {
+			return value -> !processingUnitsIncludes.contains(value) && includePredicate.test(value);
+		} else {
+			return includePredicate;
+		}
+	}
 
 }

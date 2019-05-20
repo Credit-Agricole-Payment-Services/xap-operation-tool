@@ -492,7 +492,12 @@ public class XapService {
 		awaitDeployment(applicationConfig, dataApp, deploymentStartTime, operationTimeout);
 	}
 
-	public void deployProcessingUnits(ApplicationConfig applicationConfig, Duration timeout, boolean restartEmptyContainers) throws TimeoutException {
+	public void deployProcessingUnits(
+			ApplicationConfig applicationConfig,
+			Predicate<String> processingUnitsPredicate,
+			Duration timeout,
+			boolean restartEmptyContainers
+	) throws TimeoutException {
 		log.info("Attempting deployment of application '{}' composed of : {} with a timeout of {}",
 				applicationConfig.getName(),
 				ApplicationConfigHelper.getPuNamesInOrderOfDeployment(applicationConfig),
@@ -504,36 +509,49 @@ public class XapService {
 
 		for (ProcessingUnitConfigHolder pu : applicationConfig.getProcessingUnits()) {
 			final String puName = pu.getName();
-			ProcessingUnitConfig processingUnitConfig = pu.toProcessingUnitConfig();
-			log.debug("puName = {}, processingUnitConfig = {}", puName, processingUnitConfig);
-
-			doWithProcessingUnit(puName, Duration.of(10, ChronoUnit.SECONDS), existingProcessingUnit -> {
-				final int instancesCount = existingProcessingUnit.getInstances().length;
-				log.info("Undeploying pu {} ... ({} instances are running on GSCs {})", puName, instancesCount, idExtractor.extractContainerIds(existingProcessingUnit));
-				long startTime = System.currentTimeMillis();
-				boolean undeployedSuccessful = existingProcessingUnit.undeployAndWait(1, TimeUnit.MINUTES);
-				long endTime = System.currentTimeMillis();
-				long duration = endTime - startTime;
-				if (undeployedSuccessful) {
-					log.info("Undeployed pu {} in {} ms", puName, duration);
-				} else {
-					log.warn("Timeout waiting for pu {} to undeploy after {} ms", puName, duration);
-				}
-			}, s -> {
-				log.info("ProcessingUnit " + puName + " is not already deployed");
-			});
-
-			log.info("Deploying pu {} ...", puName);
-			long puDeploymentStartTime = System.currentTimeMillis();
-
-			ProcessingUnit processingUnit = processingUnitDeployer.deploy(puName, processingUnitConfig);
-			awaitDeployment(processingUnit, puDeploymentStartTime, timeout, expectedMaximumEndDate);
+			if (!processingUnitsPredicate.test(puName)) {
+				log.info("Skipping Processing Unit {} as requested by user", puName);
+			} else {
+				doDeployProcessingUnit(pu, puName, timeout, expectedMaximumEndDate);
+			}
 		}
 
 		long deployRequestEndTime = System.currentTimeMillis();
 		long appDeploymentDuration = deployRequestEndTime - deploymentStartTime;
 
 		log.info("Application deployed in: {} ms", appDeploymentDuration);
+	}
+
+	private void doDeployProcessingUnit(
+			final ProcessingUnitConfigHolder pu,
+			final String puName,
+			final Duration timeout,
+			final long expectedMaximumEndDate
+	) throws TimeoutException {
+		final ProcessingUnitConfig processingUnitConfig = pu.toProcessingUnitConfig();
+		log.debug("puName = {}, processingUnitConfig = {}", puName, processingUnitConfig);
+
+		doWithProcessingUnit(puName, Duration.of(10, ChronoUnit.SECONDS), existingProcessingUnit -> {
+			final int instancesCount = existingProcessingUnit.getInstances().length;
+			log.info("Undeploying pu {} ... ({} instances are running on GSCs {})", puName, instancesCount, idExtractor.extractContainerIds(existingProcessingUnit));
+			long startTime = System.currentTimeMillis();
+			boolean undeployedSuccessful = existingProcessingUnit.undeployAndWait(1, TimeUnit.MINUTES);
+			long endTime = System.currentTimeMillis();
+			long duration = endTime - startTime;
+			if (undeployedSuccessful) {
+				log.info("Undeployed pu {} in {} ms", puName, duration);
+			} else {
+				log.warn("Timeout waiting for pu {} to undeploy after {} ms", puName, duration);
+			}
+		}, s -> {
+			log.info("ProcessingUnit " + puName + " is not already deployed");
+		});
+
+		log.info("Deploying pu {} ...", puName);
+		long puDeploymentStartTime = System.currentTimeMillis();
+
+		ProcessingUnit processingUnit = processingUnitDeployer.deploy(puName, processingUnitConfig);
+		awaitDeployment(processingUnit, puDeploymentStartTime, timeout, expectedMaximumEndDate);
 	}
 
 	public void undeploy(String applicationName) {
