@@ -11,6 +11,7 @@ import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.client.WebClientOptions;
 import io.vertx.ext.web.multipart.MultipartForm;
+import lombok.Data;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.Admin;
@@ -24,8 +25,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
@@ -47,7 +46,7 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 	private String deployPuEndpoint = "/v2/pus";
 
 	@Setter
-	private String uploadResourceEndpoint = "v2/pus/resources";
+	private String uploadResourceEndpoint = "/v2/pus/resources";
 
 	@Setter
 	private Duration uploadHttpRequestTimeout = Duration.ofSeconds(15);
@@ -90,14 +89,14 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 
 		doUploadResourcesWithRetries(managerHostName, puName, deploymentDescriptor, 5);
 
-		sleepALittleBit(30);
+		sleepALittleBit(5);
 
 		deploymentDescriptor.setResource(puName + ".jar");
 		final String processingUnitJson = marshall(deploymentDescriptor);
 		log.info("processingUnitJson = {}", processingUnitJson);
 		doDeploy(managerHostName, processingUnitJson);
 
-		sleepALittleBit(20);
+		sleepALittleBit(10);
 
 		log.info("Waiting {} for PU to become available ...", deployWaitTimeout);
 		ProcessingUnit processingUnit = admin.getProcessingUnits().waitFor(puName, deployWaitTimeout.toMillis(), TimeUnit.MILLISECONDS);
@@ -146,68 +145,114 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 	}
 
 	private void doUploadResources(String managerHostName, String processingUnitName, DeploymentDescriptor deploymentDescriptor) {
-		CountDownLatch requestFinished = new CountDownLatch(1);
-		AtomicBoolean requestSucceeded = new AtomicBoolean(false);
-		AtomicReference<Throwable> error = new AtomicReference<>();
+		AsyncResultHandler handler = new AsyncResultHandler(uploadResourceEndpoint, uploadHttpRequestTimeout);
 
+		String partName = "file";
+		String filename = processingUnitName + ".jar";
+		String filepath = deploymentDescriptor.getResource();
+		String mediaType = "application/octet-stream";
 		MultipartForm form = MultipartForm.create()
-				.binaryFileUpload("file", processingUnitName + ".jar", deploymentDescriptor.getResource(), "application/octet-stream");
+				.binaryFileUpload(partName, filename, filepath, mediaType);
 
-		log.info("Sending HTTP POST request to {} ...", uploadResourceEndpoint);
+		log.info("Sending HTTP put request to {} ...", uploadResourceEndpoint);
+
 		client
-				.post(httpPort, managerHostName, uploadResourceEndpoint)
-				//.putHeader("Content-Type", "multipart/form-data")
+				.put(httpPort, managerHostName, uploadResourceEndpoint)
+				.putHeader("Content-Type", "multipart/form-data")
 				.putHeader("Accept", "text/plain")
-				.sendMultipartForm(form, new Handler<AsyncResult<HttpResponse<Buffer>>>() {
-					@Override
-					public void handle(AsyncResult<HttpResponse<Buffer>> httpResponseAsyncResult) {
-						Throwable cause = httpResponseAsyncResult.cause();
-						log.info("httpResponseAsyncResult.succeeded() = {}, httpResponseAsyncResult.failed() = {}", httpResponseAsyncResult.succeeded(), httpResponseAsyncResult.failed(), cause);
-						requestSucceeded.set(httpResponseAsyncResult.succeeded());
-						error.set(cause);
-						requestFinished.countDown();
-					}
-				});
-		try {
-			requestFinished.await(uploadHttpRequestTimeout.toMillis(), TimeUnit.MILLISECONDS);
-			if (!requestSucceeded.get()) {
-				log.error("HTTP request failed", error.get());
-				throw new RuntimeException("HTTP request failed, Maybe the Manager service is down ?", error.get());
-			}
-			log.info("HTTP Post request to {} was successful", uploadResourceEndpoint);
-		} catch (InterruptedException e) {
-			throw new RuntimeException("Timeout while waiting for HTTP request to complete", e);
-		}
+				.sendMultipartForm(form, handler);
+
+		handler.waitAndcheck(201);
 	}
 
 	private void doDeploy(String managerHostName, String processingUnitJson) {
-		CountDownLatch requestFinished = new CountDownLatch(1);
-		AtomicBoolean requestSucceeded = new AtomicBoolean(false);
-		AtomicReference<Throwable> error = new AtomicReference<>();
+		AsyncResultHandler handler = new AsyncResultHandler(deployPuEndpoint, deployHttpRequestTimeout);
 
-		log.info("Sending HTTP POST request to {} ...", deployPuEndpoint);
+		log.info("Sending HTTP post request to {} ...", deployPuEndpoint);
 		client
 				.post(httpPort, managerHostName, deployPuEndpoint)
 				.putHeader("Content-Type", "application/json")
 				.putHeader("Accept", "text/plain")
-				.sendBuffer(Buffer.buffer(processingUnitJson), httpResponseAsyncResult -> {
-					Throwable cause = httpResponseAsyncResult.cause();
-					log.info("httpResponseAsyncResult.succeeded() = {}, httpResponseAsyncResult.failed() = {}", httpResponseAsyncResult.succeeded(), httpResponseAsyncResult.failed(), cause);
-					requestSucceeded.set(httpResponseAsyncResult.succeeded());
-					error.set(cause);
-					requestFinished.countDown();
-				});
+				.sendBuffer(Buffer.buffer(processingUnitJson), handler);
 
-		try {
-			requestFinished.await(deployHttpRequestTimeout.toMillis(), TimeUnit.MILLISECONDS);
-			if (!requestSucceeded.get()) {
-				log.error("HTTP request failed", error.get());
-				throw new RuntimeException("HTTP request failed, Maybe the Manager service is down ?", error.get());
-			}
-			log.info("HTTP Post request to {} was successful", deployPuEndpoint);
-		} catch (InterruptedException e) {
-			throw new RuntimeException("Timeout while waiting for HTTP request to complete", e);
-		}
+		handler.waitAndcheck(202);
 	}
 
+
+	@Data
+	private static class RequestReport {
+
+		private Boolean succeeded;
+
+		private Throwable error;
+
+		private Integer statusCode;
+
+		private String statusMessage;
+
+		private String responseBodyAsString;
+
+	}
+
+	private static class AsyncResultHandler implements Handler<AsyncResult<HttpResponse<Buffer>>> {
+
+		private final CountDownLatch requestFinished = new CountDownLatch(1);
+
+		private final String url;
+
+		private final Duration httpRequestTimeout;
+
+		private RequestReport requestReport;
+
+		public AsyncResultHandler(String url, Duration httpRequestTimeout) {
+			this.url = url;
+			this.httpRequestTimeout = httpRequestTimeout;
+		}
+
+		@Override
+		public void handle(AsyncResult<HttpResponse<Buffer>> httpResponseAsyncResult) {
+			final Throwable cause = httpResponseAsyncResult.cause();
+			final HttpResponse<Buffer> result = httpResponseAsyncResult.result();
+
+			RequestReport requestReport = new RequestReport();
+			requestReport.setSucceeded(httpResponseAsyncResult.succeeded());
+			requestReport.setError(cause);
+			requestReport.setStatusCode(result.statusCode());
+			requestReport.setStatusMessage(result.statusMessage());
+			requestReport.setResponseBodyAsString(result.bodyAsString("UTF-8"));
+			this.requestReport = requestReport;
+			log.info("requestReport = {}", requestReport);
+
+			requestFinished.countDown();
+		}
+
+		public void waitAndcheck(int expectedHttpStatusCode) {
+			try {
+				requestFinished.await(httpRequestTimeout.toMillis(), TimeUnit.MILLISECONDS);
+				if (requestReport.getError() != null) {
+					log.error("HTTP request failed", requestReport.getError());
+					throw new RuntimeException("HTTP request failed, Maybe the Manager service is down ?", requestReport.getError());
+				}
+				if (requestReport.getStatusCode() >= 500) {
+					String errorMessage = String.format("Server error : requestReport = %s", requestReport);
+					log.error(errorMessage);
+					throw new RuntimeException(errorMessage);
+				}
+				if (requestReport.getStatusCode() >= 400) {
+					String errorMessage = String.format("Bad request : requestReport = %s", requestReport);
+					log.error(errorMessage);
+					throw new RuntimeException(errorMessage);
+				}
+				if (requestReport.getStatusCode() != expectedHttpStatusCode) {
+					String errorMessage = String.format("HTTP status code is different than expected : expectedHttpStatusCode = %d, requestReport = %s", expectedHttpStatusCode, requestReport);
+					log.error(errorMessage);
+					throw new RuntimeException(errorMessage);
+				}
+				log.info("HTTP Post request to {} was successful : requestReport = {}", url, requestReport);
+			} catch (InterruptedException e) {
+				throw new RuntimeException("Timeout while waiting for HTTP request to complete", e);
+			}
+		}
+
+	}
 }
