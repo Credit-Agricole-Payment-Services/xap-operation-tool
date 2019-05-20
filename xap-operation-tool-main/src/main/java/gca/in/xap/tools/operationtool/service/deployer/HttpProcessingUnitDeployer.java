@@ -47,7 +47,7 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 	private String deployPuEndpoint = "/v2/pus";
 
 	@Setter
-	private String uploadResourceEndpoint = "/pus/resources";
+	private String uploadResourceEndpoint = "v2/pus/resources";
 
 	@Setter
 	private Duration uploadHttpRequestTimeout = Duration.ofSeconds(15);
@@ -185,6 +185,7 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 		AtomicBoolean requestSucceeded = new AtomicBoolean(false);
 		AtomicReference<Throwable> error = new AtomicReference<>();
 
+		log.info("Sending HTTP POST request to {} ...", deployPuEndpoint);
 		client
 				.post(httpPort, managerHostName, deployPuEndpoint)
 				.putHeader("Content-Type", "application/json")
@@ -203,6 +204,7 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 				log.error("HTTP request failed", error.get());
 				throw new RuntimeException("HTTP request failed, Maybe the Manager service is down ?", error.get());
 			}
+			log.info("HTTP Post request to {} was successful", deployPuEndpoint);
 		} catch (InterruptedException e) {
 			throw new RuntimeException("Timeout while waiting for HTTP request to complete", e);
 		}
