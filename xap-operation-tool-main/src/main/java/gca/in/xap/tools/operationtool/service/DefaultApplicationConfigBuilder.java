@@ -7,6 +7,7 @@ import gca.in.xap.tools.operationtool.userinput.SecretsConfigInteractiveCallback
 import gca.in.xap.tools.operationtool.util.ConfigAndSecretsHolder;
 import gca.in.xap.tools.operationtool.util.MergeMap;
 import gca.in.xap.tools.operationtool.util.ZipUtil;
+import gca.in.xap.tools.operationtool.util.tempfiles.TempFilesUtils;
 import lombok.Builder;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -68,16 +69,7 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 
 		File puDirectory;
 		if (applicationArchiveFileOrDirectory.isFile()) {
-			File outputDirectoryParent = new File("/tmp/xot/");
-			outputDirectoryParent.mkdirs();
-			try {
-				puDirectory = File.createTempFile("app_", "_unzipped", outputDirectoryParent);
-			} catch (IOException e) {
-				throw new RuntimeException("Failed to create a temp directory", e);
-			}
-			puDirectory.delete();
-			puDirectory.mkdirs();
-			puDirectory.deleteOnExit();
+			puDirectory = TempFilesUtils.getSingleton().createTempDirectory("app_", "_unzipped");
 			ZipUtil.unzip(applicationArchiveFileOrDirectory, puDirectory);
 		} else {
 			puDirectory = applicationArchiveFileOrDirectory;

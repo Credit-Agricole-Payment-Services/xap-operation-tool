@@ -1,5 +1,6 @@
 package gca.in.xap.tools.operationtool.service;
 
+import gca.in.xap.tools.operationtool.util.tempfiles.TempFilesUtils;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
@@ -16,8 +17,6 @@ import java.util.zip.GZIPInputStream;
 public class ApplicationFileLocator {
 
 	private static final String columnSeparator = ":";
-
-	private File outputDirectory = new File("/tmp/xot/applicationArchives/");
 
 	@NonNull
 	public File locateApplicationFile(String applicationFilePath) throws IOException {
@@ -52,9 +51,7 @@ public class ApplicationFileLocator {
 				log.debug("currentEntryName : {}", currentEntryName);
 				if (currentEntryName.equals(entryFilePath)) {
 					log.info("Found matching Entry in tar.gz : {}", currentEntryName);
-					outputDirectory.mkdirs();
-					File destinationFile = File.createTempFile("archive_file_", "", outputDirectory);
-					destinationFile.deleteOnExit();
+					File destinationFile = TempFilesUtils.getSingleton().createTempFile("archive_file_", "");
 					try (FileOutputStream destinationFileOutputStream = new FileOutputStream(destinationFile)) {
 						IOUtils.copy(tarInput, destinationFileOutputStream);
 					}
