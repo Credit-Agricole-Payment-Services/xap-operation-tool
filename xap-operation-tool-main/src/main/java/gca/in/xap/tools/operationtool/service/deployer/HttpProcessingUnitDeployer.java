@@ -20,7 +20,12 @@ import org.openspaces.admin.pu.config.ProcessingUnitConfig;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InterfaceAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.time.Duration;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -65,12 +70,51 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 		this.processingUnitConfigToDeploymentDescriptorMapper = processingUnitConfigToDeploymentDescriptorMapper;
 	}
 
+	private Set<String> findAllNetworkAddresses() {
+		Enumeration<NetworkInterface> networkInterfaces;
+		try {
+			networkInterfaces = NetworkInterface.getNetworkInterfaces();
+		} catch (SocketException e) {
+			return new HashSet<>();
+		}
+
+		Set<String> result = new HashSet<>();
+		for (NetworkInterface networkInterface : Collections.list(networkInterfaces)) {
+			List<InterfaceAddress> interfaceAddresses = networkInterface.getInterfaceAddresses();
+			for (InterfaceAddress currentAddress : interfaceAddresses) {
+				InetAddress localAddress = currentAddress.getAddress();
+				String ifAddress = localAddress.getHostAddress();
+				result.add(ifAddress);
+			}
+		}
+		return result;
+	}
+
+	private GridServiceManager pickManager() {
+		final GridServiceManagers gridServiceManagers = admin.getGridServiceManagers();
+		final GridServiceManager[] managers = gridServiceManagers.getManagers();
+
+		// if a manager is running on the same machine that we are using to run the tool
+		// then we prefer to use it
+		final Set<String> allNetworkAddresses = findAllNetworkAddresses();
+		log.info("Local host network interfaces are : {}", allNetworkAddresses);
+		final GridServiceManager preferredManager = Arrays.stream(managers).filter(manager -> allNetworkAddresses.contains(manager.getMachine().getHostAddress())).findFirst().orElse(null);
+		if (preferredManager != null) {
+			log.info("A XAP Manager has been found on the local host where xap-operation-tool is executing, we will be using this manager to schedule deployments");
+			return preferredManager;
+		}
+
+		// else we use the first manager in the list of managers
+		// TODO implement a random pick (or something else?) in order to be able to pick a different manager than the first
+		GridServiceManager firstManager = managers[0];
+		return firstManager;
+	}
+
 	@Override
 	public ProcessingUnit deploy(String puName, ProcessingUnitConfig processingUnitConfig) {
-		GridServiceManagers gridServiceManagers = admin.getGridServiceManagers();
-		GridServiceManager[] managers = gridServiceManagers.getManagers();
-		GridServiceManager firstManager = managers[0];
-		String managerHostName = firstManager.getMachine().getHostName();
+		GridServiceManager gridServiceManager = pickManager();
+		String managerHostName = gridServiceManager.getMachine().getHostName();
+		log.info("Using Manager on {}", managerHostName);
 
 		final DeploymentDescriptor deploymentDescriptor = processingUnitConfigToDeploymentDescriptorMapper.map(processingUnitConfig);
 		log.debug("deploymentDescriptor = {}", deploymentDescriptor);
