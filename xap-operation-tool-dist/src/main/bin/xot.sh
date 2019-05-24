@@ -24,6 +24,6 @@ CLASSPATH=${CLASSPATH}:$(find "${LIB_DIR}" -name '*.jar' | tr '\n' ':')
 
 OPERATION=$1
 
-time java -Xms500M -Xmx500M -Dcom.gs.logging.disabled=true -cp "${CLASSPATH}" -jar $LIB_DIR/xap-operation-tool-main-${project.version}.jar "$@"
+time java -Xms500M -Xmx500M -Dcom.gs.logging.disabled=true -Dvertx.cacheDirBase=/tmp/xot_${USER} -cp "${CLASSPATH}" -jar $LIB_DIR/xap-operation-tool-main-${project.version}.jar "$@"
 
 echo "Script $0 ${OPERATION} finished successfully"
