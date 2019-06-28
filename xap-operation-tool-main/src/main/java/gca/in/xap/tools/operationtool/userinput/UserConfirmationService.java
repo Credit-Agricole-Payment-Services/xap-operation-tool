@@ -14,7 +14,7 @@ public class UserConfirmationService {
 	private int afterThoughtDurationInSeconds = 5;
 
 	public void askConfirmationAndWait() {
-		log.info("Are you sure ? You have {} seconds to use CTRL+C to stop if unsure.", afterThoughtDurationInSeconds);
+		log.warn("Are you sure ? You have {} seconds to use CTRL+C to stop if unsure.", afterThoughtDurationInSeconds);
 		try {
 			TimeUnit.SECONDS.sleep(afterThoughtDurationInSeconds);
 		} catch (InterruptedException e) {

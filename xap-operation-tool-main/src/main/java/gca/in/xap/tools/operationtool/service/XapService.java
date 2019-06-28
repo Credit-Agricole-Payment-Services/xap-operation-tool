@@ -178,6 +178,12 @@ public class XapService {
 		return processingUnit;
 	}
 
+	public List<String> findAllProcessingUnitsNames() {
+		ProcessingUnit[] processingUnits = admin.getProcessingUnits().getProcessingUnits();
+		List<String> result = Arrays.stream(processingUnits).map(processingUnit -> processingUnit.getName()).collect(Collectors.toList());
+		return result;
+	}
+
 	public void printReportOnContainersAndProcessingUnits() {
 		printReportOnContainersAndProcessingUnits(gsc -> true);
 	}
@@ -297,7 +303,7 @@ public class XapService {
 		final Collection<String> containersIds = idExtractor.extractIds(containers);
 		log.info("Found {} matching GSC instances : {}", gscCount, containersIds);
 
-		log.info("Will restart {} GSC instances : {}", gscCount, containersIds);
+		log.warn("Will restart {} GSC instances : {}", gscCount, containersIds);
 		userConfirmationService.askConfirmationAndWait();
 		boolean firstIteration = true;
 		for (GridServiceContainer gsc : containers) {
@@ -320,7 +326,7 @@ public class XapService {
 		final Collection<String> managersIds = idExtractor.extractIds(managers);
 		log.info("Found {} matching GSM instances : {}", gsmCount, managersIds);
 
-		log.info("Will restart {] GSM instances : {}", gsmCount, managersIds);
+		log.warn("Will restart {] GSM instances : {}", gsmCount, managersIds);
 		userConfirmationService.askConfirmationAndWait();
 		boolean firstIteration = true;
 		for (GridServiceManager gsm : managers) {
@@ -347,7 +353,7 @@ public class XapService {
 		final Collection<String> agentIds = idExtractor.extractIds(agents);
 		log.info("Found {} matching GSA instances : {}", gsaCount, agentIds);
 
-		log.info("Will shutdown {} GSA instances : {}", gsaCount, agentIds);
+		log.warn("Will shutdown {} GSA instances : {}", gsaCount, agentIds);
 		userConfirmationService.askConfirmationAndWait();
 		boolean firstIteration = true;
 		for (GridServiceAgent gsa : agents) {
@@ -531,6 +537,16 @@ public class XapService {
 		final ProcessingUnitConfig processingUnitConfig = pu.toProcessingUnitConfig();
 		log.debug("puName = {}, processingUnitConfig = {}", puName, processingUnitConfig);
 
+		undeployPu(puName);
+
+		log.info("Deploying pu {} ...", puName);
+		long puDeploymentStartTime = System.currentTimeMillis();
+
+		ProcessingUnit processingUnit = processingUnitDeployer.deploy(puName, processingUnitConfig);
+		awaitDeployment(processingUnit, puDeploymentStartTime, timeout, expectedMaximumEndDate);
+	}
+
+	private void undeployPu(String puName) {
 		doWithProcessingUnit(puName, Duration.of(10, ChronoUnit.SECONDS), existingProcessingUnit -> {
 			final int instancesCount = existingProcessingUnit.getInstances().length;
 			log.info("Undeploying pu {} ... ({} instances are running on GSCs {})", puName, instancesCount, idExtractor.extractContainerIds(existingProcessingUnit));
@@ -546,12 +562,6 @@ public class XapService {
 		}, s -> {
 			log.info("ProcessingUnit " + puName + " is not already deployed");
 		});
-
-		log.info("Deploying pu {} ...", puName);
-		long puDeploymentStartTime = System.currentTimeMillis();
-
-		ProcessingUnit processingUnit = processingUnitDeployer.deploy(puName, processingUnitConfig);
-		awaitDeployment(processingUnit, puDeploymentStartTime, timeout, expectedMaximumEndDate);
 	}
 
 	public void undeploy(String applicationName) {
@@ -569,6 +579,19 @@ public class XapService {
 		);
 	}
 
+	public void undeployIfExists(String name) {
+		log.info("Undeploying application {} (if it exists) ...", name);
+		doWithApplication(
+				name,
+				Duration.of(5, ChronoUnit.SECONDS),
+				app -> {
+					undeploy(app);
+				},
+				appName -> {
+					log.warn("Application {} was not found, could not be undeployed", name);
+				});
+	}
+
 	public void undeploy(@NonNull Application application) {
 		final String applicationName = application.getName();
 		log.info("Undeploying application : {}", applicationName);
@@ -576,6 +599,18 @@ public class XapService {
 		log.info("{} has been successfully undeployed.", applicationName);
 	}
 
+	public void undeployProcessingUnits(@NonNull Predicate<String> processingUnitsNamesPredicate) {
+		List<String> allProcessingUnitsNames = this.findAllProcessingUnitsNames();
+		allProcessingUnitsNames.stream().filter(processingUnitsNamesPredicate).forEach(puName -> {
+
+			try {
+				undeployPu(puName);
+			} catch (RuntimeException e) {
+				log.error("Failure while undeploying PU {}", puName, e);
+			}
+
+		});
+	}
 
 	public void doWithApplication(String name, Duration timeout, Consumer<Application> ifFound, Consumer<String> ifNotFound) {
 		Application application = admin.getApplications().waitFor(name, timeout.toMillis(), TimeUnit.MILLISECONDS);
@@ -594,20 +629,6 @@ public class XapService {
 			ifFound.accept(processingUnit);
 		}
 	}
-
-	public void undeployIfExists(String name) {
-		log.info("Undeploying application {} (if it exists) ...", name);
-		doWithApplication(
-				name,
-				Duration.of(5, ChronoUnit.SECONDS),
-				app -> {
-					undeploy(app);
-				},
-				appName -> {
-					log.warn("Application {} was not found, could not be undeployed", name);
-				});
-	}
-
 
 	public void setDefaultTimeout(Duration timeout) {
 		log.info("Admin will use a default timeout of {} ms", timeout.toMillis());

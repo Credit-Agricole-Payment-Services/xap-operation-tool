@@ -2,6 +2,7 @@ package gca.in.xap.tools.operationtool.commands;
 
 import gca.in.xap.tools.operationtool.XapClientDiscovery;
 import gca.in.xap.tools.operationtool.deploymentdescriptors.json.DeploymentDescriptorUnmarshaller;
+import gca.in.xap.tools.operationtool.predicates.punames.FilterPuNamesPredicate;
 import gca.in.xap.tools.operationtool.service.ApplicationFileLocator;
 import gca.in.xap.tools.operationtool.service.DefaultApplicationConfigBuilder;
 import gca.in.xap.tools.operationtool.service.PropertiesMergeBuilder;
@@ -94,10 +95,10 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 				.build();
 
 
-		final Predicate<String> processingUnitsPredicate = createProcessingUnitsPredicate();
+		final Predicate<String> processingUnitsPredicate = FilterPuNamesPredicate.createProcessingUnitsPredicate(processingUnitsIncludes, processingUnitsExcludes);
 		final ApplicationConfig applicationConfig = appDeployBuilder.loadApplicationConfig(processingUnitsPredicate);
 
-		log.info("Will deploy ApplicationConfig : {}", applicationConfig);
+		log.warn("Will deploy ApplicationConfig : {}", applicationConfig);
 		userConfirmationService.askConfirmationAndWait();
 
 		xapService.printReportOnContainersAndProcessingUnits();
@@ -122,21 +123,6 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 		}
 
 		xapService.printReportOnContainersAndProcessingUnits();
-	}
-
-
-	public Predicate<String> createProcessingUnitsPredicate() {
-		Predicate<String> includePredicate;
-		if (this.processingUnitsIncludes != null) {
-			includePredicate = value -> processingUnitsIncludes.contains(value);
-		} else {
-			includePredicate = value -> true;
-		}
-		if (this.processingUnitsExcludes != null) {
-			return value -> !processingUnitsIncludes.contains(value) && includePredicate.test(value);
-		} else {
-			return includePredicate;
-		}
 	}
 
 }

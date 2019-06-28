@@ -154,7 +154,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 				.findFirst();
 		ProcessingUnitInstance processingUnitInstance = processingUnitInstanceToRelocate.get();
 
-		log.info("Will relocate instance of Processing Unit Instance {} from Machine {} to Machine {}", processingUnitInstance.getId(), minAndMaxByMachine.getMax().getKey(), minAndMaxByMachine.getMin().getKey());
+		log.warn("Will relocate instance of Processing Unit Instance {} from Machine {} to Machine {}", processingUnitInstance.getId(), minAndMaxByMachine.getMax().getKey(), minAndMaxByMachine.getMin().getKey());
 		userConfirmationService.askConfirmationAndWait();
 
 		final Predicate<Machine> targetMachinePredicate = new MachineWithSameNamePredicate(minAndMaxByMachine.getMin().getKey());
@@ -168,7 +168,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 				.findFirst();
 		ProcessingUnitInstance processingUnitInstance = processingUnitInstanceToRelocate.get();
 
-		log.info("Will relocate instance of Processing Unit Instance {} from GSC {} to GSC {}", processingUnitInstance.getId(), minAndMaxByGSC.getMax().getKey(), minAndMaxByGSC.getMin().getKey());
+		log.warn("Will relocate instance of Processing Unit Instance {} from GSC {} to GSC {}", processingUnitInstance.getId(), minAndMaxByGSC.getMax().getKey(), minAndMaxByGSC.getMin().getKey());
 		userConfirmationService.askConfirmationAndWait();
 
 		final Predicate<Machine> targetMachinePredicate = machine -> true;
