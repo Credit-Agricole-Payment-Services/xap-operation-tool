@@ -58,7 +58,7 @@ public class ShutdownHostCommand extends AbstractAppCommand implements Runnable 
 	public void run() {
 		xapService.printReportOnContainersAndProcessingUnits();
 		xapService.setDefaultTimeout(Duration.ofMinutes(5));
-		shutdownHostService.shutdownHost(hostname.getHostName());
+		shutdownHostService.shutdownHost(hostname.getHostName(), true);
 	}
 
 }

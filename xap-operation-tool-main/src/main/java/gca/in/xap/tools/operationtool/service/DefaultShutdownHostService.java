@@ -38,7 +38,7 @@ public class DefaultShutdownHostService implements ShutdownHostService {
 	private boolean forbidWhenOnlyOneHost = true;
 
 	@Override
-	public void shutdownHost(String hostNameOrAddress) {
+	public void shutdownHost(String hostNameOrAddress, boolean shutdownAgent) {
 		log.info("Asked to shutdown any GSC/GSM/GSA on host {}", hostNameOrAddress);
 		final Predicate<Machine> machinePredicate = new MachineWithSameNamePredicate(hostNameOrAddress);
 
@@ -90,12 +90,16 @@ public class DefaultShutdownHostService implements ShutdownHostService {
 		}
 
 		if (foundPuInstanceCount.get() == 0) {
-			Arrays.stream(matchingMachines).forEach(machine -> {
-				GridServiceAgent gridServiceAgent = machine.getGridServiceAgent();
-				log.info("Shutting down GSA {} on Machine {} ...", gridServiceAgent.getUid(), machine.getHostName());
-				gridServiceAgent.shutdown();
-				log.info("Successfully shut down GSA {} on Machine {}", gridServiceAgent.getUid(), machine.getHostName());
-			});
+			if (shutdownAgent) {
+				Arrays.stream(matchingMachines).forEach(machine -> {
+					GridServiceAgent gridServiceAgent = machine.getGridServiceAgent();
+					log.info("Shutting down GSA {} on Machine {} ...", gridServiceAgent.getUid(), machine.getHostName());
+					gridServiceAgent.shutdown();
+					log.info("Successfully shut down GSA {} on Machine {}", gridServiceAgent.getUid(), machine.getHostName());
+				});
+			} else {
+				log.info("Skipped shutdown of GSA");
+			}
 		} else {
 			log.info("Found {} ProcessingUnitInstance¨running on Machine {}", foundPuInstanceCount.get(), hostNameOrAddress);
 		}
