@@ -6,7 +6,9 @@ import gca.in.xap.tools.operationtool.comparators.processingunitinstance.BackupF
 import gca.in.xap.tools.operationtool.predicates.machine.MachineWithSameNamePredicate;
 import gca.in.xap.tools.operationtool.predicates.pu.IsBackupStatefulProcessingUnitPredicate;
 import gca.in.xap.tools.operationtool.predicates.pu.IsPrimaryStatefulProcessingUnitPredicate;
-import gca.in.xap.tools.operationtool.service.*;
+import gca.in.xap.tools.operationtool.service.PuRelocateService;
+import gca.in.xap.tools.operationtool.service.RestartStrategy;
+import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +46,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 	private UserConfirmationService userConfirmationService;
 
 	@Override
-	public void rebalanceProcessingUnit(String processingUnitName, RestartStrategy restartStrategy) {
+	public void rebalanceProcessingUnit(String processingUnitName, RestartStrategy restartStrategy, boolean onceOnly) {
 		log.info("processingUnitName = {}", processingUnitName);
 		ProcessingUnit processingUnit = xapService.findProcessingUnitByName(processingUnitName);
 		log.info("processingUnit = {}", processingUnit);
@@ -52,16 +54,32 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 			throw new IllegalStateException("ProcessingUnit with name " + processingUnitName + " was not found");
 		}
 
-		final ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotBefore = takeSnapshot(processingUnit);
-		log.info("processingUnitInstanceStateSnapshotBefore = {}", processingUnitInstanceStateSnapshotBefore.toJsonWithoutZeros());
+		final ProcessingUnitInstanceStateSnapshot initialStateSnapshot = takeSnapshot(processingUnit);
+		log.info("initialStateSnapshot = {}", initialStateSnapshot.toJsonWithoutZeros());
 
-		boolean rebalancedByBreakDownOnEachPartition = rebalanceByBreakDownOnEachPartition(processingUnitInstanceStateSnapshotBefore);
-		if (!rebalancedByBreakDownOnEachPartition) {
-			rebalanceByBreakDown(processingUnitInstanceStateSnapshotBefore.processingUnitInstanceRepartitionSnapshot.actualTotalCounts, processingUnitInstanceStateSnapshotBefore);
+		ProcessingUnitInstanceStateSnapshot latestStateSnapshot = initialStateSnapshot;
+		boolean lastIterationRebalanced;
+		do {
+			lastIterationRebalanced = doRebalance(latestStateSnapshot);
+
+			if (lastIterationRebalanced) {
+				final ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotAfter = takeSnapshot(processingUnit);
+				log.info("processingUnitInstanceStateSnapshotAfter = {}", processingUnitInstanceStateSnapshotAfter.toJsonWithoutZeros());
+				latestStateSnapshot = processingUnitInstanceStateSnapshotAfter;
+			}
+		} while (!onceOnly && lastIterationRebalanced);
+	}
+
+	private boolean doRebalance(ProcessingUnitInstanceStateSnapshot stateSnapshotBefore) {
+		boolean rebalanced = rebalanceByBreakDownOnEachPartition(stateSnapshotBefore);
+		if (rebalanced) {
+			return true;
 		}
-
-		final ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotAfter = takeSnapshot(processingUnit);
-		log.info("processingUnitInstanceStateSnapshotAfter = {}", processingUnitInstanceStateSnapshotAfter.toJsonWithoutZeros());
+		rebalanced = rebalanceByBreakDown(stateSnapshotBefore.processingUnitInstanceRepartitionSnapshot.actualTotalCounts, stateSnapshotBefore);
+		if (rebalanced) {
+			return true;
+		}
+		return false;
 	}
 
 	private boolean rebalanceByBreakDownOnEachPartition(ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotBefore) {
