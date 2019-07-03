@@ -1,6 +1,6 @@
 package gca.in.xap.tools.operationtool.commands;
 
-import gca.in.xap.tools.operationtool.service.RebalanceProcessingUnitService;
+import gca.in.xap.tools.operationtool.service.rebalance.RebalanceProcessingUnitService;
 import gca.in.xap.tools.operationtool.service.RestartStrategy;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;

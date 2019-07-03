@@ -1,21 +1,13 @@
-package gca.in.xap.tools.operationtool.service;
+package gca.in.xap.tools.operationtool.service.rebalance;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.gigaspaces.cluster.activeelection.SpaceMode;
 import com.google.common.util.concurrent.AtomicLongMap;
 import gca.in.xap.tools.operationtool.comparators.processingunitinstance.BackupFirstProcessingUnitInstanceComparator;
 import gca.in.xap.tools.operationtool.predicates.machine.MachineWithSameNamePredicate;
 import gca.in.xap.tools.operationtool.predicates.pu.IsBackupStatefulProcessingUnitPredicate;
 import gca.in.xap.tools.operationtool.predicates.pu.IsPrimaryStatefulProcessingUnitPredicate;
+import gca.in.xap.tools.operationtool.service.*;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
-import lombok.Data;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsc.GridServiceContainer;
@@ -28,10 +20,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+
+import static gca.in.xap.tools.operationtool.service.rebalance.MinAndMax.findMinAndMax;
 
 @Slf4j
 @Component
@@ -50,7 +43,6 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 	@Setter
 	private UserConfirmationService userConfirmationService;
 
-
 	@Override
 	public void rebalanceProcessingUnit(String processingUnitName, RestartStrategy restartStrategy) {
 		log.info("processingUnitName = {}", processingUnitName);
@@ -61,7 +53,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		}
 
 		final ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotBefore = takeSnapshot(processingUnit);
-		log.info("processingUnitInstanceStateSnapshotBefore = {}", processingUnitInstanceStateSnapshotBefore.toJson());
+		log.info("processingUnitInstanceStateSnapshotBefore = {}", processingUnitInstanceStateSnapshotBefore.toJsonWithoutZeros());
 
 		boolean rebalancedByBreakDownOnEachPartition = rebalanceByBreakDownOnEachPartition(processingUnitInstanceStateSnapshotBefore);
 		if (!rebalancedByBreakDownOnEachPartition) {
@@ -69,7 +61,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		}
 
 		final ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotAfter = takeSnapshot(processingUnit);
-		log.info("processingUnitInstanceStateSnapshotAfter = {}", processingUnitInstanceStateSnapshotAfter.toJson());
+		log.info("processingUnitInstanceStateSnapshotAfter = {}", processingUnitInstanceStateSnapshotAfter.toJsonWithoutZeros());
 	}
 
 	private boolean rebalanceByBreakDownOnEachPartition(ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotBefore) {
@@ -103,80 +95,6 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		}
 		log.info("Does not need to relocate any PU Instance");
 		return false;
-	}
-
-	@Data
-	public static class ProcessingUnitInstanceStateSnapshot {
-
-		private static final ObjectMapper objectMapper = new ObjectMapperFactory().createObjectMapper();
-
-		static {
-			objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-
-			objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
-
-			SimpleModule module = new SimpleModule();
-			module.addSerializer(AtomicLongMap.class, new AtomicLongMapSerializer());
-			objectMapper.registerModule(module);
-		}
-
-		@JsonIgnore
-		private final ProcessingUnitInstance[] processingUnitInstances;
-
-		private final ProcessingUnitInstanceBreakdownSnapshot potentialCounts;
-
-		private final ProcessingUnitInstanceRepartitionSnapshot processingUnitInstanceRepartitionSnapshot;
-
-		/**
-		 * key : partition ID
-		 * value : snapshot for that partition
-		 */
-		private final SortedMap<Integer, ProcessingUnitInstanceRepartitionSnapshot> processingUnitInstanceRepartitionSnapshotPerPartition;
-
-		public String toJson() {
-			try {
-				return objectMapper.writeValueAsString(this);
-			} catch (JsonProcessingException e) {
-				throw new RuntimeException(e);
-			}
-		}
-
-	}
-
-	@Data
-	public static class ProcessingUnitInstanceRepartitionSnapshot {
-
-		private final ProcessingUnitInstanceBreakdownSnapshot actualTotalCounts;
-
-		private final ProcessingUnitInstanceBreakdownSnapshot actualPrimaryCounts;
-
-		private final ProcessingUnitInstanceBreakdownSnapshot actualBackupCounts;
-
-	}
-
-	@Data
-	public static class ProcessingUnitInstanceBreakdownSnapshot {
-
-		private final AtomicLongMap<String> countByMachine;
-		private final AtomicLongMap<String> countByZone;
-		private final AtomicLongMap<String> countByGSC;
-
-		public ProcessingUnitInstanceBreakdownSnapshot createNewWithZeroCounts() {
-			return new ProcessingUnitInstanceBreakdownSnapshot(
-					initAtomicLongMapCounterWithZeroValues(countByMachine),
-					initAtomicLongMapCounterWithZeroValues(countByZone),
-					initAtomicLongMapCounterWithZeroValues(countByGSC)
-			);
-		}
-
-		private static AtomicLongMap<String> initAtomicLongMapCounterWithZeroValues(AtomicLongMap<String> potentialCounter) {
-			final AtomicLongMap<String> newInstance = AtomicLongMap.create();
-			for (String key : potentialCounter.asMap().keySet()) {
-				newInstance.addAndGet(key, 0);
-			}
-			return newInstance;
-		}
-
 	}
 
 	public ProcessingUnitInstanceStateSnapshot takeSnapshot(ProcessingUnit processingUnit) {
@@ -327,7 +245,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		puRelocateService.relocatePuInstance(processingUnitInstanceToRelocate, targetMachinePredicate, true);
 	}
 
-	private Set<String> extractIds(Collection<ProcessingUnitInstance> processingUnitInstances) {
+	private static Set<String> extractIds(Collection<ProcessingUnitInstance> processingUnitInstances) {
 		return new LinkedHashSet<>(processingUnitInstances.stream().map(ProcessingUnitInstance::getId).collect(Collectors.toSet()));
 	}
 
@@ -381,67 +299,6 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 
 	private boolean needsRebalanced(MinAndMax<String> minAndMax) {
 		return minAndMax != null && minAndMax.getMax().getValue() > minAndMax.getMin().getValue() + 1;
-	}
-
-
-	@Data
-	public static class MinAndMax<T> {
-		private final Map.Entry<T, Long> min;
-		private final Map.Entry<T, Long> max;
-	}
-
-	public static <T> MinAndMax<T> findMinAndMax(AtomicLongMap<T> atomicLongMap) {
-		if (atomicLongMap.isEmpty()) {
-			return null;
-		}
-		Map.Entry<T, Long> min = null;
-		Map.Entry<T, Long> max = null;
-		for (Map.Entry<T, Long> entry : atomicLongMap.asMap().entrySet()) {
-			if (min == null) {
-				min = entry;
-			} else {
-				if (entry.getValue() < min.getValue()) {
-					min = entry;
-				}
-			}
-			if (max == null) {
-				max = entry;
-			} else {
-				if (entry.getValue() > max.getValue()) {
-					max = entry;
-				}
-			}
-		}
-		return new MinAndMax<>(min, max);
-	}
-
-	public static class AtomicLongMapSerializer extends StdSerializer<AtomicLongMap> {
-
-		public AtomicLongMapSerializer() {
-			this(null);
-		}
-
-		public AtomicLongMapSerializer(Class<AtomicLongMap> t) {
-			super(t);
-		}
-
-		@Override
-		public void serialize(AtomicLongMap atomicLongMap, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
-			doSerialize(atomicLongMap, jsonGenerator, serializerProvider);
-		}
-
-		public static <T> void doSerialize(AtomicLongMap<T> atomicLongMap, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
-			jsonGenerator.writeStartObject();
-			SortedMap<T, Long> sortedMap = new TreeMap<>(atomicLongMap.asMap());
-			for (Map.Entry<T, Long> entry : sortedMap.entrySet()) {
-
-				String key = String.valueOf(entry.getKey());
-				long value = entry.getValue();
-				jsonGenerator.writeNumberField(key, value);
-			}
-			jsonGenerator.writeEndObject();
-		}
-
 	}
 
 }

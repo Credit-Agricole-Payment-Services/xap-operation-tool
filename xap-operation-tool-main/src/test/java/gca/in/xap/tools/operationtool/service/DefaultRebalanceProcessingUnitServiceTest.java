@@ -1,6 +1,7 @@
 package gca.in.xap.tools.operationtool.service;
 
 import gca.in.xap.tools.operationtool.predicates.machine.MachineWithSameNamePredicate;
+import gca.in.xap.tools.operationtool.service.rebalance.DefaultRebalanceProcessingUnitService;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Before;
