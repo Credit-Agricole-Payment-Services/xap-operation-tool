@@ -1,5 +1,6 @@
 package gca.in.xap.tools.operationtool.service;
 
+import com.gigaspaces.cluster.activeelection.SpaceMode;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsa.GridServiceAgent;
 import org.openspaces.admin.gsc.GridServiceContainer;
@@ -73,6 +74,26 @@ public class IdExtractor {
 		List<String> names = new ArrayList<>();
 		for (ProcessingUnitInstance pu : puInstances) {
 			names.add(pu.getName());
+		}
+		Collections.sort(names);
+		return names;
+	}
+
+	public Collection<String> extractProcessingUnitsNamesAndDescription(ProcessingUnitInstance[] puInstances) {
+		List<String> names = new ArrayList<>();
+		for (ProcessingUnitInstance pu : puInstances) {
+			final String additionalInfo;
+			ProcessingUnitInstance primary = pu.getPartition().getPrimary();
+			if (primary != null) {
+				int partitionId = pu.getPartition().getPartitionId() + 1;
+				//int primaryPartitionId = primary.getPartition().getPartitionId() + 1;
+				//final String primaryOrBackupIndicator = (partitionId == primaryPartitionId) ? "P" : "B";
+				final String primaryOrBackupIndicator = (pu.getSpaceInstance().getMode() == SpaceMode.PRIMARY) ? "P" : "B";
+				additionalInfo = " (#" + partitionId + primaryOrBackupIndicator + ")";
+			} else {
+				additionalInfo = "";
+			}
+			names.add(pu.getName() + additionalInfo);
 		}
 		Collections.sort(names);
 		return names;

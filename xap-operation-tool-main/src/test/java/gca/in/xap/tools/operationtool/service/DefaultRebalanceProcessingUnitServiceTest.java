@@ -120,6 +120,11 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 	public void setUp() {
 		MockitoAnnotations.initMocks(this);
 		log.info("setUp()");
+
+		doReturn("processingUnitInstance1").when(processingUnitInstance1).getId();
+		doReturn("processingUnitInstance2").when(processingUnitInstance2).getId();
+		doReturn("processingUnitInstance3").when(processingUnitInstance3).getId();
+		doReturn("processingUnitInstance4").when(processingUnitInstance4).getId();
 	}
 
 	@Test
@@ -170,6 +175,11 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 	public void should_rebalance_when_two_puInstance_onSameMachine_but_multiple_machines_available() {
 		final String processingUnitName = "my-pu";
 
+		doReturn(processingUnitInstance1).when(processingUnitPartition1).getPrimary();
+		doReturn(processingUnitInstance1).when(processingUnitPartition2).getPrimary();
+		doReturn(processingUnitInstance3).when(processingUnitPartition3).getPrimary();
+		doReturn(processingUnitInstance3).when(processingUnitPartition4).getPrimary();
+
 		doReturn(clusterInfo1).when(processingUnitInstance1).getClusterInfo();
 		doReturn(clusterInfo2).when(processingUnitInstance2).getClusterInfo();
 		doReturn(clusterInfo3).when(processingUnitInstance3).getClusterInfo();
@@ -218,6 +228,11 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 	@Test
 	public void should_rebalance_when_two_puInstance_onSameGSC_but_multiple_GSC_available() {
 		final String processingUnitName = "my-pu";
+
+		doReturn(processingUnitInstance1).when(processingUnitPartition1).getPrimary();
+		doReturn(processingUnitInstance1).when(processingUnitPartition2).getPrimary();
+		doReturn(processingUnitInstance3).when(processingUnitPartition3).getPrimary();
+		doReturn(processingUnitInstance3).when(processingUnitPartition4).getPrimary();
 
 		doReturn(clusterInfo1).when(processingUnitInstance1).getClusterInfo();
 		doReturn(clusterInfo2).when(processingUnitInstance2).getClusterInfo();

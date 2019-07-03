@@ -198,7 +198,7 @@ public class XapService {
 			String gscId = gsc.getId();
 			ProcessingUnitInstance[] puInstances = gsc.getProcessingUnitInstances();
 			final int puCount = puInstances.length;
-			final Collection<String> puNames = idExtractor.extractProcessingUnitsNames(puInstances);
+			final Collection<String> puNames = idExtractor.extractProcessingUnitsNamesAndDescription(puInstances);
 			log.info("GSC {} is running {} Processing Units : {}", gscId, puCount, puNames);
 		}
 	}
