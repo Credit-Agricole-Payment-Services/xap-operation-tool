@@ -18,12 +18,41 @@ import static gca.in.xap.tools.operationtool.util.threads.ExecutorsUtils.newCach
 @Slf4j
 public class ParallelRestartStrategy<T> implements RestartStrategy<T> {
 
-	private final ExecutorService executor;
+	private final int maxNumberOfThreads = 32;
 
-	public ParallelRestartStrategy() {
+	@Override
+	public void perform(@NonNull T[] items, @NonNull ItemVisitor<T> itemVisitor) {
+		// if the number of items is very high, we should not use as much threads, but use a limit
+		final int maxThreadsCount = Math.min(maxNumberOfThreads, items.length);
+
+		//
+		ExecutorService executor = createExecutorService(maxThreadsCount);
+
+		// submit all tasks
+		List<Future<?>> results = new ArrayList<>();
+		for (T item : items) {
+			Future<?> future = executor.submit(() -> itemVisitor.visit(item));
+			results.add(future);
+		}
+
+		// wait for all tasks to complete
+		for (Future<?> future : results) {
+			try {
+				future.get();
+			} catch (InterruptedException | ExecutionException e) {
+				throw new RuntimeException(e);
+			}
+		}
+
+		// shutdown all threads
+		executor.shutdownNow();
+	}
+
+	private ExecutorService createExecutorService(int maxThreadsCount) {
 		// the ThreadPool should be large enough
 		// in order to execute a task for each machine in the cluster, ideally, at the same time
-		executor = newCachedThreadPool(32, new ThreadFactory() {
+
+		return newCachedThreadPool(maxThreadsCount, new ThreadFactory() {
 
 			private final String threadNamePrefix = ParallelRestartStrategy.class.getSimpleName();
 
@@ -38,23 +67,6 @@ public class ParallelRestartStrategy<T> implements RestartStrategy<T> {
 				return thread;
 			}
 		});
-	}
-
-	@Override
-	public void perform(@NonNull T[] items, @NonNull ItemVisitor<T> itemVisitor) {
-		List<Future<?>> results = new ArrayList<>();
-		for (T item : items) {
-			Future<?> future = executor.submit(() -> itemVisitor.visit(item));
-			results.add(future);
-		}
-		// wait for all tasks to complete
-		for (Future<?> future : results) {
-			try {
-				future.get();
-			} catch (InterruptedException | ExecutionException e) {
-				throw new RuntimeException(e);
-			}
-		}
 	}
 
 }
