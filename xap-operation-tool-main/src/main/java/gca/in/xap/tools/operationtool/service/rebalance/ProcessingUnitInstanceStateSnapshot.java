@@ -7,12 +7,15 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.util.concurrent.AtomicLongMap;
 import gca.in.xap.tools.operationtool.service.ObjectMapperFactory;
-import lombok.Data;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.ToString;
 import org.openspaces.admin.pu.ProcessingUnitInstance;
 
 import java.util.SortedMap;
 
-@Data
+@ToString
+@Builder
 public class ProcessingUnitInstanceStateSnapshot {
 
 	private static final ObjectMapper objectMapperWithZeros = createObjectMapper(false);
@@ -30,16 +33,20 @@ public class ProcessingUnitInstanceStateSnapshot {
 	}
 
 	@JsonIgnore
+	@Getter
 	final ProcessingUnitInstance[] processingUnitInstances;
 
+	@Getter
 	final ProcessingUnitInstanceBreakdownSnapshot potentialCounts;
 
+	@Getter
 	final ProcessingUnitInstanceRepartitionSnapshot processingUnitInstanceRepartitionSnapshot;
 
 	/**
 	 * key : partition ID
 	 * value : snapshot for that partition
 	 */
+	@Getter
 	final SortedMap<Integer, ProcessingUnitInstanceRepartitionSnapshot> processingUnitInstanceRepartitionSnapshotPerPartition;
 
 	public void removeAllZeros() {

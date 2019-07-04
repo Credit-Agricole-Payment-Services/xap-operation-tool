@@ -146,7 +146,11 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 			log.debug("potentialCountByMachine = {}", potentialCountByMachine);
 			log.debug("potentialCountByGSC = {}", potentialCountByGSC);
 
-			potentialCounts = new ProcessingUnitInstanceBreakdownSnapshot(potentialCountByMachine, potentialCountByZone, potentialCountByGSC);
+			potentialCounts = ProcessingUnitInstanceBreakdownSnapshot.builder()
+					.countByZone(potentialCountByZone)
+					.countByMachine(potentialCountByMachine)
+					.countByGSC(potentialCountByGSC)
+					.build();
 		}
 
 		final ProcessingUnitInstanceBreakdownSnapshot actualTotalCounts = potentialCounts.createNewWithZeroCounts();
