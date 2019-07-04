@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.Nullable;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -45,7 +46,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 	private UserConfirmationService userConfirmationService;
 
 	@Override
-	public void rebalanceProcessingUnit(String processingUnitName, boolean onceOnly) {
+	public void rebalanceProcessingUnit(String processingUnitName, boolean onceOnly, @Nullable ZonesGroups zonesGroups) {
 		log.debug("processingUnitName = {}", processingUnitName);
 		ProcessingUnit processingUnit = xapService.findProcessingUnitByName(processingUnitName);
 		if (processingUnit == null) {
@@ -59,7 +60,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		ProcessingUnitInstanceStateSnapshot latestStateSnapshot = initialStateSnapshot;
 		boolean lastIterationRebalanced;
 		do {
-			lastIterationRebalanced = doRebalance(latestStateSnapshot);
+			lastIterationRebalanced = doRebalance(latestStateSnapshot, zonesGroups);
 
 			if (lastIterationRebalanced) {
 				final ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotAfter = takeSnapshot(processingUnit);
@@ -69,19 +70,19 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		} while (!onceOnly && lastIterationRebalanced);
 	}
 
-	private boolean doRebalance(ProcessingUnitInstanceStateSnapshot stateSnapshotBefore) {
-		boolean rebalanced = rebalanceByBreakDownOnEachPartition(stateSnapshotBefore);
+	private boolean doRebalance(ProcessingUnitInstanceStateSnapshot stateSnapshotBefore, ZonesGroups zonesGroups) {
+		boolean rebalanced = rebalanceByBreakDownOnEachPartition(stateSnapshotBefore, zonesGroups);
 		if (rebalanced) {
 			return true;
 		}
-		rebalanced = rebalanceByBreakDown("total instances", stateSnapshotBefore.processingUnitInstanceRepartitionSnapshot.actualTotalCounts, stateSnapshotBefore);
+		rebalanced = rebalanceByBreakDown("total instances", stateSnapshotBefore.processingUnitInstanceRepartitionSnapshot.actualTotalCounts, stateSnapshotBefore, zonesGroups);
 		if (rebalanced) {
 			return true;
 		}
 		return false;
 	}
 
-	private boolean rebalanceByBreakDownOnEachPartition(ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotBefore) {
+	private boolean rebalanceByBreakDownOnEachPartition(ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotBefore, ZonesGroups zonesGroups) {
 		for (Map.Entry<Integer, ProcessingUnitInstanceRepartitionSnapshot> entry : processingUnitInstanceStateSnapshotBefore.processingUnitInstanceRepartitionSnapshotPerPartition.entrySet()) {
 			final Integer partitionId = entry.getKey();
 			final ProcessingUnitInstanceRepartitionSnapshot snapshotForPartition = entry.getValue();
@@ -89,7 +90,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 			final int partitionIndex = partitionId + 1;
 			final String breakdownDescription = "Partition #" + partitionIndex;
 			//
-			boolean rebalanceDone = rebalanceByBreakDown(breakdownDescription, snapshotForPartition.actualTotalCounts, processingUnitInstanceStateSnapshotBefore);
+			boolean rebalanceDone = rebalanceByBreakDown(breakdownDescription, snapshotForPartition.actualTotalCounts, processingUnitInstanceStateSnapshotBefore, zonesGroups);
 			if (rebalanceDone) {
 				log.info("Partition Id {} has been relocated", partitionId);
 				return true;
@@ -98,7 +99,17 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		return false;
 	}
 
-	private boolean rebalanceByBreakDown(String breakdownDescription, ProcessingUnitInstanceBreakdownSnapshot breakdown, ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotBefore) {
+	private boolean rebalanceByBreakDown(String breakdownDescription, ProcessingUnitInstanceBreakdownSnapshot breakdown, ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotBefore, ZonesGroups zonesGroups) {
+		if (zonesGroups != null) {
+			for (ZonesGroup group : zonesGroups.getGroups()) {
+				MinAndMax<String> minAndMaxByZone = findMinAndMax(breakdown.countByMachine, s -> group.getZones().contains(s));
+				boolean needsRebalancedByZone = needsRebalanced(minAndMaxByZone);
+				if (needsRebalancedByZone) {
+					rebalanceByZone(processingUnitInstanceStateSnapshotBefore.processingUnitInstances, minAndMaxByZone);
+					return true;
+				}
+			}
+		}
 		MinAndMax<String> minAndMaxByMachine = findMinAndMax(breakdown.countByMachine);
 		boolean needsRebalancedByMachine = needsRebalanced(minAndMaxByMachine);
 		if (needsRebalancedByMachine) {
@@ -269,6 +280,30 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		return new LinkedHashSet<>(processingUnitInstances.stream().map(ProcessingUnitInstance::getId).collect(Collectors.toSet()));
 	}
 
+	private void rebalanceByZone(ProcessingUnitInstance[] processingUnitInstances, MinAndMax<String> minAndMaxByZone) {
+		log.info("Rebalancing ProcessingUnit by Machine : minAndMaxByZone = {}", minAndMaxByZone);
+
+		Set<Integer> partitionIdsOnZoneWithMinCount = Arrays.stream(processingUnitInstances)
+				.filter(processingUnitInstance -> processingUnitInstance.getGridServiceContainer().getExactZones().getZones().contains(minAndMaxByZone.getMin().getKey()))
+				.map(processingUnitInstance -> processingUnitInstance.getPartition().getPartitionId())
+				.collect(Collectors.toSet());
+
+		log.info("partitionIdsOnZoneWithMinCount = {}", partitionIdsOnZoneWithMinCount);
+
+		List<ProcessingUnitInstance> candidateProcessingUnitInstancesToRelocate = Arrays.stream(processingUnitInstances)
+				.filter(processingUnitInstance -> processingUnitInstance.getGridServiceContainer().getExactZones().getZones().contains(minAndMaxByZone.getMin().getKey()))
+				.filter(processingUnitInstance -> !partitionIdsOnZoneWithMinCount.contains(processingUnitInstance.getPartition().getPartitionId()))
+				.sorted(new BackupFirstProcessingUnitInstanceComparator())
+				.collect(Collectors.toList());
+
+		log.info("candidateProcessingUnitInstancesToRelocate = {}", extractIds(candidateProcessingUnitInstancesToRelocate));
+
+		final ProcessingUnitInstance processingUnitInstanceToRelocate = candidateProcessingUnitInstancesToRelocate.get(0);
+		final Predicate<Machine> targetMachinePredicate = new MachineWithSameNamePredicate(minAndMaxByZone.getMin().getKey());
+
+		doRelocate(processingUnitInstanceToRelocate, minAndMaxByZone, targetMachinePredicate);
+	}
+
 	private void rebalanceByMachine(ProcessingUnitInstance[] processingUnitInstances, MinAndMax<String> minAndMaxByMachine) {
 		log.info("Rebalancing ProcessingUnit by Machine : minAndMaxByMachine = {}", minAndMaxByMachine);
 
@@ -318,7 +353,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 	}
 
 	private boolean needsRebalanced(MinAndMax<String> minAndMax) {
-		return minAndMax != null && minAndMax.getMax().getValue() > minAndMax.getMin().getValue() + 1;
+		return minAndMax != null && minAndMax.getMax() != null && minAndMax.getMin() != null && minAndMax.getMax().getValue() > minAndMax.getMin().getValue() + 1;
 	}
 
 }

@@ -4,6 +4,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
 
+import java.util.Set;
+
 @ToString
 @Builder
 public class ProcessingUnitInstanceRepartitionSnapshot {
@@ -21,6 +23,12 @@ public class ProcessingUnitInstanceRepartitionSnapshot {
 		actualTotalCounts.removeAllZeros();
 		actualPrimaryCounts.removeAllZeros();
 		actualBackupCounts.removeAllZeros();
+	}
+
+	public void retainsOnlyZones(Set<String> zones) {
+		actualTotalCounts.retainsOnlyZones(zones);
+		actualPrimaryCounts.retainsOnlyZones(zones);
+		actualBackupCounts.retainsOnlyZones(zones);
 	}
 
 }

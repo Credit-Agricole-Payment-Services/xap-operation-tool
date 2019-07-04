@@ -5,6 +5,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @ToString
 @Builder
 public class ProcessingUnitInstanceBreakdownSnapshot {
@@ -28,6 +31,14 @@ public class ProcessingUnitInstanceBreakdownSnapshot {
 		//countByZone.removeAllZeros();
 		countByMachine.removeAllZeros();
 		countByGSC.removeAllZeros();
+	}
+
+	public void retainsOnlyZones(Set<String> zones) {
+		Set<String> keysToRemove = new HashSet<>(countByZone.asMap().keySet());
+		keysToRemove.removeAll(zones);
+		for (String key : keysToRemove) {
+			countByZone.remove(key);
+		}
 	}
 
 	private static AtomicLongMap<String> initAtomicLongMapCounterWithZeroValues(AtomicLongMap<String> potentialCounter) {

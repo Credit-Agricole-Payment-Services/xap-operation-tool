@@ -2,6 +2,8 @@ package gca.in.xap.tools.operationtool.service;
 
 import gca.in.xap.tools.operationtool.predicates.machine.MachineWithSameNamePredicate;
 import gca.in.xap.tools.operationtool.service.rebalance.DefaultRebalanceProcessingUnitService;
+import gca.in.xap.tools.operationtool.service.rebalance.ZonesGroup;
+import gca.in.xap.tools.operationtool.service.rebalance.ZonesGroups;
 import gca.in.xap.tools.operationtool.service.restartstrategy.SequentialRestartStrategy;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.extern.slf4j.Slf4j;
@@ -137,7 +139,8 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 		doReturn(processingUnit).when(xapService).findProcessingUnitByName(processingUnitName);
 		doReturn(new ProcessingUnitInstance[0]).when(processingUnit).getInstances();
 
-		service.rebalanceProcessingUnit(processingUnitName, true);
+		ZonesGroups zonesGroups = null;
+		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups);
 	}
 
 	@Test
@@ -170,7 +173,8 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 		doReturn(new ExactZonesConfig()).when(gridServiceContainer1).getExactZones();
 		doReturn("machine1~1234").when(gridServiceContainer1).getId();
 
-		service.rebalanceProcessingUnit(processingUnitName, true);
+		ZonesGroups zonesGroups = null;
+		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups);
 	}
 
 	@Test
@@ -222,7 +226,8 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 		doReturn("machine2~3456").when(gridServiceContainer3).getId();
 		doReturn("machine2~3457").when(gridServiceContainer4).getId();
 
-		service.rebalanceProcessingUnit(processingUnitName, true);
+		ZonesGroups zonesGroups = null;
+		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups);
 
 		verify(puRelocateService).relocatePuInstance(any(ProcessingUnitInstance.class), eq(new MachineWithSameNamePredicate("machine2")), eq(true));
 	}
@@ -269,7 +274,8 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 		doReturn("machine1~1234").when(gridServiceContainer1).getId();
 		doReturn("machine1~1235").when(gridServiceContainer2).getId();
 
-		service.rebalanceProcessingUnit(processingUnitName, true);
+		ZonesGroups zonesGroups = null;
+		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups);
 
 		verify(puRelocateService).relocatePuInstance(any(ProcessingUnitInstance.class), any(Predicate.class), eq(true));
 	}
