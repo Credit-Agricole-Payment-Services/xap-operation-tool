@@ -85,11 +85,9 @@ public class IdExtractor {
 			final String additionalInfo;
 			ProcessingUnitInstance primary = pu.getPartition().getPrimary();
 			if (primary != null) {
-				int partitionId = pu.getPartition().getPartitionId() + 1;
-				//int primaryPartitionId = primary.getPartition().getPartitionId() + 1;
-				//final String primaryOrBackupIndicator = (partitionId == primaryPartitionId) ? "P" : "B";
+				int partitionIndex = pu.getPartition().getPartitionId() + 1;
 				final String primaryOrBackupIndicator = (pu.getSpaceInstance().getMode() == SpaceMode.PRIMARY) ? "P" : "B";
-				additionalInfo = " (#" + partitionId + primaryOrBackupIndicator + ")";
+				additionalInfo = " (#" + partitionIndex + primaryOrBackupIndicator + ")";
 			} else {
 				additionalInfo = "";
 			}

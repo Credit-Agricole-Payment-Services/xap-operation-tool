@@ -254,12 +254,10 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 
 	private void doRelocate(ProcessingUnitInstance processingUnitInstanceToRelocate, MinAndMax<String> minAndMax, Predicate<Machine> targetMachinePredicate) {
 		ProcessingUnitPartition processingUnitPartition = processingUnitInstanceToRelocate.getPartition();
-		final int partitionId = processingUnitPartition.getPartitionId() + 1;
-		final int primaryPartitionId = processingUnitPartition.getPrimary().getPartition().getPartitionId() + 1;
-		//final String primaryOrBackupIndicator = (partitionId == primaryPartitionId) ? "P" : "B";
+		final int partitionIndex = processingUnitPartition.getPartitionId() + 1;
 		final String primaryOrBackupIndicator = (processingUnitInstanceToRelocate.getSpaceInstance() != null && processingUnitInstanceToRelocate.getSpaceInstance().getMode() == SpaceMode.PRIMARY) ? "P" : "B";
 
-		log.warn("Will relocate instance of Processing Unit Instance {} (Partition #{} ({})) from GSC {} to GSC {}", processingUnitInstanceToRelocate.getId(), partitionId, primaryOrBackupIndicator, minAndMax.getMax().getKey(), minAndMax.getMin().getKey());
+		log.warn("Will relocate instance of Processing Unit Instance {} (Partition #{} ({})) from GSC {} to GSC {}", processingUnitInstanceToRelocate.getId(), partitionIndex, primaryOrBackupIndicator, minAndMax.getMax().getKey(), minAndMax.getMin().getKey());
 		userConfirmationService.askConfirmationAndWait();
 
 		//
