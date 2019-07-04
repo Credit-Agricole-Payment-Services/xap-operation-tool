@@ -46,12 +46,12 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 
 	@Override
 	public void rebalanceProcessingUnit(String processingUnitName, boolean onceOnly) {
-		log.info("processingUnitName = {}", processingUnitName);
+		log.debug("processingUnitName = {}", processingUnitName);
 		ProcessingUnit processingUnit = xapService.findProcessingUnitByName(processingUnitName);
-		log.info("processingUnit = {}", processingUnit);
 		if (processingUnit == null) {
 			throw new IllegalStateException("ProcessingUnit with name " + processingUnitName + " was not found");
 		}
+		log.info("Rebalancing Processing Unit {} if needed ...", processingUnit.getName());
 
 		final ProcessingUnitInstanceStateSnapshot initialStateSnapshot = takeSnapshot(processingUnit);
 		log.info("initialStateSnapshot = {}", initialStateSnapshot.toJsonWithoutZeros());
@@ -118,7 +118,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 
 		final GridServiceContainer[] allMatchingContainersForPu = puRelocateService.findBestContainersToRelocate(processingUnit, machine -> true, gsc -> true);
 		final long allMatchingContainersForPuCount = allMatchingContainersForPu.length;
-		log.info("allMatchingContainersForPuCount = {}", allMatchingContainersForPuCount);
+		log.debug("allMatchingContainersForPuCount = {}", allMatchingContainersForPuCount);
 
 		final ProcessingUnitInstanceBreakdownSnapshot potentialCounts;
 		{
@@ -142,9 +142,9 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 				potentialCountByGSC.addAndGet(gscId, 1);
 			}
 			//
-			log.info("potentialCountByZone = {}", potentialCountByZone);
-			log.info("potentialCountByMachine = {}", potentialCountByMachine);
-			log.info("potentialCountByGSC = {}", potentialCountByGSC);
+			log.debug("potentialCountByZone = {}", potentialCountByZone);
+			log.debug("potentialCountByMachine = {}", potentialCountByMachine);
+			log.debug("potentialCountByGSC = {}", potentialCountByGSC);
 
 			potentialCounts = new ProcessingUnitInstanceBreakdownSnapshot(potentialCountByMachine, potentialCountByZone, potentialCountByGSC);
 		}
@@ -231,10 +231,10 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 			}
 		}
 		//
-		log.info("actualTotalCounts = {}", actualTotalCounts);
-		log.info("actualPrimaryCounts = {}", actualPrimaryCounts);
-		log.info("actualBackupCounts = {}", actualBackupCounts);
-		log.info("processingUnitInstanceRepartitionSnapshotPerPartition = {}", processingUnitInstanceRepartitionSnapshotPerPartition);
+		log.debug("actualTotalCounts = {}", actualTotalCounts);
+		log.debug("actualPrimaryCounts = {}", actualPrimaryCounts);
+		log.debug("actualBackupCounts = {}", actualBackupCounts);
+		log.debug("processingUnitInstanceRepartitionSnapshotPerPartition = {}", processingUnitInstanceRepartitionSnapshotPerPartition);
 
 		return new ProcessingUnitInstanceStateSnapshot(
 				processingUnitInstances,

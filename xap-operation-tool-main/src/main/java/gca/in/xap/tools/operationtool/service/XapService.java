@@ -196,13 +196,21 @@ public class XapService {
 		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
 		final int gscCount = containers.length;
 		final Collection<String> containersIds = idExtractor.extractIds(containers);
+		//
+		Machine previousGscMachine = null;
 		log.info("Found {} matching running GSC instances : {}", gscCount, containersIds);
 		for (GridServiceContainer gsc : containers) {
+			Machine currentGscMachine = gsc.getMachine();
+			if (previousGscMachine == null || !previousGscMachine.equals(currentGscMachine)) {
+				log.info("On machine {} : ", currentGscMachine.getHostName());
+			}
 			String gscId = gsc.getId();
 			ProcessingUnitInstance[] puInstances = gsc.getProcessingUnitInstances();
 			final int puCount = puInstances.length;
 			final Collection<String> puNames = idExtractor.extractProcessingUnitsNamesAndDescription(puInstances);
 			log.info("GSC {} is running {} Processing Units : {}", gscId, puCount, puNames);
+			//
+			previousGscMachine = currentGscMachine;
 		}
 	}
 

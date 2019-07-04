@@ -15,10 +15,19 @@ public abstract class AbstractAppCommand extends HelpAwarePicocliCommand {
 	private Vertx vertx;
 
 	public ExitStatus call() throws Exception {
-		this.run();
-		log.info("Closing Vertx ...");
-		vertx.close();
-		return ExitStatus.OK;
+		log.info("");
+		log.info("Starting execution of command : {}", this.getClass().getName());
+		log.info("");
+		try {
+			this.run();
+			return ExitStatus.OK;
+		} finally {
+			log.info("");
+			log.info("Finished execution of command : {}", this.getClass().getName());
+			log.info("");
+			log.info("Closing Vertx ...");
+			vertx.close();
+		}
 	}
 
 }
