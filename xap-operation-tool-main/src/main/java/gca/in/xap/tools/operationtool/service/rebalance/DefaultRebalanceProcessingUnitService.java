@@ -7,7 +7,6 @@ import gca.in.xap.tools.operationtool.predicates.machine.MachineWithSameNamePred
 import gca.in.xap.tools.operationtool.predicates.pu.IsBackupStatefulProcessingUnitPredicate;
 import gca.in.xap.tools.operationtool.predicates.pu.IsPrimaryStatefulProcessingUnitPredicate;
 import gca.in.xap.tools.operationtool.service.PuRelocateService;
-import gca.in.xap.tools.operationtool.service.RestartStrategy;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.Setter;
@@ -46,7 +45,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 	private UserConfirmationService userConfirmationService;
 
 	@Override
-	public void rebalanceProcessingUnit(String processingUnitName, RestartStrategy restartStrategy, boolean onceOnly) {
+	public void rebalanceProcessingUnit(String processingUnitName, boolean onceOnly) {
 		log.info("processingUnitName = {}", processingUnitName);
 		ProcessingUnit processingUnit = xapService.findProcessingUnitByName(processingUnitName);
 		log.info("processingUnit = {}", processingUnit);

@@ -1,6 +1,5 @@
 package gca.in.xap.tools.operationtool.commands;
 
-import gca.in.xap.tools.operationtool.service.RestartStrategy;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.service.rebalance.RebalanceProcessingUnitService;
 import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
@@ -14,8 +13,6 @@ import java.time.Duration;
 @Component
 @CommandLine.Command(name = "rebalance-processing-unit")
 public class RebalanceProcessingUnitCommand extends AbstractAppCommand implements Runnable {
-
-	static final RestartStrategy defaultIntervalRestartStrategy = new RestartStrategy(Duration.ofMinutes(2));
 
 	@Autowired
 	@Lazy
@@ -34,7 +31,7 @@ public class RebalanceProcessingUnitCommand extends AbstractAppCommand implement
 	public void run() {
 		xapService.printReportOnContainersAndProcessingUnits();
 		xapService.setDefaultTimeout(Duration.ofMinutes(5));
-		rebalanceProcessingUnitService.rebalanceProcessingUnit(processingUnitName, defaultIntervalRestartStrategy, onceOnly);
+		rebalanceProcessingUnitService.rebalanceProcessingUnit(processingUnitName, onceOnly);
 	}
 
 }

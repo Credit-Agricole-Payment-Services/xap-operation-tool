@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import gca.in.xap.tools.operationtool.model.ComponentType;
 import gca.in.xap.tools.operationtool.model.DumpReport;
 import gca.in.xap.tools.operationtool.model.VirtualMachineDescription;
+import gca.in.xap.tools.operationtool.predicates.container.IsEmptyContainerPredicate;
 import gca.in.xap.tools.operationtool.service.deployer.ApplicationDeployer;
 import gca.in.xap.tools.operationtool.service.deployer.ProcessingUnitDeployer;
+import gca.in.xap.tools.operationtool.service.restartstrategy.RestartStrategy;
+import gca.in.xap.tools.operationtool.service.restartstrategy.SequentialRestartStrategy;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.NonNull;
 import lombok.Setter;
@@ -271,32 +274,15 @@ public class XapService {
 		return null;
 	}
 
-
 	/**
 	 * you may want to restart containers after a PU has been undeployed, in order to make sure no unreleased resources remains.
 	 */
 	public void restartEmptyContainers() {
-		final GridServiceContainer[] containers = findContainers();
-		final int gscCount = containers.length;
-		final Collection<String> containersIds = idExtractor.extractIds(containers);
-		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
-
-		List<GridServiceContainer> containersToRestart = new ArrayList<>();
-		for (GridServiceContainer gsc : containers) {
-			ProcessingUnitInstance[] puInstances = gsc.getProcessingUnitInstances();
-			final int puCount = puInstances.length;
-			if (puCount == 0) {
-				containersToRestart.add(gsc);
-			}
-		}
-		log.info("Will restart all empty GSC instances : {}", idExtractor.extractIds(containersToRestart));
-		for (GridServiceContainer gsc : containersToRestart) {
-			gsc.restart();
-		}
-		log.info("Triggered restart of GSC instances : {}", idExtractor.extractIds(containersToRestart));
+		log.warn("Will restart all empty GSC instances ... (GSC with no PU running)");
+		restartContainers(new IsEmptyContainerPredicate(), new SequentialRestartStrategy<>(Duration.ZERO));
 	}
 
-	public void restartContainers(@NonNull Predicate<GridServiceContainer> predicate, @NonNull RestartStrategy restartStrategy) {
+	public void restartContainers(@NonNull Predicate<GridServiceContainer> predicate, @NonNull RestartStrategy<GridServiceContainer> restartStrategy) {
 		GridServiceContainer[] containers = findContainers();
 		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
 		final int gscCount = containers.length;
@@ -305,21 +291,11 @@ public class XapService {
 
 		log.warn("Will restart {} GSC instances : {}", gscCount, containersIds);
 		userConfirmationService.askConfirmationAndWait();
-		boolean firstIteration = true;
-		for (GridServiceContainer gsc : containers) {
-			if (!firstIteration) {
-				// we want to wait between each component restart
-				// we don't want to wait before first restart, nor after last restart
-				restartStrategy.waitBetweenComponent();
-			}
-			gsc.restart();
-			log.info("GSC {} restarted", gsc.getId());
-			firstIteration = false;
-		}
+		restartStrategy.perform(containers, new RestartStrategy.ContainerItemVisitor());
 		log.info("Triggered restart of GSC instances : {}", containersIds);
 	}
 
-	public void restartManagers(@NonNull Predicate<GridServiceManager> predicate, @NonNull RestartStrategy restartStrategy) {
+	public void restartManagers(@NonNull Predicate<GridServiceManager> predicate, @NonNull RestartStrategy<GridServiceManager> restartStrategy) {
 		GridServiceManager[] managers = findManagers();
 		managers = Arrays.stream(managers).filter(predicate).toArray(GridServiceManager[]::new);
 		final int gsmCount = managers.length;
@@ -328,25 +304,11 @@ public class XapService {
 
 		log.warn("Will restart {] GSM instances : {}", gsmCount, managersIds);
 		userConfirmationService.askConfirmationAndWait();
-		boolean firstIteration = true;
-		for (GridServiceManager gsm : managers) {
-			if (!firstIteration) {
-				// we want to wait between each component restart
-				// we don't want to wait before first restart, nor after last restart
-				restartStrategy.waitBetweenComponent();
-			}
-			Machine machine = gsm.getMachine();
-			String hostname = machine.getHostName();
-			String hostAddress = machine.getHostAddress();
-			log.info("Asking GSM {} ({}) to restart ...", hostname, hostAddress);
-			gsm.restart();
-			log.info("GSM {} ({}) restarted", hostname, hostAddress);
-			firstIteration = false;
-		}
+		restartStrategy.perform(managers, new RestartStrategy.ManagerItemVisitor());
 		log.info("Triggered restart of GSM instances : {}", managersIds);
 	}
 
-	public void shutdownAgents(@NonNull Predicate<GridServiceAgent> predicate, @NonNull RestartStrategy restartStrategy) {
+	public void shutdownAgents(@NonNull Predicate<GridServiceAgent> predicate, @NonNull RestartStrategy<GridServiceAgent> restartStrategy) {
 		GridServiceAgent[] agents = admin.getGridServiceAgents().getAgents();
 		agents = Arrays.stream(agents).filter(predicate).toArray(GridServiceAgent[]::new);
 		final int gsaCount = agents.length;
@@ -355,21 +317,7 @@ public class XapService {
 
 		log.warn("Will shutdown {} GSA instances : {}", gsaCount, agentIds);
 		userConfirmationService.askConfirmationAndWait();
-		boolean firstIteration = true;
-		for (GridServiceAgent gsa : agents) {
-			if (!firstIteration) {
-				// we want to wait between each component restart
-				// we don't want to wait before first restart, nor after last restart
-				restartStrategy.waitBetweenComponent();
-			}
-			Machine machine = gsa.getMachine();
-			String hostname = machine.getHostName();
-			String hostAddress = machine.getHostAddress();
-			log.info("Asking GSA {} ({}) to shutdown ...", hostname, hostAddress);
-			gsa.shutdown();
-			log.info("GSA {} ({}) shutdown", hostname, hostAddress);
-			firstIteration = false;
-		}
+		restartStrategy.perform(agents, new RestartStrategy.AgentItemVisitor());
 		log.info("Triggered shutdown of GSA instances : {}", agentIds);
 	}
 

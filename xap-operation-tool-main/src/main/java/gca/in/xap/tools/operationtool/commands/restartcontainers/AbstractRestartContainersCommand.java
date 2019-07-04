@@ -1,13 +1,16 @@
 package gca.in.xap.tools.operationtool.commands.restartcontainers;
 
-import gca.in.xap.tools.operationtool.service.RestartStrategy;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
+import gca.in.xap.tools.operationtool.service.restartstrategy.ParallelRestartStrategy;
+import gca.in.xap.tools.operationtool.service.restartstrategy.RestartStrategy;
+import gca.in.xap.tools.operationtool.service.restartstrategy.SequentialRestartStrategy;
 import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsc.GridServiceContainer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import picocli.CommandLine;
 
 import java.time.Duration;
 import java.util.function.Predicate;
@@ -15,9 +18,12 @@ import java.util.function.Predicate;
 @Slf4j
 public abstract class AbstractRestartContainersCommand extends AbstractAppCommand implements Runnable {
 
-	static final RestartStrategy noIntervalRestartStrategy = new RestartStrategy(Duration.ZERO);
-
-	static final RestartStrategy defaultIntervalRestartStrategy = new RestartStrategy(Duration.ofMinutes(2));
+	/**
+	 * Default value of 1 minute should be sufficient in most case.
+	 * An interval of 2 minutes is too long in some case.
+	 * If user wants a longer or shorter duration, user has to use the "--intervalDuration" option
+	 */
+	private static final String defaultIntervalDuration = "PT1M";
 
 	@Autowired
 	@Lazy
@@ -25,15 +31,19 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 
 	private final Predicate<GridServiceContainer> predicate;
 
-	private final RestartStrategy restartStrategy;
+	@CommandLine.Option(names = "--intervalDuration", defaultValue = defaultIntervalDuration, description = "Interval between each component to restart. Will wait for this interval between each component, to reduce the risk to stress the system when restarting component to quickly. Duration is expressed in ISO_8601 format (example : PT30S for a duration of 30 seconds, PT2M for a duration of 2 minutes). Default value is : " + defaultIntervalDuration)
+	private String intervalDuration;
 
-	public AbstractRestartContainersCommand(Predicate<GridServiceContainer> predicate, RestartStrategy restartStrategy) {
+	@CommandLine.Option(names = "--parallel", defaultValue = "false", description = "In this case, the '--intervalDuration' option is ignored. Executes all restarts in parallel (at the same time). This is faster, but this may be dangerous for some usage as it can cause data loss.")
+	private boolean parallel;
+
+	public AbstractRestartContainersCommand(Predicate<GridServiceContainer> predicate) {
 		this.predicate = predicate;
-		this.restartStrategy = restartStrategy;
 	}
 
 	@Override
 	public void run() {
+		final RestartStrategy<GridServiceContainer> restartStrategy = createRestartStrategy();
 		XapServiceBuilder.waitForClusterInfoToUpdate();
 
 		log.info("Report on all GSC :");
@@ -43,8 +53,17 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 		xapService.printReportOnContainersAndProcessingUnits(predicate);
 
 		log.info("RestartStrategy is : {}", restartStrategy);
-
 		xapService.restartContainers(predicate, restartStrategy);
 	}
+
+	protected RestartStrategy<GridServiceContainer> createRestartStrategy() {
+		if (parallel) {
+			return new ParallelRestartStrategy<>();
+		} else {
+			return new SequentialRestartStrategy<>(Duration.parse(intervalDuration));
+		}
+	}
+
+	;
 
 }

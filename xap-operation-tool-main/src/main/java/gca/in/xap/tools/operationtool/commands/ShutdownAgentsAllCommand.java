@@ -1,7 +1,7 @@
 package gca.in.xap.tools.operationtool.commands;
 
-import gca.in.xap.tools.operationtool.service.RestartStrategy;
 import gca.in.xap.tools.operationtool.service.XapService;
+import gca.in.xap.tools.operationtool.service.restartstrategy.SequentialRestartStrategy;
 import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,7 +17,7 @@ import java.util.List;
 @CommandLine.Command(name = "shutdown-agents-all")
 public class ShutdownAgentsAllCommand extends AbstractAppCommand implements Runnable {
 
-	static final RestartStrategy noIntervalRestartStrategy = new RestartStrategy(Duration.ZERO);
+	static final SequentialRestartStrategy noIntervalRestartStrategy = new SequentialRestartStrategy(Duration.ZERO);
 
 	@Autowired
 	@Lazy
@@ -31,7 +31,7 @@ public class ShutdownAgentsAllCommand extends AbstractAppCommand implements Runn
 		xapService.printReportOnContainersAndProcessingUnits();
 		xapService.setDefaultTimeout(Duration.ofMinutes(5));
 
-		log.info("RestartStrategy is : {}", noIntervalRestartStrategy);
+		log.info("SequentialRestartStrategy is : {}", noIntervalRestartStrategy);
 
 		log.info("Shutting down all agents on non-managers hosts ...");
 		final List<String> managersHostnames = xapService.findManagersHostnames();
