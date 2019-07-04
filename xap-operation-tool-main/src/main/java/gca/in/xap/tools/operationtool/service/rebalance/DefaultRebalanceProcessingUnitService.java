@@ -74,7 +74,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		if (rebalanced) {
 			return true;
 		}
-		rebalanced = rebalanceByBreakDown(stateSnapshotBefore.processingUnitInstanceRepartitionSnapshot.actualTotalCounts, stateSnapshotBefore);
+		rebalanced = rebalanceByBreakDown("total instances", stateSnapshotBefore.processingUnitInstanceRepartitionSnapshot.actualTotalCounts, stateSnapshotBefore);
 		if (rebalanced) {
 			return true;
 		}
@@ -82,22 +82,23 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 	}
 
 	private boolean rebalanceByBreakDownOnEachPartition(ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotBefore) {
-
 		for (Map.Entry<Integer, ProcessingUnitInstanceRepartitionSnapshot> entry : processingUnitInstanceStateSnapshotBefore.processingUnitInstanceRepartitionSnapshotPerPartition.entrySet()) {
 			final Integer partitionId = entry.getKey();
 			final ProcessingUnitInstanceRepartitionSnapshot snapshotForPartition = entry.getValue();
-			boolean rebalanceDone = rebalanceByBreakDown(snapshotForPartition.actualTotalCounts, processingUnitInstanceStateSnapshotBefore);
+			//
+			final int partitionIndex = partitionId + 1;
+			final String breakdownDescription = "Partition #" + partitionIndex;
+			//
+			boolean rebalanceDone = rebalanceByBreakDown(breakdownDescription, snapshotForPartition.actualTotalCounts, processingUnitInstanceStateSnapshotBefore);
 			if (rebalanceDone) {
 				log.info("Partition Id {} has been relocated", partitionId);
 				return true;
 			}
 		}
-
-		log.info("Does not need to relocate any PU Instance");
 		return false;
 	}
 
-	private boolean rebalanceByBreakDown(ProcessingUnitInstanceBreakdownSnapshot breakdown, ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotBefore) {
+	private boolean rebalanceByBreakDown(String breakdownDescription, ProcessingUnitInstanceBreakdownSnapshot breakdown, ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotBefore) {
 		MinAndMax<String> minAndMaxByMachine = findMinAndMax(breakdown.countByMachine);
 		boolean needsRebalancedByMachine = needsRebalanced(minAndMaxByMachine);
 		if (needsRebalancedByMachine) {
@@ -110,7 +111,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 			rebalanceByGSC(processingUnitInstanceStateSnapshotBefore.processingUnitInstances, minAndMaxByGSC);
 			return true;
 		}
-		log.info("Does not need to relocate any PU Instance");
+		log.info("Does not need to relocate any PU Instance for distribution of {}", breakdownDescription);
 		return false;
 	}
 
