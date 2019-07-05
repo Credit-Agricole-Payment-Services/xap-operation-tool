@@ -2,9 +2,8 @@ package gca.in.xap.tools.operationtool.service;
 
 import gca.in.xap.tools.operationtool.predicates.machine.MachineWithSameNamePredicate;
 import gca.in.xap.tools.operationtool.service.rebalance.DefaultRebalanceProcessingUnitService;
-import gca.in.xap.tools.operationtool.service.rebalance.ZonesGroup;
+import gca.in.xap.tools.operationtool.service.rebalance.ProcessingUnitInstanceStateSnapshotService;
 import gca.in.xap.tools.operationtool.service.rebalance.ZonesGroups;
-import gca.in.xap.tools.operationtool.service.restartstrategy.SequentialRestartStrategy;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Before;
@@ -22,7 +21,6 @@ import org.openspaces.admin.pu.ProcessingUnitPartition;
 import org.openspaces.admin.zone.config.ExactZonesConfig;
 import org.openspaces.core.cluster.ClusterInfo;
 
-import java.time.Duration;
 import java.util.function.Predicate;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -35,6 +33,8 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 
 	@InjectMocks
 	private DefaultRebalanceProcessingUnitService service;
+
+	private ProcessingUnitInstanceStateSnapshotService processingUnitInstanceStateSnapshotService;
 
 	@Mock
 	private PuRelocateService puRelocateService;
@@ -124,6 +124,10 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 	public void setUp() {
 		MockitoAnnotations.initMocks(this);
 		log.info("setUp()");
+
+		processingUnitInstanceStateSnapshotService = new ProcessingUnitInstanceStateSnapshotService();
+		processingUnitInstanceStateSnapshotService.setPuRelocateService(puRelocateService);
+		service.setProcessingUnitInstanceStateSnapshotService(processingUnitInstanceStateSnapshotService);
 
 		doReturn("processingUnitInstance1").when(processingUnitInstance1).getId();
 		doReturn("processingUnitInstance2").when(processingUnitInstance2).getId();

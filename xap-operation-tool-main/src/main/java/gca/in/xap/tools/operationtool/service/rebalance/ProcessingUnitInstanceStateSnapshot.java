@@ -34,7 +34,7 @@ public class ProcessingUnitInstanceStateSnapshot {
 
 	@JsonIgnore
 	@Getter
-	final ProcessingUnitInstance[] processingUnitInstances;
+	final ProcessingUnitInstance[] allProcessingUnitInstances;
 
 	@Getter
 	final ProcessingUnitInstanceBreakdownSnapshot potentialCounts;
