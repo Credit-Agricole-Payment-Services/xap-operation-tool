@@ -32,10 +32,6 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		return new LinkedHashSet<>(processingUnitInstances.stream().map(ProcessingUnitInstance::getId).collect(Collectors.toSet()));
 	}
 
-	private boolean needsRebalanced(MinAndMax<String> minAndMax) {
-		return minAndMax != null && minAndMax.getMax() != null && minAndMax.getMin() != null && minAndMax.getMax().getValue() > minAndMax.getMin().getValue() + 1;
-	}
-
 	@Autowired
 	@Setter
 	private PuRelocateService puRelocateService;
@@ -129,7 +125,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		if (zonesGroups != null) {
 			for (ZonesGroup zonesGroup : zonesGroups.getGroups()) {
 				final MinAndMax<String> minAndMaxByZone = findMinAndMax(breakdown.countByZone, s -> zonesGroup.getZones().contains(s));
-				final boolean needsRebalancedByZone = needsRebalanced(minAndMaxByZone);
+				final boolean needsRebalancedByZone = minAndMaxByZone != null && minAndMaxByZone.needsRebalancing();
 				log.info("breakdownDescription = {}, zonesGroup = {}, zonesGroup.getZones().size() = {}, breakdown.countByZone = {}, minAndMaxByZone = {}, needsRebalancedByZone = {}",
 						breakdownDescription,
 						zonesGroup,
@@ -144,13 +140,13 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 			}
 		}
 		MinAndMax<String> minAndMaxByMachine = findMinAndMax(breakdown.countByMachine);
-		boolean needsRebalancedByMachine = needsRebalanced(minAndMaxByMachine);
+		boolean needsRebalancedByMachine = minAndMaxByMachine != null && minAndMaxByMachine.needsRebalancing();
 		if (needsRebalancedByMachine) {
 			rebalanceByMachine(processingUnitInstanceStateSnapshotBefore.allProcessingUnitInstances, minAndMaxByMachine, matchingProcessingUnitPredicateForBreakdown);
 			return true;
 		}
 		MinAndMax<String> minAndMaxByGSC = findMinAndMax(breakdown.countByGSC);
-		boolean needsRebalancedByGSC = needsRebalanced(minAndMaxByGSC);
+		boolean needsRebalancedByGSC = minAndMaxByGSC != null && minAndMaxByGSC.needsRebalancing();
 		if (needsRebalancedByGSC) {
 			rebalanceByGSC(processingUnitInstanceStateSnapshotBefore.allProcessingUnitInstances, minAndMaxByGSC, matchingProcessingUnitPredicateForBreakdown);
 			return true;
@@ -173,8 +169,8 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 				processingUnitInstanceToRelocate.getId(),
 				partitionIndex,
 				primaryOrBackupIndicator,
-				breakdownAxis, minAndMax.getMax().getKey(),
-				breakdownAxis, minAndMax.getMin().getKey()
+				breakdownAxis, minAndMax.getBestKeyOfMax(),
+				breakdownAxis, minAndMax.getBestKeyOfMin()
 		);
 		userConfirmationService.askConfirmationAndWait();
 
@@ -200,7 +196,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 
 		List<ProcessingUnitInstance> candidateProcessingUnitInstancesToRelocate = Arrays.stream(allProcessingUnitInstances)
 				.filter(matchingProcessingUnitPredicateForBreakdown)
-				.filter(processingUnitInstance -> processingUnitInstance.getGridServiceContainer().getExactZones().getZones().contains(minAndMaxByZone.getMax().getKey()))
+				.filter(processingUnitInstance -> processingUnitInstance.getGridServiceContainer().getExactZones().getZones().contains(minAndMaxByZone.getBestKeyOfMax()))
 				//.filter(processingUnitInstance -> !partitionIdsOnZoneWithMinCount.contains(processingUnitInstance.getPartition().getPartitionId()))
 				.sorted(Collections.reverseOrder(new BackupFirstProcessingUnitInstanceComparator()))
 				.collect(Collectors.toList());
@@ -221,7 +217,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		log.info("Rebalancing ProcessingUnit by Machine : minAndMaxByMachine = {}", minAndMaxByMachine);
 
 		Set<Integer> partitionIdsOnMachineWithMinCount = Arrays.stream(allProcessingUnitInstances)
-				.filter(processingUnitInstance -> processingUnitInstance.getGridServiceContainer().getMachine().getHostName().equals(minAndMaxByMachine.getMin().getKey()))
+				.filter(processingUnitInstance -> processingUnitInstance.getGridServiceContainer().getMachine().getHostName().equals(minAndMaxByMachine.getBestKeyOfMin()))
 				.map(processingUnitInstance -> processingUnitInstance.getPartition().getPartitionId())
 				.collect(Collectors.toSet());
 
@@ -229,7 +225,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 
 		List<ProcessingUnitInstance> candidateProcessingUnitInstancesToRelocate = Arrays.stream(allProcessingUnitInstances)
 				.filter(matchingProcessingUnitPredicateForBreakdown)
-				.filter(processingUnitInstance -> processingUnitInstance.getGridServiceContainer().getMachine().getHostName().equals(minAndMaxByMachine.getMax().getKey()))
+				.filter(processingUnitInstance -> processingUnitInstance.getGridServiceContainer().getMachine().getHostName().equals(minAndMaxByMachine.getBestKeyOfMax()))
 				.filter(processingUnitInstance -> !partitionIdsOnMachineWithMinCount.contains(processingUnitInstance.getPartition().getPartitionId()))
 				.sorted(Collections.reverseOrder(new BackupFirstProcessingUnitInstanceComparator()))
 				.collect(Collectors.toList());
@@ -237,7 +233,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		log.info("candidateProcessingUnitInstancesToRelocate = {}", extractIds(candidateProcessingUnitInstancesToRelocate));
 
 		final ProcessingUnitInstance processingUnitInstanceToRelocate = candidateProcessingUnitInstancesToRelocate.get(0);
-		final Predicate<Machine> targetMachinePredicate = new MachineWithSameNamePredicate(minAndMaxByMachine.getMin().getKey());
+		final Predicate<Machine> targetMachinePredicate = new MachineWithSameNamePredicate(minAndMaxByMachine.getBestKeyOfMin());
 
 		doRelocate(processingUnitInstanceToRelocate, minAndMaxByMachine, targetMachinePredicate, BreakdownAxis.MACHINE);
 	}
@@ -251,14 +247,14 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 
 		Set<Integer> partitionIdsOnMachineWithMinCount = Arrays.stream(allProcessingUnitInstances)
 				.filter(matchingProcessingUnitPredicateForBreakdown)
-				.filter(processingUnitInstance -> processingUnitInstance.getGridServiceContainer().getId().equals(minAndMaxByGSC.getMin().getKey()))
+				.filter(processingUnitInstance -> processingUnitInstance.getGridServiceContainer().getId().equals(minAndMaxByGSC.getBestKeyOfMin()))
 				.map(processingUnitInstance -> processingUnitInstance.getPartition().getPartitionId())
 				.collect(Collectors.toSet());
 
 		log.info("partitionIdsOnMachineWithMinCount = {}", partitionIdsOnMachineWithMinCount);
 
 		List<ProcessingUnitInstance> candidateProcessingUnitInstancesToRelocate = Arrays.stream(allProcessingUnitInstances)
-				.filter(processingUnitInstance -> processingUnitInstance.getGridServiceContainer().getId().equals(minAndMaxByGSC.getMax().getKey()))
+				.filter(processingUnitInstance -> processingUnitInstance.getGridServiceContainer().getId().equals(minAndMaxByGSC.getBestKeyOfMax()))
 				.filter(processingUnitInstance -> !partitionIdsOnMachineWithMinCount.contains(processingUnitInstance.getPartition().getPartitionId()))
 				.sorted(Collections.reverseOrder(new BackupFirstProcessingUnitInstanceComparator()))
 				.collect(Collectors.toList());
