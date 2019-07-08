@@ -82,19 +82,24 @@ public class IdExtractor {
 	public Collection<String> extractProcessingUnitsNamesAndDescription(ProcessingUnitInstance[] puInstances) {
 		List<String> names = new ArrayList<>();
 		for (ProcessingUnitInstance pu : puInstances) {
-			final String additionalInfo;
-			ProcessingUnitInstance primary = pu.getPartition().getPrimary();
-			if (primary != null) {
-				int partitionIndex = pu.getPartition().getPartitionId() + 1;
-				final String primaryOrBackupIndicator = (pu.getSpaceInstance().getMode() == SpaceMode.PRIMARY) ? "P" : "B";
-				additionalInfo = " (#" + partitionIndex + primaryOrBackupIndicator + ")";
-			} else {
-				additionalInfo = "";
-			}
-			names.add(pu.getName() + additionalInfo);
+			String nameAndDescription = extractProcessingUnitInstanceNameAndDescription(pu);
+			names.add(nameAndDescription);
 		}
 		Collections.sort(names);
 		return names;
+	}
+
+	public String extractProcessingUnitInstanceNameAndDescription(ProcessingUnitInstance pu) {
+		final String additionalInfo;
+		ProcessingUnitInstance primary = pu.getPartition().getPrimary();
+		if (primary != null) {
+			int partitionIndex = pu.getPartition().getPartitionId() + 1;
+			final String primaryOrBackupIndicator = (pu.getSpaceInstance().getMode() == SpaceMode.PRIMARY) ? "P" : "B";
+			additionalInfo = " (#" + partitionIndex + primaryOrBackupIndicator + ")";
+		} else {
+			additionalInfo = "";
+		}
+		return pu.getName() + additionalInfo;
 	}
 
 }

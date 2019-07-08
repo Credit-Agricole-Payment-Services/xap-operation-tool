@@ -24,6 +24,9 @@ public class DefaultPuRelocateService implements PuRelocateService {
 	@Lazy
 	private XapService xapService;
 
+	@Autowired
+	private IdExtractor idExtractor;
+
 	private Predicate<GridServiceContainer> createContainerPredicate(@NonNull RequiredZonesConfig puRequiredContainerZones) {
 		return gsc -> {
 			final ExactZonesConfig containerExactZones = gsc.getExactZones();
@@ -44,14 +47,14 @@ public class DefaultPuRelocateService implements PuRelocateService {
 		//
 		final GridServiceContainer destinationContainer = findBestContainerToRelocate(processingUnit, machinePredicate, gridServiceContainerPredicate);
 
-		log.info("PU instance {} of PU {} (having zone config : {}) that is currently running on {} will be relocated to {} (if this is allowed by the SLA)",
-				puInstance.getId(),
+		log.info("PU instance '{}' of PU '{}' will be relocated from {} ({}) to {} ({}) ... (if this is allowed by the SLA)",
+				idExtractor.extractProcessingUnitInstanceNameAndDescription(puInstance),
 				processingUnit.getName(),
-				destinationContainer.getExactZones(),
 				sourceContainer.getId(),
-				destinationContainer.getId()
+				sourceContainer.getExactZones(),
+				destinationContainer.getId(),
+				destinationContainer.getExactZones()
 		);
-
 		if (await) {
 			puInstance.relocateAndWait(destinationContainer);
 		} else {

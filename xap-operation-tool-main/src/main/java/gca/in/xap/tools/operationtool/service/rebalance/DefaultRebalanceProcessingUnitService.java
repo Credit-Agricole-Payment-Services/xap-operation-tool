@@ -3,6 +3,7 @@ package gca.in.xap.tools.operationtool.service.rebalance;
 import com.gigaspaces.cluster.activeelection.SpaceMode;
 import gca.in.xap.tools.operationtool.comparators.processingunitinstance.BackupFirstProcessingUnitInstanceComparator;
 import gca.in.xap.tools.operationtool.predicates.machine.MachineWithSameNamePredicate;
+import gca.in.xap.tools.operationtool.service.IdExtractor;
 import gca.in.xap.tools.operationtool.service.PuRelocateService;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
@@ -48,6 +49,10 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 	@Autowired
 	@Setter
 	private ProcessingUnitInstanceStateSnapshotService processingUnitInstanceStateSnapshotService;
+
+	@Autowired
+	@Setter
+	private IdExtractor idExtractor;
 
 	@Override
 	public void rebalanceProcessingUnit(
@@ -201,7 +206,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 				.sorted(Collections.reverseOrder(new BackupFirstProcessingUnitInstanceComparator()))
 				.collect(Collectors.toList());
 
-		log.info("candidateProcessingUnitInstancesToRelocate = {}", extractIds(candidateProcessingUnitInstancesToRelocate));
+		log.info("candidateProcessingUnitInstancesToRelocate = {}", idExtractor.extractProcessingUnitsNamesAndDescription(candidateProcessingUnitInstancesToRelocate.toArray(new ProcessingUnitInstance[0])));
 
 		final ProcessingUnitInstance processingUnitInstanceToRelocate = candidateProcessingUnitInstancesToRelocate.get(0);
 		final Predicate<Machine> targetMachinePredicate = machine -> true;
