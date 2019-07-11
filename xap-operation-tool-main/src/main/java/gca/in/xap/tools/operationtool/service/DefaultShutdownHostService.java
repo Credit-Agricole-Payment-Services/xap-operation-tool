@@ -37,8 +37,10 @@ public class DefaultShutdownHostService implements ShutdownHostService {
 	@Setter
 	private boolean forbidWhenOnlyOneHost = true;
 
+	private final int maxRelocateAttemptCount = 3;
+
 	@Override
-	public void shutdownHost(String hostNameOrAddress, boolean shutdownAgent) {
+	public void shutdownHost(String hostNameOrAddress, boolean skipRelocateProcessingUnits, boolean skipShutdownAgent) {
 		log.info("Asked to shutdown any GSC/GSM/GSA on host {}", hostNameOrAddress);
 		final Predicate<Machine> machinePredicate = new MachineWithSameNamePredicate(hostNameOrAddress);
 
@@ -58,52 +60,58 @@ public class DefaultShutdownHostService implements ShutdownHostService {
 			}
 		}
 
-		AtomicInteger foundPuInstanceCount = null;
+		int foundPuInstanceCount = Integer.MAX_VALUE;
 
-		final int maxRelocateAttemptCount = 2;
-		AtomicInteger attemptCount = new AtomicInteger(0);
-
-		while (attemptCount.get() < maxRelocateAttemptCount && (foundPuInstanceCount == null || foundPuInstanceCount.get() > 0)) {
-			attemptCount.incrementAndGet();
-			//
-			final AtomicInteger remainingPuInstanceCount = new AtomicInteger(0);
-			Arrays.stream(matchingMachines).forEach(machine -> {
-
-				ProcessingUnitInstance[] processingUnitInstances = machine.getProcessingUnitInstances();
-				log.info("Found {} ProcessingUnitInstance¨running on Machine {}", processingUnitInstances.length, machine.getHostName());
-				Arrays.stream(processingUnitInstances).forEach(puInstance -> {
-					final GridServiceContainer gsc = puInstance.getGridServiceContainer();
-					log.info("Processing Unit {} Instance {} is running on GSC {}. Relocating to another GSC ...", puInstance.getName(), puInstance.getId(), gsc.getId());
-					remainingPuInstanceCount.incrementAndGet();
-
-					try {
-						puRelocateService.relocatePuInstance(puInstance, new NotPredicate<>(machinePredicate), false);
-					} catch (RuntimeException e) {
-						// if there is a failure on 1 PU, maybe other PUs can be relocated, so we continue
-						// this exception needs to be catched in order to be able to proceed on other PUs if any
-						log.error("Failure while trying to relocate PU instance", e);
-					}
-				});
-			});
-			//
-			foundPuInstanceCount = remainingPuInstanceCount;
+		if (!skipRelocateProcessingUnits) {
+			int currentAttemptCount = 0;
+			while (currentAttemptCount < maxRelocateAttemptCount && foundPuInstanceCount > 0) {
+				currentAttemptCount++;
+				//
+				foundPuInstanceCount = doRelocate(matchingMachines, machinePredicate);
+			}
 		}
 
-		if (foundPuInstanceCount.get() == 0) {
-			if (shutdownAgent) {
-				Arrays.stream(matchingMachines).forEach(machine -> {
-					GridServiceAgent gridServiceAgent = machine.getGridServiceAgent();
+		if (!skipShutdownAgent) {
+			final boolean shutdownEvenIfProcessingUnitsInstanceRemains = skipRelocateProcessingUnits;
+			Arrays.stream(matchingMachines).forEach(machine -> {
+				GridServiceAgent gridServiceAgent = machine.getGridServiceAgent();
+				ProcessingUnitInstance[] processingUnitInstances = machine.getProcessingUnitInstances();
+				log.info("Found {} ProcessingUnitInstance¨running on Machine {}", processingUnitInstances.length, machine.getHostName());
+				if (processingUnitInstances.length == 0 || shutdownEvenIfProcessingUnitsInstanceRemains) {
 					log.info("Shutting down GSA {} on Machine {} ...", gridServiceAgent.getUid(), machine.getHostName());
 					gridServiceAgent.shutdown();
 					log.info("Successfully shut down GSA {} on Machine {}", gridServiceAgent.getUid(), machine.getHostName());
-				});
-			} else {
-				log.info("Skipped shutdown of GSA");
-			}
+				} else {
+					log.warn("Skipped shutdown of GSA {} on Machine {} because {} Processing Unit Instances are still running", gridServiceAgent.getUid(), machine.getHostName(), processingUnitInstances.length);
+				}
+			});
 		} else {
-			log.info("Found {} ProcessingUnitInstance¨running on Machine {}", foundPuInstanceCount.get(), hostNameOrAddress);
+			log.info("Skipped shutdown of GSA as requested by user");
 		}
 
+	}
+
+	private int doRelocate(Machine[] matchingMachines, Predicate<Machine> machinePredicate) {
+		final AtomicInteger foundProcessingUnitsCounter = new AtomicInteger(0);
+		Arrays.stream(matchingMachines).forEach(machine -> {
+
+			ProcessingUnitInstance[] processingUnitInstances = machine.getProcessingUnitInstances();
+			log.info("Found {} ProcessingUnitInstance¨running on Machine {}", processingUnitInstances.length, machine.getHostName());
+			Arrays.stream(processingUnitInstances).forEach(puInstance -> {
+				final GridServiceContainer gsc = puInstance.getGridServiceContainer();
+				log.info("Processing Unit {} Instance {} is running on GSC {}. Relocating to another GSC ...", puInstance.getName(), puInstance.getId(), gsc.getId());
+				foundProcessingUnitsCounter.incrementAndGet();
+
+				try {
+					puRelocateService.relocatePuInstance(puInstance, new NotPredicate<>(machinePredicate), true);
+				} catch (RuntimeException e) {
+					// if there is a failure on 1 PU, maybe other PUs can be relocated, so we continue
+					// this exception needs to be catched in order to be able to proceed on other PUs if any
+					log.error("Failure while trying to relocate PU instance", e);
+				}
+			});
+		});
+		return foundProcessingUnitsCounter.get();
 	}
 
 }
