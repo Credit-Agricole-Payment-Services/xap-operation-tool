@@ -9,12 +9,12 @@ public class FilterPuNamesPredicate {
 	public static Predicate<String> createProcessingUnitsPredicate(@Nullable List<String> processingUnitsIncludes, @Nullable List<String> processingUnitsExcludes) {
 		Predicate<String> includePredicate;
 		if (processingUnitsIncludes != null) {
-			includePredicate = value -> processingUnitsIncludes.contains(value);
+			includePredicate = processingUnitsIncludes::contains;
 		} else {
 			includePredicate = value -> true;
 		}
 		if (processingUnitsExcludes != null) {
-			return value -> !processingUnitsIncludes.contains(value) && includePredicate.test(value);
+			return value -> !processingUnitsExcludes.contains(value) && includePredicate.test(value);
 		} else {
 			return includePredicate;
 		}
