@@ -213,7 +213,8 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 		// call early the toDeploymentOptions() method in order to fail fast, not waiting for the deploy task to execute
 		// this method is called internally during in the deploy method
 		String[] deploymentOptions = processingUnitConfig.toDeploymentOptions();
-		String deploymentOptionsString = String.join(" ", deploymentOptions);
+		// avoid printing passwords to logs
+		String deploymentOptionsString = Arrays.stream(deploymentOptions).filter(s -> !s.contains("password")).collect(Collectors.joining("\n"));
 		log.info("deploymentOptionsString = {}", deploymentOptionsString);
 	}
 
