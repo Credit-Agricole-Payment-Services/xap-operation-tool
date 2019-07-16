@@ -19,7 +19,6 @@ public class IsBackupStatefulProcessingUnitPredicate implements Predicate<Proces
 
 	private boolean doTest(ProcessingUnitInstance pu) {
 		ClusterInfo clusterInfo = pu.getClusterInfo();
-		Integer instanceId = clusterInfo.getInstanceId();
 		Integer numberOfBackups = clusterInfo.getNumberOfBackups();
 		Integer backupId = clusterInfo.getBackupId();
 		boolean hasBackup = numberOfBackups > 0;

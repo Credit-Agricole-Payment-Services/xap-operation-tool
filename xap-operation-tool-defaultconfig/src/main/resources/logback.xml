@@ -25,7 +25,7 @@
 		<file>${sys:logdir:-/app/in/log}/xap-operation-tool-${USER}.log</file>
 		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
 			<!-- daily rollover -->
-			<fileNamePattern>${sys:logdir:-/app/in/logs}/xap-operation-tool-${USER}.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<fileNamePattern>${sys:logdir:-/app/in/log}/xap-operation-tool-${USER}.%d{yyyy-MM-dd}.log</fileNamePattern>
 			<maxHistory>32</maxHistory>
 		</rollingPolicy>
 

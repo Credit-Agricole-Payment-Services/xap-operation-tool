@@ -1,6 +1,9 @@
 package gca.in.xap.tools.operationtool.service;
 
 import gca.in.xap.tools.operationtool.predicates.machine.MachineWithSameNamePredicate;
+import gca.in.xap.tools.operationtool.service.rebalance.DefaultRebalanceProcessingUnitService;
+import gca.in.xap.tools.operationtool.service.rebalance.ProcessingUnitInstanceStateSnapshotService;
+import gca.in.xap.tools.operationtool.service.rebalance.ZonesGroups;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Before;
@@ -14,9 +17,10 @@ import org.openspaces.admin.gsc.GridServiceContainer;
 import org.openspaces.admin.machine.Machine;
 import org.openspaces.admin.pu.ProcessingUnit;
 import org.openspaces.admin.pu.ProcessingUnitInstance;
+import org.openspaces.admin.pu.ProcessingUnitPartition;
 import org.openspaces.admin.zone.config.ExactZonesConfig;
+import org.openspaces.core.cluster.ClusterInfo;
 
-import java.time.Duration;
 import java.util.function.Predicate;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -30,6 +34,8 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 	@InjectMocks
 	private DefaultRebalanceProcessingUnitService service;
 
+	private ProcessingUnitInstanceStateSnapshotService processingUnitInstanceStateSnapshotService;
+
 	@Mock
 	private PuRelocateService puRelocateService;
 
@@ -41,6 +47,30 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 
 	@Mock
 	private ProcessingUnit processingUnit;
+
+	@Mock
+	private ClusterInfo clusterInfo1;
+
+	@Mock
+	private ClusterInfo clusterInfo2;
+
+	@Mock
+	private ClusterInfo clusterInfo3;
+
+	@Mock
+	private ClusterInfo clusterInfo4;
+
+	@Mock
+	private ProcessingUnitPartition processingUnitPartition1;
+
+	@Mock
+	private ProcessingUnitPartition processingUnitPartition2;
+
+	@Mock
+	private ProcessingUnitPartition processingUnitPartition3;
+
+	@Mock
+	private ProcessingUnitPartition processingUnitPartition4;
 
 	@Mock
 	private ProcessingUnitInstance processingUnitInstance1;
@@ -94,6 +124,15 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 	public void setUp() {
 		MockitoAnnotations.initMocks(this);
 		log.info("setUp()");
+
+		processingUnitInstanceStateSnapshotService = new ProcessingUnitInstanceStateSnapshotService();
+		processingUnitInstanceStateSnapshotService.setPuRelocateService(puRelocateService);
+		service.setProcessingUnitInstanceStateSnapshotService(processingUnitInstanceStateSnapshotService);
+
+		doReturn("processingUnitInstance1").when(processingUnitInstance1).getId();
+		doReturn("processingUnitInstance2").when(processingUnitInstance2).getId();
+		doReturn("processingUnitInstance3").when(processingUnitInstance3).getId();
+		doReturn("processingUnitInstance4").when(processingUnitInstance4).getId();
 	}
 
 	@Test
@@ -104,12 +143,28 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 		doReturn(processingUnit).when(xapService).findProcessingUnitByName(processingUnitName);
 		doReturn(new ProcessingUnitInstance[0]).when(processingUnit).getInstances();
 
-		service.rebalanceProcessingUnit(processingUnitName, new RestartStrategy(Duration.ZERO));
+		ZonesGroups zonesGroups = null;
+		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups);
 	}
 
 	@Test
 	public void should_not_rebalance_when_only_one_container_and_only_one_puInstance() {
 		final String processingUnitName = "my-pu";
+
+		doReturn(clusterInfo1).when(processingUnitInstance1).getClusterInfo();
+		doReturn(clusterInfo2).when(processingUnitInstance2).getClusterInfo();
+		doReturn(clusterInfo3).when(processingUnitInstance3).getClusterInfo();
+		doReturn(clusterInfo4).when(processingUnitInstance4).getClusterInfo();
+
+		doReturn(1).when(processingUnitPartition1).getPartitionId();
+		doReturn(2).when(processingUnitPartition2).getPartitionId();
+		doReturn(3).when(processingUnitPartition3).getPartitionId();
+		doReturn(4).when(processingUnitPartition4).getPartitionId();
+
+		doReturn(processingUnitPartition1).when(processingUnitInstance1).getPartition();
+		doReturn(processingUnitPartition2).when(processingUnitInstance2).getPartition();
+		doReturn(processingUnitPartition3).when(processingUnitInstance3).getPartition();
+		doReturn(processingUnitPartition4).when(processingUnitInstance4).getPartition();
 
 		doReturn(new GridServiceContainer[]{gridServiceContainer1}).when(puRelocateService).findBestContainersToRelocate(same(processingUnit), any(Predicate.class), any(Predicate.class));
 		doReturn(machine1).when(gridServiceContainer1).getMachine();
@@ -122,12 +177,33 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 		doReturn(new ExactZonesConfig()).when(gridServiceContainer1).getExactZones();
 		doReturn("machine1~1234").when(gridServiceContainer1).getId();
 
-		service.rebalanceProcessingUnit(processingUnitName, new RestartStrategy(Duration.ZERO));
+		ZonesGroups zonesGroups = null;
+		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups);
 	}
 
 	@Test
 	public void should_rebalance_when_two_puInstance_onSameMachine_but_multiple_machines_available() {
 		final String processingUnitName = "my-pu";
+
+		doReturn(processingUnitInstance1).when(processingUnitPartition1).getPrimary();
+		doReturn(processingUnitInstance1).when(processingUnitPartition2).getPrimary();
+		doReturn(processingUnitInstance3).when(processingUnitPartition3).getPrimary();
+		doReturn(processingUnitInstance3).when(processingUnitPartition4).getPrimary();
+
+		doReturn(clusterInfo1).when(processingUnitInstance1).getClusterInfo();
+		doReturn(clusterInfo2).when(processingUnitInstance2).getClusterInfo();
+		doReturn(clusterInfo3).when(processingUnitInstance3).getClusterInfo();
+		doReturn(clusterInfo4).when(processingUnitInstance4).getClusterInfo();
+
+		doReturn(1).when(processingUnitPartition1).getPartitionId();
+		doReturn(2).when(processingUnitPartition2).getPartitionId();
+		doReturn(3).when(processingUnitPartition3).getPartitionId();
+		doReturn(4).when(processingUnitPartition4).getPartitionId();
+
+		doReturn(processingUnitPartition1).when(processingUnitInstance1).getPartition();
+		doReturn(processingUnitPartition2).when(processingUnitInstance2).getPartition();
+		doReturn(processingUnitPartition3).when(processingUnitInstance3).getPartition();
+		doReturn(processingUnitPartition4).when(processingUnitInstance4).getPartition();
 
 		doReturn(new GridServiceContainer[]{gridServiceContainer1, gridServiceContainer2, gridServiceContainer3, gridServiceContainer4}).when(puRelocateService).findBestContainersToRelocate(same(processingUnit), any(Predicate.class), any(Predicate.class));
 		doReturn(machine1).when(gridServiceContainer1).getMachine();
@@ -154,7 +230,8 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 		doReturn("machine2~3456").when(gridServiceContainer3).getId();
 		doReturn("machine2~3457").when(gridServiceContainer4).getId();
 
-		service.rebalanceProcessingUnit(processingUnitName, new RestartStrategy(Duration.ZERO));
+		ZonesGroups zonesGroups = null;
+		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups);
 
 		verify(puRelocateService).relocatePuInstance(any(ProcessingUnitInstance.class), eq(new MachineWithSameNamePredicate("machine2")), eq(true));
 	}
@@ -162,6 +239,26 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 	@Test
 	public void should_rebalance_when_two_puInstance_onSameGSC_but_multiple_GSC_available() {
 		final String processingUnitName = "my-pu";
+
+		doReturn(processingUnitInstance1).when(processingUnitPartition1).getPrimary();
+		doReturn(processingUnitInstance1).when(processingUnitPartition2).getPrimary();
+		doReturn(processingUnitInstance3).when(processingUnitPartition3).getPrimary();
+		doReturn(processingUnitInstance3).when(processingUnitPartition4).getPrimary();
+
+		doReturn(clusterInfo1).when(processingUnitInstance1).getClusterInfo();
+		doReturn(clusterInfo2).when(processingUnitInstance2).getClusterInfo();
+		doReturn(clusterInfo3).when(processingUnitInstance3).getClusterInfo();
+		doReturn(clusterInfo4).when(processingUnitInstance4).getClusterInfo();
+
+		doReturn(1).when(processingUnitPartition1).getPartitionId();
+		doReturn(2).when(processingUnitPartition2).getPartitionId();
+		doReturn(3).when(processingUnitPartition3).getPartitionId();
+		doReturn(4).when(processingUnitPartition4).getPartitionId();
+
+		doReturn(processingUnitPartition1).when(processingUnitInstance1).getPartition();
+		doReturn(processingUnitPartition2).when(processingUnitInstance2).getPartition();
+		doReturn(processingUnitPartition3).when(processingUnitInstance3).getPartition();
+		doReturn(processingUnitPartition4).when(processingUnitInstance4).getPartition();
 
 		doReturn(new GridServiceContainer[]{gridServiceContainer1, gridServiceContainer2}).when(puRelocateService).findBestContainersToRelocate(same(processingUnit), any(Predicate.class), any(Predicate.class));
 		doReturn(machine1).when(gridServiceContainer1).getMachine();
@@ -181,7 +278,8 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 		doReturn("machine1~1234").when(gridServiceContainer1).getId();
 		doReturn("machine1~1235").when(gridServiceContainer2).getId();
 
-		service.rebalanceProcessingUnit(processingUnitName, new RestartStrategy(Duration.ZERO));
+		ZonesGroups zonesGroups = null;
+		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups);
 
 		verify(puRelocateService).relocatePuInstance(any(ProcessingUnitInstance.class), any(Predicate.class), eq(true));
 	}

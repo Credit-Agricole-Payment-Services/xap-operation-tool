@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import gca.in.xap.tools.operationtool.model.ComponentType;
 import gca.in.xap.tools.operationtool.model.DumpReport;
 import gca.in.xap.tools.operationtool.model.VirtualMachineDescription;
+import gca.in.xap.tools.operationtool.predicates.container.IsEmptyContainerPredicate;
 import gca.in.xap.tools.operationtool.service.deployer.ApplicationDeployer;
 import gca.in.xap.tools.operationtool.service.deployer.ProcessingUnitDeployer;
+import gca.in.xap.tools.operationtool.service.restartstrategy.RestartStrategy;
+import gca.in.xap.tools.operationtool.service.restartstrategy.SequentialRestartStrategy;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.NonNull;
 import lombok.Setter;
@@ -178,6 +181,12 @@ public class XapService {
 		return processingUnit;
 	}
 
+	public List<String> findAllProcessingUnitsNames() {
+		ProcessingUnit[] processingUnits = admin.getProcessingUnits().getProcessingUnits();
+		List<String> result = Arrays.stream(processingUnits).map(processingUnit -> processingUnit.getName()).collect(Collectors.toList());
+		return result;
+	}
+
 	public void printReportOnContainersAndProcessingUnits() {
 		printReportOnContainersAndProcessingUnits(gsc -> true);
 	}
@@ -187,13 +196,21 @@ public class XapService {
 		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
 		final int gscCount = containers.length;
 		final Collection<String> containersIds = idExtractor.extractIds(containers);
+		//
+		Machine previousGscMachine = null;
 		log.info("Found {} matching running GSC instances : {}", gscCount, containersIds);
 		for (GridServiceContainer gsc : containers) {
+			Machine currentGscMachine = gsc.getMachine();
+			if (previousGscMachine == null || !previousGscMachine.equals(currentGscMachine)) {
+				log.info("On machine {} : ", currentGscMachine.getHostName());
+			}
 			String gscId = gsc.getId();
 			ProcessingUnitInstance[] puInstances = gsc.getProcessingUnitInstances();
 			final int puCount = puInstances.length;
-			final Collection<String> puNames = idExtractor.extractProcessingUnitsNames(puInstances);
+			final Collection<String> puNames = idExtractor.extractProcessingUnitsNamesAndDescription(puInstances);
 			log.info("GSC {} is running {} Processing Units : {}", gscId, puCount, puNames);
+			//
+			previousGscMachine = currentGscMachine;
 		}
 	}
 
@@ -265,105 +282,50 @@ public class XapService {
 		return null;
 	}
 
-
 	/**
 	 * you may want to restart containers after a PU has been undeployed, in order to make sure no unreleased resources remains.
 	 */
 	public void restartEmptyContainers() {
-		final GridServiceContainer[] containers = findContainers();
-		final int gscCount = containers.length;
-		final Collection<String> containersIds = idExtractor.extractIds(containers);
-		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
-
-		List<GridServiceContainer> containersToRestart = new ArrayList<>();
-		for (GridServiceContainer gsc : containers) {
-			ProcessingUnitInstance[] puInstances = gsc.getProcessingUnitInstances();
-			final int puCount = puInstances.length;
-			if (puCount == 0) {
-				containersToRestart.add(gsc);
-			}
-		}
-		log.info("Will restart all empty GSC instances : {}", idExtractor.extractIds(containersToRestart));
-		for (GridServiceContainer gsc : containersToRestart) {
-			gsc.restart();
-		}
-		log.info("Triggered restart of GSC instances : {}", idExtractor.extractIds(containersToRestart));
+		log.warn("Will restart all empty GSC instances ... (GSC with no PU running)");
+		restartContainers(new IsEmptyContainerPredicate(), new SequentialRestartStrategy<>(Duration.ZERO));
 	}
 
-	public void restartContainers(@NonNull Predicate<GridServiceContainer> predicate, @NonNull RestartStrategy restartStrategy) {
+	public void restartContainers(@NonNull Predicate<GridServiceContainer> predicate, @NonNull RestartStrategy<GridServiceContainer> restartStrategy) {
 		GridServiceContainer[] containers = findContainers();
 		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
 		final int gscCount = containers.length;
 		final Collection<String> containersIds = idExtractor.extractIds(containers);
 		log.info("Found {} matching GSC instances : {}", gscCount, containersIds);
 
-		log.info("Will restart {} GSC instances : {}", gscCount, containersIds);
+		log.warn("Will restart {} GSC instances : {}", gscCount, containersIds);
 		userConfirmationService.askConfirmationAndWait();
-		boolean firstIteration = true;
-		for (GridServiceContainer gsc : containers) {
-			if (!firstIteration) {
-				// we want to wait between each component restart
-				// we don't want to wait before first restart, nor after last restart
-				restartStrategy.waitBetweenComponent();
-			}
-			gsc.restart();
-			log.info("GSC {} restarted", gsc.getId());
-			firstIteration = false;
-		}
+		restartStrategy.perform(containers, new RestartStrategy.ContainerItemVisitor());
 		log.info("Triggered restart of GSC instances : {}", containersIds);
 	}
 
-	public void restartManagers(@NonNull Predicate<GridServiceManager> predicate, @NonNull RestartStrategy restartStrategy) {
+	public void restartManagers(@NonNull Predicate<GridServiceManager> predicate, @NonNull RestartStrategy<GridServiceManager> restartStrategy) {
 		GridServiceManager[] managers = findManagers();
 		managers = Arrays.stream(managers).filter(predicate).toArray(GridServiceManager[]::new);
 		final int gsmCount = managers.length;
 		final Collection<String> managersIds = idExtractor.extractIds(managers);
 		log.info("Found {} matching GSM instances : {}", gsmCount, managersIds);
 
-		log.info("Will restart {] GSM instances : {}", gsmCount, managersIds);
+		log.warn("Will restart {] GSM instances : {}", gsmCount, managersIds);
 		userConfirmationService.askConfirmationAndWait();
-		boolean firstIteration = true;
-		for (GridServiceManager gsm : managers) {
-			if (!firstIteration) {
-				// we want to wait between each component restart
-				// we don't want to wait before first restart, nor after last restart
-				restartStrategy.waitBetweenComponent();
-			}
-			Machine machine = gsm.getMachine();
-			String hostname = machine.getHostName();
-			String hostAddress = machine.getHostAddress();
-			log.info("Asking GSM {} ({}) to restart ...", hostname, hostAddress);
-			gsm.restart();
-			log.info("GSM {} ({}) restarted", hostname, hostAddress);
-			firstIteration = false;
-		}
+		restartStrategy.perform(managers, new RestartStrategy.ManagerItemVisitor());
 		log.info("Triggered restart of GSM instances : {}", managersIds);
 	}
 
-	public void shutdownAgents(@NonNull Predicate<GridServiceAgent> predicate, @NonNull RestartStrategy restartStrategy) {
+	public void shutdownAgents(@NonNull Predicate<GridServiceAgent> predicate, @NonNull RestartStrategy<GridServiceAgent> restartStrategy) {
 		GridServiceAgent[] agents = admin.getGridServiceAgents().getAgents();
 		agents = Arrays.stream(agents).filter(predicate).toArray(GridServiceAgent[]::new);
 		final int gsaCount = agents.length;
 		final Collection<String> agentIds = idExtractor.extractIds(agents);
 		log.info("Found {} matching GSA instances : {}", gsaCount, agentIds);
 
-		log.info("Will shutdown {} GSA instances : {}", gsaCount, agentIds);
+		log.warn("Will shutdown {} GSA instances : {}", gsaCount, agentIds);
 		userConfirmationService.askConfirmationAndWait();
-		boolean firstIteration = true;
-		for (GridServiceAgent gsa : agents) {
-			if (!firstIteration) {
-				// we want to wait between each component restart
-				// we don't want to wait before first restart, nor after last restart
-				restartStrategy.waitBetweenComponent();
-			}
-			Machine machine = gsa.getMachine();
-			String hostname = machine.getHostName();
-			String hostAddress = machine.getHostAddress();
-			log.info("Asking GSA {} ({}) to shutdown ...", hostname, hostAddress);
-			gsa.shutdown();
-			log.info("GSA {} ({}) shutdown", hostname, hostAddress);
-			firstIteration = false;
-		}
+		restartStrategy.perform(agents, new RestartStrategy.AgentItemVisitor());
 		log.info("Triggered shutdown of GSA instances : {}", agentIds);
 	}
 
@@ -531,6 +493,16 @@ public class XapService {
 		final ProcessingUnitConfig processingUnitConfig = pu.toProcessingUnitConfig();
 		log.debug("puName = {}, processingUnitConfig = {}", puName, processingUnitConfig);
 
+		undeployPu(puName);
+
+		log.info("Deploying pu {} ...", puName);
+		long puDeploymentStartTime = System.currentTimeMillis();
+
+		ProcessingUnit processingUnit = processingUnitDeployer.deploy(puName, processingUnitConfig);
+		awaitDeployment(processingUnit, puDeploymentStartTime, timeout, expectedMaximumEndDate);
+	}
+
+	private void undeployPu(String puName) {
 		doWithProcessingUnit(puName, Duration.of(10, ChronoUnit.SECONDS), existingProcessingUnit -> {
 			final int instancesCount = existingProcessingUnit.getInstances().length;
 			log.info("Undeploying pu {} ... ({} instances are running on GSCs {})", puName, instancesCount, idExtractor.extractContainerIds(existingProcessingUnit));
@@ -546,12 +518,6 @@ public class XapService {
 		}, s -> {
 			log.info("ProcessingUnit " + puName + " is not already deployed");
 		});
-
-		log.info("Deploying pu {} ...", puName);
-		long puDeploymentStartTime = System.currentTimeMillis();
-
-		ProcessingUnit processingUnit = processingUnitDeployer.deploy(puName, processingUnitConfig);
-		awaitDeployment(processingUnit, puDeploymentStartTime, timeout, expectedMaximumEndDate);
 	}
 
 	public void undeploy(String applicationName) {
@@ -569,6 +535,19 @@ public class XapService {
 		);
 	}
 
+	public void undeployIfExists(String name) {
+		log.info("Undeploying application {} (if it exists) ...", name);
+		doWithApplication(
+				name,
+				Duration.of(5, ChronoUnit.SECONDS),
+				app -> {
+					undeploy(app);
+				},
+				appName -> {
+					log.warn("Application {} was not found, could not be undeployed", name);
+				});
+	}
+
 	public void undeploy(@NonNull Application application) {
 		final String applicationName = application.getName();
 		log.info("Undeploying application : {}", applicationName);
@@ -576,6 +555,18 @@ public class XapService {
 		log.info("{} has been successfully undeployed.", applicationName);
 	}
 
+	public void undeployProcessingUnits(@NonNull Predicate<String> processingUnitsNamesPredicate) {
+		List<String> allProcessingUnitsNames = this.findAllProcessingUnitsNames();
+		allProcessingUnitsNames.stream().filter(processingUnitsNamesPredicate).forEach(puName -> {
+
+			try {
+				undeployPu(puName);
+			} catch (RuntimeException e) {
+				log.error("Failure while undeploying PU {}", puName, e);
+			}
+
+		});
+	}
 
 	public void doWithApplication(String name, Duration timeout, Consumer<Application> ifFound, Consumer<String> ifNotFound) {
 		Application application = admin.getApplications().waitFor(name, timeout.toMillis(), TimeUnit.MILLISECONDS);
@@ -594,20 +585,6 @@ public class XapService {
 			ifFound.accept(processingUnit);
 		}
 	}
-
-	public void undeployIfExists(String name) {
-		log.info("Undeploying application {} (if it exists) ...", name);
-		doWithApplication(
-				name,
-				Duration.of(5, ChronoUnit.SECONDS),
-				app -> {
-					undeploy(app);
-				},
-				appName -> {
-					log.warn("Application {} was not found, could not be undeployed", name);
-				});
-	}
-
 
 	public void setDefaultTimeout(Duration timeout) {
 		log.info("Admin will use a default timeout of {} ms", timeout.toMillis());

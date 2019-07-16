@@ -1,5 +1,6 @@
 package gca.in.xap.tools.operationtool.service;
 
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsc.GridServiceContainer;
 import org.openspaces.admin.machine.Machine;
@@ -23,7 +24,10 @@ public class DefaultPuRelocateService implements PuRelocateService {
 	@Lazy
 	private XapService xapService;
 
-	private Predicate<GridServiceContainer> createContainerPredicate(RequiredZonesConfig puRequiredContainerZones) {
+	@Autowired
+	private IdExtractor idExtractor;
+
+	private Predicate<GridServiceContainer> createContainerPredicate(@NonNull RequiredZonesConfig puRequiredContainerZones) {
 		return gsc -> {
 			final ExactZonesConfig containerExactZones = gsc.getExactZones();
 			return puRequiredContainerZones.isSatisfiedBy(containerExactZones);
@@ -32,8 +36,8 @@ public class DefaultPuRelocateService implements PuRelocateService {
 
 	@Override
 	public void relocatePuInstance(
-			ProcessingUnitInstance puInstance,
-			Predicate<Machine> machinePredicate,
+			@NonNull ProcessingUnitInstance puInstance,
+			@NonNull Predicate<Machine> targetMachinePredicate,
 			boolean await
 	) {
 		final GridServiceContainer sourceContainer = puInstance.getGridServiceContainer();
@@ -41,17 +45,16 @@ public class DefaultPuRelocateService implements PuRelocateService {
 		final Predicate<GridServiceContainer> gridServiceContainerPredicate = gsc -> !gsc.getId().equals(gscWherePuIsCurrentlyRunning.getId());
 		final ProcessingUnit processingUnit = puInstance.getProcessingUnit();
 		//
-		final GridServiceContainer destinationContainer = findBestContainerToRelocate(processingUnit, machinePredicate, gridServiceContainerPredicate);
+		final GridServiceContainer destinationContainer = findBestContainerToRelocate(processingUnit, targetMachinePredicate, gridServiceContainerPredicate);
 
-
-		log.info("PU instance {} of PU {} (having zone config : {}) that is currently running on {} will be relocated to {} (if this is allowed by the SLA)",
-				puInstance.getId(),
+		log.info("PU instance '{}' of PU '{}' will be relocated from {} ({}) to {} ({}) ... (if this is allowed by the SLA)",
+				idExtractor.extractProcessingUnitInstanceNameAndDescription(puInstance),
 				processingUnit.getName(),
-				destinationContainer.getExactZones(),
 				sourceContainer.getId(),
-				destinationContainer.getId()
+				sourceContainer.getExactZones(),
+				destinationContainer.getId(),
+				destinationContainer.getExactZones()
 		);
-
 		if (await) {
 			puInstance.relocateAndWait(destinationContainer);
 		} else {
@@ -61,9 +64,9 @@ public class DefaultPuRelocateService implements PuRelocateService {
 
 	@Override
 	public GridServiceContainer[] findBestContainersToRelocate(
-			ProcessingUnit processingUnit,
-			Predicate<Machine> machinePredicate,
-			Predicate<GridServiceContainer> gridServiceContainerPredicate
+			@NonNull ProcessingUnit processingUnit,
+			@NonNull Predicate<Machine> targetMachinePredicate,
+			@NonNull Predicate<GridServiceContainer> gridServiceContainerPredicate
 	) {
 		//
 		final RequiredZonesConfig puRequiredContainerZones = processingUnit.getRequiredContainerZones();
@@ -79,7 +82,7 @@ public class DefaultPuRelocateService implements PuRelocateService {
 				.thenComparingInt(gsc -> gsc.getMachine().getProcessingUnitInstances().length);
 
 		return Arrays.stream(containers)
-				.filter(gsc -> machinePredicate.test(gsc.getMachine()))
+				.filter(gsc -> targetMachinePredicate.test(gsc.getMachine()))
 				.filter(gridServiceContainerPredicate)
 				.filter(createContainerPredicate(puRequiredContainerZones))
 				.sorted(comparator).toArray(GridServiceContainer[]::new);
@@ -87,12 +90,12 @@ public class DefaultPuRelocateService implements PuRelocateService {
 
 	@Override
 	public GridServiceContainer findBestContainerToRelocate(
-			ProcessingUnit processingUnit,
-			Predicate<Machine> machinePredicate,
-			Predicate<GridServiceContainer> gridServiceContainerPredicate
+			@NonNull ProcessingUnit processingUnit,
+			@NonNull Predicate<Machine> targetMachinePredicate,
+			@NonNull Predicate<GridServiceContainer> gridServiceContainerPredicate
 	) {
 		final RequiredZonesConfig puRequiredContainerZones = processingUnit.getRequiredContainerZones();
-		return Arrays.stream(findBestContainersToRelocate(processingUnit, machinePredicate, gridServiceContainerPredicate))
+		return Arrays.stream(findBestContainersToRelocate(processingUnit, targetMachinePredicate, gridServiceContainerPredicate))
 				.findFirst()
 				.orElseThrow(() -> new UnsupportedOperationException("Did not find any GSC matching requirements, with puRequiredContainerZones = " + puRequiredContainerZones));
 	}

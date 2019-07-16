@@ -19,10 +19,13 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static gca.in.xap.tools.operationtool.util.threads.ExecutorsUtils.newCachedThreadPool;
 import static java.util.Arrays.stream;
 
 @Slf4j
@@ -164,13 +167,6 @@ public class XapServiceBuilder {
 				break;
 		}
 		return result;
-	}
-
-	public static ExecutorService newCachedThreadPool(int maxThreadsCount, ThreadFactory threadFactory) {
-		return new ThreadPoolExecutor(0, maxThreadsCount,
-				60L, TimeUnit.SECONDS,
-				new SynchronousQueue<>(),
-				threadFactory);
 	}
 
 	GridServiceManagers getGridServiceManagersFromAdmin(Admin admin) {

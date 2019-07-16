@@ -20,7 +20,6 @@ public class IsPrimaryStatefulProcessingUnitPredicate implements Predicate<Proce
 	private boolean doTest(ProcessingUnitInstance pu) {
 		ClusterInfo clusterInfo = pu.getClusterInfo();
 		Integer numberOfBackups = clusterInfo.getNumberOfBackups();
-		Integer instanceId = clusterInfo.getInstanceId();
 		Integer backupId = clusterInfo.getBackupId();
 		boolean hasBackup = numberOfBackups > 0;
 		boolean isBackup = backupId == null;
