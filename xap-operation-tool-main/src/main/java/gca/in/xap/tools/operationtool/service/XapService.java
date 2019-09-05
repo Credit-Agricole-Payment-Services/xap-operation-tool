@@ -266,6 +266,7 @@ public class XapService {
 		return String.format("%-" + length + "s", value);
 	}
 
+	@NonNull
 	public ComponentType getComponentType(VirtualMachine jvm) {
 		GridServiceContainer gridServiceContainer = jvm.getGridServiceContainer();
 		if (gridServiceContainer != null) {
@@ -279,7 +280,7 @@ public class XapService {
 		if (gridServiceAgent != null) {
 			return ComponentType.GSA;
 		}
-		return null;
+		return ComponentType.UNKNOWN;
 	}
 
 	/**
