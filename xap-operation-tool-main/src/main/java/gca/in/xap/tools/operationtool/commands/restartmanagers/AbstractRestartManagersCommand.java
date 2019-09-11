@@ -2,9 +2,9 @@ package gca.in.xap.tools.operationtool.commands.restartmanagers;
 
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
-import gca.in.xap.tools.operationtool.service.restartstrategy.ParallelRestartStrategy;
-import gca.in.xap.tools.operationtool.service.restartstrategy.RestartStrategy;
-import gca.in.xap.tools.operationtool.service.restartstrategy.SequentialRestartStrategy;
+import gca.in.xap.tools.operationtool.service.restartstrategy.ParallelCollectionVisitingStrategy;
+import gca.in.xap.tools.operationtool.service.restartstrategy.CollectionVisitingStrategy;
+import gca.in.xap.tools.operationtool.service.restartstrategy.SequentialCollectionVisitingStrategy;
 import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsc.GridServiceContainer;
@@ -44,23 +44,23 @@ public abstract class AbstractRestartManagersCommand extends AbstractAppCommand 
 
 	@Override
 	public void run() {
-		final RestartStrategy restartStrategy = createRestartStrategy();
+		final CollectionVisitingStrategy collectionVisitingStrategy = createRestartStrategy();
 
 		XapServiceBuilder.waitForClusterInfoToUpdate();
 
 		log.info("Report on all GSM :");
 		xapService.printReportOnManagers();
 
-		log.info("RestartStrategy is : {}", restartStrategy);
-		xapService.restartManagers(predicate, restartStrategy);
+		log.info("CollectionVisitingStrategy is : {}", collectionVisitingStrategy);
+		xapService.restartManagers(predicate, collectionVisitingStrategy);
 	}
 
 
-	protected RestartStrategy<GridServiceContainer> createRestartStrategy() {
+	protected CollectionVisitingStrategy<GridServiceContainer> createRestartStrategy() {
 		if (parallel) {
-			return new ParallelRestartStrategy<>();
+			return new ParallelCollectionVisitingStrategy<>();
 		} else {
-			return new SequentialRestartStrategy<>(Duration.parse(intervalDuration));
+			return new SequentialCollectionVisitingStrategy<>(Duration.parse(intervalDuration));
 		}
 	}
 

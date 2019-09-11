@@ -7,8 +7,8 @@ import gca.in.xap.tools.operationtool.model.VirtualMachineDescription;
 import gca.in.xap.tools.operationtool.predicates.container.IsEmptyContainerPredicate;
 import gca.in.xap.tools.operationtool.service.deployer.ApplicationDeployer;
 import gca.in.xap.tools.operationtool.service.deployer.ProcessingUnitDeployer;
-import gca.in.xap.tools.operationtool.service.restartstrategy.RestartStrategy;
-import gca.in.xap.tools.operationtool.service.restartstrategy.SequentialRestartStrategy;
+import gca.in.xap.tools.operationtool.service.restartstrategy.CollectionVisitingStrategy;
+import gca.in.xap.tools.operationtool.service.restartstrategy.SequentialCollectionVisitingStrategy;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.NonNull;
 import lombok.Setter;
@@ -287,10 +287,10 @@ public class XapService {
 	 */
 	public void restartEmptyContainers() {
 		log.warn("Will restart all empty GSC instances ... (GSC with no PU running)");
-		restartContainers(new IsEmptyContainerPredicate(), new SequentialRestartStrategy<>(Duration.ZERO));
+		restartContainers(new IsEmptyContainerPredicate(), new SequentialCollectionVisitingStrategy<>(Duration.ZERO));
 	}
 
-	public void restartContainers(@NonNull Predicate<GridServiceContainer> predicate, @NonNull RestartStrategy<GridServiceContainer> restartStrategy) {
+	public void restartContainers(@NonNull Predicate<GridServiceContainer> predicate, @NonNull CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy) {
 		GridServiceContainer[] containers = findContainers();
 		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
 		final int gscCount = containers.length;
@@ -299,11 +299,11 @@ public class XapService {
 
 		log.warn("Will restart {} GSC instances : {}", gscCount, containersIds);
 		userConfirmationService.askConfirmationAndWait();
-		restartStrategy.perform(containers, new RestartStrategy.ContainerItemVisitor());
+		collectionVisitingStrategy.perform(containers, new CollectionVisitingStrategy.ContainerItemVisitor());
 		log.info("Triggered restart of GSC instances : {}", containersIds);
 	}
 
-	public void restartManagers(@NonNull Predicate<GridServiceManager> predicate, @NonNull RestartStrategy<GridServiceManager> restartStrategy) {
+	public void restartManagers(@NonNull Predicate<GridServiceManager> predicate, @NonNull CollectionVisitingStrategy<GridServiceManager> collectionVisitingStrategy) {
 		GridServiceManager[] managers = findManagers();
 		managers = Arrays.stream(managers).filter(predicate).toArray(GridServiceManager[]::new);
 		final int gsmCount = managers.length;
@@ -312,11 +312,11 @@ public class XapService {
 
 		log.warn("Will restart {] GSM instances : {}", gsmCount, managersIds);
 		userConfirmationService.askConfirmationAndWait();
-		restartStrategy.perform(managers, new RestartStrategy.ManagerItemVisitor());
+		collectionVisitingStrategy.perform(managers, new CollectionVisitingStrategy.ManagerItemVisitor());
 		log.info("Triggered restart of GSM instances : {}", managersIds);
 	}
 
-	public void shutdownAgents(@NonNull Predicate<GridServiceAgent> predicate, @NonNull RestartStrategy<GridServiceAgent> restartStrategy) {
+	public void shutdownAgents(@NonNull Predicate<GridServiceAgent> predicate, @NonNull CollectionVisitingStrategy<GridServiceAgent> collectionVisitingStrategy) {
 		GridServiceAgent[] agents = admin.getGridServiceAgents().getAgents();
 		agents = Arrays.stream(agents).filter(predicate).toArray(GridServiceAgent[]::new);
 		final int gsaCount = agents.length;
@@ -325,7 +325,7 @@ public class XapService {
 
 		log.warn("Will shutdown {} GSA instances : {}", gsaCount, agentIds);
 		userConfirmationService.askConfirmationAndWait();
-		restartStrategy.perform(agents, new RestartStrategy.AgentItemVisitor());
+		collectionVisitingStrategy.perform(agents, new CollectionVisitingStrategy.AgentItemVisitor());
 		log.info("Triggered shutdown of GSA instances : {}", agentIds);
 	}
 

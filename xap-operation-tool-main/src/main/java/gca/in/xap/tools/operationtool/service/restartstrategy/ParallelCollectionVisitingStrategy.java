@@ -16,7 +16,7 @@ import static gca.in.xap.tools.operationtool.util.threads.ExecutorsUtils.newCach
 
 @Data
 @Slf4j
-public class ParallelRestartStrategy<T> implements RestartStrategy<T> {
+public class ParallelCollectionVisitingStrategy<T> implements CollectionVisitingStrategy<T> {
 
 	private final int maxNumberOfThreads = 32;
 
@@ -54,7 +54,7 @@ public class ParallelRestartStrategy<T> implements RestartStrategy<T> {
 
 		return newCachedThreadPool(maxThreadsCount, new ThreadFactory() {
 
-			private final String threadNamePrefix = ParallelRestartStrategy.class.getSimpleName();
+			private final String threadNamePrefix = ParallelCollectionVisitingStrategy.class.getSimpleName();
 
 			private final AtomicInteger counter = new AtomicInteger(0);
 

@@ -1,9 +1,9 @@
 package gca.in.xap.tools.operationtool.commands;
 
 import gca.in.xap.tools.operationtool.service.XapService;
-import gca.in.xap.tools.operationtool.service.restartstrategy.ParallelRestartStrategy;
-import gca.in.xap.tools.operationtool.service.restartstrategy.RestartStrategy;
-import gca.in.xap.tools.operationtool.service.restartstrategy.SequentialRestartStrategy;
+import gca.in.xap.tools.operationtool.service.restartstrategy.CollectionVisitingStrategy;
+import gca.in.xap.tools.operationtool.service.restartstrategy.ParallelCollectionVisitingStrategy;
+import gca.in.xap.tools.operationtool.service.restartstrategy.SequentialCollectionVisitingStrategy;
 import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsa.GridServiceAgent;
@@ -39,29 +39,29 @@ public class ShutdownAgentsAllCommand extends AbstractAppCommand implements Runn
 
 	@Override
 	public void run() {
-		final RestartStrategy<GridServiceAgent> restartStrategy = createRestartStrategy();
+		final CollectionVisitingStrategy<GridServiceAgent> collectionVisitingStrategy = createRestartStrategy();
 		log.info("Report on all GSM :");
 		xapService.printReportOnManagers();
 
 		xapService.printReportOnContainersAndProcessingUnits();
 		xapService.setDefaultTimeout(Duration.ofMinutes(5));
 
-		log.info("RestartStrategy is : {}", restartStrategy);
+		log.info("CollectionVisitingStrategy is : {}", collectionVisitingStrategy);
 
 		log.info("Shutting down all agents on non-managers hosts ...");
 		final List<String> managersHostnames = xapService.findManagersHostnames();
 		xapService.shutdownAgents(
 				gsa -> !managersHostnames.contains(gsa.getMachine().getHostName())
-				, restartStrategy);
+				, collectionVisitingStrategy);
 		log.info("Shutting down all agents on managers hosts ...");
-		xapService.shutdownAgents(gsa -> true, restartStrategy);
+		xapService.shutdownAgents(gsa -> true, collectionVisitingStrategy);
 	}
 
-	protected RestartStrategy<GridServiceAgent> createRestartStrategy() {
+	protected CollectionVisitingStrategy<GridServiceAgent> createRestartStrategy() {
 		if (parallel) {
-			return new ParallelRestartStrategy<>();
+			return new ParallelCollectionVisitingStrategy<>();
 		} else {
-			return new SequentialRestartStrategy<>(Duration.parse(intervalDuration));
+			return new SequentialCollectionVisitingStrategy<>(Duration.parse(intervalDuration));
 		}
 	}
 

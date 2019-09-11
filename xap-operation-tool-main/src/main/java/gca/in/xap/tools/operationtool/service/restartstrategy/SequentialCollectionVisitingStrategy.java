@@ -8,13 +8,13 @@ import java.time.Duration;
 
 @Data
 @Slf4j
-public class SequentialRestartStrategy<T> implements RestartStrategy<T> {
+public class SequentialCollectionVisitingStrategy<T> implements CollectionVisitingStrategy<T> {
 
 	private final Duration intervalBetweenEachComponentRestartDuration;
 
 	private final long intervalBetweenEachComponentRestartInMilliseconds;
 
-	public SequentialRestartStrategy(Duration intervalBetweenEachComponentRestartDuration) {
+	public SequentialCollectionVisitingStrategy(Duration intervalBetweenEachComponentRestartDuration) {
 		this.intervalBetweenEachComponentRestartDuration = intervalBetweenEachComponentRestartDuration;
 		this.intervalBetweenEachComponentRestartInMilliseconds = intervalBetweenEachComponentRestartDuration.toMillis();
 	}

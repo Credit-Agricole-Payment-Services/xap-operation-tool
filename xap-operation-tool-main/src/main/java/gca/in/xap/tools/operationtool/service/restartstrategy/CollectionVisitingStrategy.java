@@ -7,7 +7,7 @@ import org.openspaces.admin.gsm.GridServiceManager;
 import org.openspaces.admin.machine.Machine;
 
 
-public interface RestartStrategy<T> {
+public interface CollectionVisitingStrategy<T> {
 
 	interface ItemVisitor<T> {
 		void visit(T item);
