@@ -299,7 +299,7 @@ public class XapService {
 
 		log.warn("Will restart {} GSC instances : {}", gscCount, containersIds);
 		userConfirmationService.askConfirmationAndWait();
-		collectionVisitingStrategy.perform(containers, new CollectionVisitingStrategy.ContainerItemVisitor());
+		collectionVisitingStrategy.perform(containers, new CollectionVisitingStrategy.RestartContainerItemVisitor());
 		log.info("Triggered restart of GSC instances : {}", containersIds);
 	}
 
@@ -312,7 +312,7 @@ public class XapService {
 
 		log.warn("Will restart {] GSM instances : {}", gsmCount, managersIds);
 		userConfirmationService.askConfirmationAndWait();
-		collectionVisitingStrategy.perform(managers, new CollectionVisitingStrategy.ManagerItemVisitor());
+		collectionVisitingStrategy.perform(managers, new CollectionVisitingStrategy.RestartManagerItemVisitor());
 		log.info("Triggered restart of GSM instances : {}", managersIds);
 	}
 
@@ -325,51 +325,49 @@ public class XapService {
 
 		log.warn("Will shutdown {} GSA instances : {}", gsaCount, agentIds);
 		userConfirmationService.askConfirmationAndWait();
-		collectionVisitingStrategy.perform(agents, new CollectionVisitingStrategy.AgentItemVisitor());
+		collectionVisitingStrategy.perform(agents, new CollectionVisitingStrategy.RestartAgentItemVisitor());
 		log.info("Triggered shutdown of GSA instances : {}", agentIds);
 	}
 
-	public void triggerGarbageCollectorOnEachGsc() {
-		final GridServiceContainer[] containers = findContainers();
+	public void triggerGarbageCollectorOnContainers(@NonNull Predicate<GridServiceContainer> predicate, @NonNull CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy) {
+		GridServiceContainer[] containers = findContainers();
+		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
 		final int gscCount = containers.length;
 		final Collection<String> containersIds = idExtractor.extractIds(containers);
-		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
+		log.info("Found {} matching GSC instances : {}", gscCount, containersIds);
 
-		final List<Future<?>> taskResults = new ArrayList<>();
-		// this can be done in parallel to perform quicker when there are a lot of containers
-		Arrays.stream(containers).forEach(gsc -> {
-			Future<?> taskResult = executorService.submit(() -> {
-				final String gscId = gsc.getId();
-				try {
-					log.info("Triggering GC on GSC {} ...", gscId);
-					gsc.getVirtualMachine().runGc();
-				} catch (RuntimeException e) {
-					log.error("Failure while triggering Garbage Collector on GSC {}", gscId, e);
-				}
-			});
-			taskResults.add(taskResult);
+		log.warn("Will trigger Garbage Collector on {} GSC instances : {}", gscCount, containersIds);
+		userConfirmationService.askConfirmationAndWait();
+		collectionVisitingStrategy.perform(containers, gsc -> {
+			final String gscId = gsc.getId();
+			try {
+				log.info("Triggering GC on GSC {} ...", gscId);
+				gsc.getVirtualMachine().runGc();
+			} catch (RuntimeException e) {
+				log.error("Failure while triggering Garbage Collector on GSC {}", gscId, e);
+			}
 		});
-		awaitTermination(taskResults);
 		log.info("Triggered GC on GSC instances : {}", containersIds);
 	}
 
-	public void generateHeapDumpOnEachGsc() throws IOException {
+	public void generateHeapDumpOnEachContainers(@NonNull Predicate<GridServiceContainer> predicate, @NonNull CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy) throws IOException {
 		String[] dumpTypes = {"heap"};
 		final File outputDirectory = new File("dumps/heap");
-		generateDumpOnEachGsc(outputDirectory, dumpTypes);
+		generateDumpOnEachGsc(predicate, collectionVisitingStrategy, outputDirectory, dumpTypes);
 	}
 
-	public void generateThreadDumpOnEachGsc() throws IOException {
+	public void generateThreadDumpOnContainers(@NonNull Predicate<GridServiceContainer> predicate, @NonNull CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy) throws IOException {
 		String[] dumpTypes = {"thread"};
 		final File outputDirectory = new File("dumps/thread");
-		generateDumpOnEachGsc(outputDirectory, dumpTypes);
+		generateDumpOnEachGsc(predicate, collectionVisitingStrategy, outputDirectory, dumpTypes);
 	}
 
-	private void generateDumpOnEachGsc(final File outputDirectory, final String[] dumpTypes) throws IOException {
-		final GridServiceContainer[] containers = findContainers();
+	private void generateDumpOnEachGsc(@NonNull Predicate<GridServiceContainer> predicate, @NonNull CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy, final File outputDirectory, final String[] dumpTypes) throws IOException {
+		GridServiceContainer[] containers = findContainers();
+		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
 		final int gscCount = containers.length;
 		final Collection<String> containersIds = idExtractor.extractIds(containers);
-		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
+		log.info("Found {} matching GSC instances : {}", gscCount, containersIds);
 
 		boolean outputDirectoryCreated = outputDirectory.mkdirs();
 		log.debug("outputDirectoryCreated = {]", outputDirectoryCreated);
@@ -377,21 +375,17 @@ public class XapService {
 			throw new IOException("Cannot write to directory " + outputDirectory + " (" + outputDirectory.getAbsolutePath() + "). Please execute the command from a working directory where you have write access.");
 		}
 
-		final List<Future<?>> taskResults = new ArrayList<>();
-		// this can be done in parallel to perform quicker when there are a lot of containers
-		Arrays.stream(containers).forEach(gsc -> {
-			Future<?> taskResult = executorService.submit(() -> {
-				final String gscId = gsc.getId();
-				try {
-					generateDump(gsc, outputDirectory, dumpTypes);
-				} catch (RuntimeException | IOException e) {
-					log.error("Failure while generating a Heap Dump on GSC {}", gscId, e);
-				}
-			});
-			taskResults.add(taskResult);
+		log.warn("Will trigger Dump on {} GSC instances : {}", gscCount, containersIds);
+		userConfirmationService.askConfirmationAndWait();
+		collectionVisitingStrategy.perform(containers, gsc -> {
+			final String gscId = gsc.getId();
+			try {
+				generateDump(gsc, outputDirectory, dumpTypes);
+			} catch (RuntimeException | IOException e) {
+				log.error("Failure while generating a Heap Dump on GSC {}", gscId, e);
+			}
 		});
-		awaitTermination(taskResults);
-		log.info("Triggered Heap Dump on GSC instances : {}", containersIds);
+		log.info("Triggered Dump on GSC instances : {}", containersIds);
 	}
 
 	private void generateDump(@NonNull GridServiceContainer gsc, @NonNull final File outputDirectory, String[] dumpTypes) throws IOException {

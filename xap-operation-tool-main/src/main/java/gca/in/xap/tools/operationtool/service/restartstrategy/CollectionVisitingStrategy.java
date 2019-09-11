@@ -14,7 +14,7 @@ public interface CollectionVisitingStrategy<T> {
 	}
 
 	@Slf4j
-	class ContainerItemVisitor implements ItemVisitor<GridServiceContainer> {
+	class RestartContainerItemVisitor implements ItemVisitor<GridServiceContainer> {
 		@Override
 		public void visit(GridServiceContainer gsc) {
 			gsc.restart();
@@ -23,7 +23,7 @@ public interface CollectionVisitingStrategy<T> {
 	}
 
 	@Slf4j
-	class ManagerItemVisitor implements ItemVisitor<GridServiceManager> {
+	class RestartManagerItemVisitor implements ItemVisitor<GridServiceManager> {
 		@Override
 		public void visit(GridServiceManager gsm) {
 			Machine machine = gsm.getMachine();
@@ -36,7 +36,7 @@ public interface CollectionVisitingStrategy<T> {
 	}
 
 	@Slf4j
-	class AgentItemVisitor implements ItemVisitor<GridServiceAgent> {
+	class RestartAgentItemVisitor implements ItemVisitor<GridServiceAgent> {
 		@Override
 		public void visit(GridServiceAgent gsa) {
 			Machine machine = gsa.getMachine();
