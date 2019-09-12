@@ -1,9 +1,8 @@
-package gca.in.xap.tools.operationtool.commands;
+package gca.in.xap.tools.operationtool.commands.shutdownagents;
 
+import gca.in.xap.tools.operationtool.commandoptions.AgentsIterationOptions;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.util.collectionvisit.CollectionVisitingStrategy;
-import gca.in.xap.tools.operationtool.util.collectionvisit.ParallelCollectionVisitingStrategy;
-import gca.in.xap.tools.operationtool.util.collectionvisit.SequentialCollectionVisitingStrategy;
 import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsa.GridServiceAgent;
@@ -31,15 +30,12 @@ public class ShutdownAgentsAllCommand extends AbstractAppCommand implements Runn
 	@Lazy
 	private XapService xapService;
 
-	@CommandLine.Option(names = "--intervalDuration", defaultValue = defaultIntervalDuration, description = "Interval between each component to restart. Will wait for this interval between each component, to reduce the risk to stress the system when restarting component to quickly. Duration is expressed in ISO_8601 format (example : PT30S for a duration of 30 seconds, PT2M for a duration of 2 minutes). Default value is : " + defaultIntervalDuration)
-	private String intervalDuration;
-
-	@CommandLine.Option(names = "--parallel", defaultValue = "false", description = "In this case, the '--intervalDuration' option is ignored. Executes all restarts in parallel (at the same time). This is faster, but this may be dangerous for some usage as it can cause data loss.")
-	private boolean parallel;
+	@CommandLine.ArgGroup(exclusive = false, multiplicity = "1")
+	private AgentsIterationOptions agentsIterationOptions;
 
 	@Override
 	public void run() {
-		final CollectionVisitingStrategy<GridServiceAgent> collectionVisitingStrategy = createRestartStrategy();
+		final CollectionVisitingStrategy<GridServiceAgent> collectionVisitingStrategy = agentsIterationOptions.toCollectionVisitingStrategy();
 		log.info("Report on all GSM :");
 		xapService.printReportOnManagers();
 
@@ -55,14 +51,6 @@ public class ShutdownAgentsAllCommand extends AbstractAppCommand implements Runn
 				, collectionVisitingStrategy);
 		log.info("Shutting down all agents on managers hosts ...");
 		xapService.shutdownAgents(gsa -> true, collectionVisitingStrategy);
-	}
-
-	protected CollectionVisitingStrategy<GridServiceAgent> createRestartStrategy() {
-		if (parallel) {
-			return new ParallelCollectionVisitingStrategy<>();
-		} else {
-			return new SequentialCollectionVisitingStrategy<>(Duration.parse(intervalDuration));
-		}
 	}
 
 }

@@ -1,19 +1,16 @@
 package gca.in.xap.tools.operationtool.commands.restartmanagers;
 
+import gca.in.xap.tools.operationtool.commandoptions.ManagersIterationOptions;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
-import gca.in.xap.tools.operationtool.util.collectionvisit.ParallelCollectionVisitingStrategy;
 import gca.in.xap.tools.operationtool.util.collectionvisit.CollectionVisitingStrategy;
-import gca.in.xap.tools.operationtool.util.collectionvisit.SequentialCollectionVisitingStrategy;
 import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
 import lombok.extern.slf4j.Slf4j;
-import org.openspaces.admin.gsc.GridServiceContainer;
 import org.openspaces.admin.gsm.GridServiceManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import picocli.CommandLine;
 
-import java.time.Duration;
 import java.util.function.Predicate;
 
 @Slf4j
@@ -32,11 +29,8 @@ public abstract class AbstractRestartManagersCommand extends AbstractAppCommand 
 
 	private final Predicate<GridServiceManager> predicate;
 
-	@CommandLine.Option(names = "--intervalDuration", defaultValue = defaultIntervalDuration, description = "Interval between each component to restart. Will wait for this interval between each component, to reduce the risk to stress the system when restarting component to quickly. Duration is expressed in ISO_8601 format (example : PT30S for a duration of 30 seconds, PT2M for a duration of 2 minutes). Default value is : " + defaultIntervalDuration)
-	private String intervalDuration;
-
-	@CommandLine.Option(names = "--parallel", defaultValue = "false", description = "In this case, the '--intervalDuration' option is ignored. Executes all restarts in parallel (at the same time). This is faster, but this may be dangerous for some usage as it can cause data loss.")
-	private boolean parallel;
+	@CommandLine.ArgGroup(exclusive = false, multiplicity = "1")
+	private ManagersIterationOptions managersIterationOptions;
 
 	public AbstractRestartManagersCommand(Predicate<GridServiceManager> predicate) {
 		this.predicate = predicate;
@@ -44,7 +38,7 @@ public abstract class AbstractRestartManagersCommand extends AbstractAppCommand 
 
 	@Override
 	public void run() {
-		final CollectionVisitingStrategy collectionVisitingStrategy = createRestartStrategy();
+		final CollectionVisitingStrategy<GridServiceManager> collectionVisitingStrategy = managersIterationOptions.toCollectionVisitingStrategy();
 
 		XapServiceBuilder.waitForClusterInfoToUpdate();
 
@@ -53,15 +47,6 @@ public abstract class AbstractRestartManagersCommand extends AbstractAppCommand 
 
 		log.info("CollectionVisitingStrategy is : {}", collectionVisitingStrategy);
 		xapService.restartManagers(predicate, collectionVisitingStrategy);
-	}
-
-
-	protected CollectionVisitingStrategy<GridServiceContainer> createRestartStrategy() {
-		if (parallel) {
-			return new ParallelCollectionVisitingStrategy<>();
-		} else {
-			return new SequentialCollectionVisitingStrategy<>(Duration.parse(intervalDuration));
-		}
 	}
 
 }
