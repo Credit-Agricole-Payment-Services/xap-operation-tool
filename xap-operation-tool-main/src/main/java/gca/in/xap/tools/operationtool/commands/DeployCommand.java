@@ -21,7 +21,6 @@ import picocli.CommandLine;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 
@@ -52,11 +51,8 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 	@CommandLine.Option(names = {"--whole"}, description = "Upload the application in whole.")
 	private boolean wholeMode;
 
-	@CommandLine.Option(names = {"--puIncludes"}, description = "List of names of the Processing Units to include. If you only want to deploy a subset of the Processing Units, you can specify 1 or more processing units to include in this deployment.")
-	private List<String> processingUnitsIncludes;
-
-	@CommandLine.Option(names = {"--puExcludes"}, description = "List of names of the Processing Units to exclude. If you only want to deploy a subset of the Processing Units, you can specify 1 or more processing units to exclude from this deployment.")
-	private List<String> processingUnitsExcludes;
+	@CommandLine.ArgGroup(exclusive = false, multiplicity = "1")
+	private PuNamesFilteringOptions puNamesFilteringOptions;
 
 	@CommandLine.Option(names = {"--restartEmptyContainers"}, description = "Restart all GSC that have no running Processing Unit, in order to make mitigate any memory leak")
 	private boolean restartEmptyContainers;
@@ -94,8 +90,10 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 				.sharedProperties(sharedProperties)
 				.build();
 
-
-		final Predicate<String> processingUnitsPredicate = FilterPuNamesPredicate.createProcessingUnitsPredicate(processingUnitsIncludes, processingUnitsExcludes);
+		if (puNamesFilteringOptions == null) {
+			puNamesFilteringOptions = new PuNamesFilteringOptions();
+		}
+		final Predicate<String> processingUnitsPredicate = FilterPuNamesPredicate.createProcessingUnitsPredicate(puNamesFilteringOptions.processingUnitsIncludes, puNamesFilteringOptions.processingUnitsExcludes);
 		final ApplicationConfig applicationConfig = appDeployBuilder.loadApplicationConfig(processingUnitsPredicate);
 
 		log.warn("Will deploy ApplicationConfig : {}", applicationConfig);
