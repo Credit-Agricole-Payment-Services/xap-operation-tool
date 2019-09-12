@@ -1,6 +1,8 @@
 package gca.in.xap.tools.operationtool.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.MultimapBuilder;
 import gca.in.xap.tools.operationtool.model.ComponentType;
 import gca.in.xap.tools.operationtool.model.DumpReport;
 import gca.in.xap.tools.operationtool.model.VirtualMachineDescription;
@@ -196,22 +198,53 @@ public class XapService {
 		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
 		final int gscCount = containers.length;
 		final Collection<String> containersIds = idExtractor.extractIds(containers);
-		//
-		Machine previousGscMachine = null;
-		log.info("Found {} matching running GSC instances : {}", gscCount, containersIds);
+
+		// regroup GSCs per hostname
+		// create a MultiMap that is sorted on keys
+		// key is the hostname
+		// values are GSC
+		final ListMultimap<String, GridServiceContainer> containersPerMachine = MultimapBuilder.treeKeys().linkedListValues().build();
 		for (GridServiceContainer gsc : containers) {
 			Machine currentGscMachine = gsc.getMachine();
-			if (previousGscMachine == null || !previousGscMachine.equals(currentGscMachine)) {
-				log.info("On machine {} : ", currentGscMachine.getHostName());
-			}
-			String gscId = gsc.getId();
-			ProcessingUnitInstance[] puInstances = gsc.getProcessingUnitInstances();
-			final int puCount = puInstances.length;
-			final Collection<String> puNames = idExtractor.extractProcessingUnitsNamesAndDescription(puInstances);
-			log.info("GSC {} is running {} Processing Units : {}", gscId, puCount, puNames);
-			//
-			previousGscMachine = currentGscMachine;
+			String hostName = currentGscMachine.getHostName();
+			containersPerMachine.put(hostName, gsc);
 		}
+
+		log.info("Found {} matching running GSC instances : {}", gscCount, containersIds);
+		for (Map.Entry<String, Collection<GridServiceContainer>> entry : containersPerMachine.asMap().entrySet()) {
+			final String hostname = entry.getKey();
+			final Collection<GridServiceContainer> containersForHost = entry.getValue();
+			final Set<String> commonZones = findCommonZones(containersForHost);
+			log.info("On machine {} : {}", hostname, commonZones);
+			for (GridServiceContainer gsc : containersForHost) {
+				String gscId = gsc.getId();
+				Set<String> specificZones = findSpecificZones(gsc, commonZones);
+				ProcessingUnitInstance[] puInstances = gsc.getProcessingUnitInstances();
+				final int puCount = puInstances.length;
+				final Collection<String> puNames = idExtractor.extractProcessingUnitsNamesAndDescription(puInstances);
+				log.info("GSC {} {} is running {} Processing Units : {}", String.format("%1$-15s", gscId), specificZones, puCount, puNames);
+			}
+		}
+
+	}
+
+	private Set<String> findCommonZones(Collection<GridServiceContainer> containers) {
+		Set<String> result = new TreeSet<>();
+		// first we put all the zones into the Set
+		for (GridServiceContainer gsc : containers) {
+			result.addAll(gsc.getExactZones().getZones());
+		}
+		// then we keep only the zones that are set on every GSC
+		for (GridServiceContainer gsc : containers) {
+			result.retainAll(gsc.getExactZones().getZones());
+		}
+		return result;
+	}
+
+	private Set<String> findSpecificZones(GridServiceContainer gsc, Set<String> commonZones) {
+		Set<String> result = new TreeSet<>(gsc.getExactZones().getZones());
+		result.removeAll(commonZones);
+		return result;
 	}
 
 	public void printReportOnManagers() {
