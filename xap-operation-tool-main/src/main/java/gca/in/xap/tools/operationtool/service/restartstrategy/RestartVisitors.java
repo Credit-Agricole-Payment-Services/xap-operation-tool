@@ -1,20 +1,16 @@
 package gca.in.xap.tools.operationtool.service.restartstrategy;
 
+import gca.in.xap.tools.operationtool.util.collectionvisit.CollectionVisitingStrategy;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsa.GridServiceAgent;
 import org.openspaces.admin.gsc.GridServiceContainer;
 import org.openspaces.admin.gsm.GridServiceManager;
 import org.openspaces.admin.machine.Machine;
 
-
-public interface CollectionVisitingStrategy<T> {
-
-	interface ItemVisitor<T> {
-		void visit(T item);
-	}
+public class RestartVisitors {
 
 	@Slf4j
-	class RestartContainerItemVisitor implements ItemVisitor<GridServiceContainer> {
+	public static class RestartContainerItemVisitor implements CollectionVisitingStrategy.ItemVisitor<GridServiceContainer> {
 		@Override
 		public void visit(GridServiceContainer gsc) {
 			gsc.restart();
@@ -23,7 +19,7 @@ public interface CollectionVisitingStrategy<T> {
 	}
 
 	@Slf4j
-	class RestartManagerItemVisitor implements ItemVisitor<GridServiceManager> {
+	public static class RestartManagerItemVisitor implements CollectionVisitingStrategy.ItemVisitor<GridServiceManager> {
 		@Override
 		public void visit(GridServiceManager gsm) {
 			Machine machine = gsm.getMachine();
@@ -36,7 +32,7 @@ public interface CollectionVisitingStrategy<T> {
 	}
 
 	@Slf4j
-	class RestartAgentItemVisitor implements ItemVisitor<GridServiceAgent> {
+	public static class RestartAgentItemVisitor implements CollectionVisitingStrategy.ItemVisitor<GridServiceAgent> {
 		@Override
 		public void visit(GridServiceAgent gsa) {
 			Machine machine = gsa.getMachine();
@@ -47,7 +43,5 @@ public interface CollectionVisitingStrategy<T> {
 			log.info("GSA {} ({}) shutdown", hostname, hostAddress);
 		}
 	}
-
-	void perform(T[] items, ItemVisitor<T> itemVisitor);
 
 }

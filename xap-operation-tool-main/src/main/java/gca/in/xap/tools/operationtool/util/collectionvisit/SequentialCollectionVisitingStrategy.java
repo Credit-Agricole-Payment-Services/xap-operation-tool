@@ -1,4 +1,4 @@
-package gca.in.xap.tools.operationtool.service.restartstrategy;
+package gca.in.xap.tools.operationtool.util.collectionvisit;
 
 import lombok.Data;
 import lombok.NonNull;

@@ -2,9 +2,9 @@ package gca.in.xap.tools.operationtool.commands.restartcontainers;
 
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
-import gca.in.xap.tools.operationtool.service.restartstrategy.ParallelCollectionVisitingStrategy;
-import gca.in.xap.tools.operationtool.service.restartstrategy.CollectionVisitingStrategy;
-import gca.in.xap.tools.operationtool.service.restartstrategy.SequentialCollectionVisitingStrategy;
+import gca.in.xap.tools.operationtool.util.collectionvisit.ParallelCollectionVisitingStrategy;
+import gca.in.xap.tools.operationtool.util.collectionvisit.CollectionVisitingStrategy;
+import gca.in.xap.tools.operationtool.util.collectionvisit.SequentialCollectionVisitingStrategy;
 import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsc.GridServiceContainer;
