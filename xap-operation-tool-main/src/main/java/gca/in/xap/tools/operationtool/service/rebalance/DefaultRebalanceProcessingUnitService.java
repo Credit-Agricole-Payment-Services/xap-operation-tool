@@ -180,7 +180,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		userConfirmationService.askConfirmationAndWait();
 
 		//
-		puRelocateService.relocatePuInstance(processingUnitInstanceToRelocate, targetMachinePredicate, true);
+		puRelocateService.relocatePuInstance(processingUnitInstanceToRelocate, targetMachinePredicate, true, true);
 	}
 
 	private void rebalanceByZone(

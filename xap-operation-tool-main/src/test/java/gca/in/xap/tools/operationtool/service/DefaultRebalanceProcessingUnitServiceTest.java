@@ -233,7 +233,7 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 		ZonesGroups zonesGroups = null;
 		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups);
 
-		verify(puRelocateService).relocatePuInstance(any(ProcessingUnitInstance.class), eq(new MachineWithSameNamePredicate("machine2")), eq(true));
+		verify(puRelocateService).relocatePuInstance(any(ProcessingUnitInstance.class), eq(new MachineWithSameNamePredicate("machine2")), eq(true), eq(true));
 	}
 
 	@Test
@@ -281,7 +281,7 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 		ZonesGroups zonesGroups = null;
 		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups);
 
-		verify(puRelocateService).relocatePuInstance(any(ProcessingUnitInstance.class), any(Predicate.class), eq(true));
+		verify(puRelocateService).relocatePuInstance(any(ProcessingUnitInstance.class), any(Predicate.class), eq(true), eq(true));
 	}
 
 }

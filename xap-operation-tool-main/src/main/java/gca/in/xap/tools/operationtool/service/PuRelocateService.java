@@ -12,7 +12,8 @@ public interface PuRelocateService {
 	void relocatePuInstance(
 			ProcessingUnitInstance puInstance,
 			Predicate<Machine> machinePredicate,
-			boolean await
+			boolean await,
+			boolean demoteFirst
 	);
 
 	GridServiceContainer[] findBestContainersToRelocate(
