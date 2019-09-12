@@ -19,13 +19,6 @@ import java.util.List;
 @CommandLine.Command(name = "shutdown-agents-all")
 public class ShutdownAgentsAllCommand extends AbstractAppCommand implements Runnable {
 
-	/**
-	 * Default value of 1 second should be sufficient in most case.
-	 * An interval of 1 minutes is too long in most case.
-	 * If user wants a longer or shorter duration, user has to use the "--intervalDuration" option
-	 */
-	private static final String defaultIntervalDuration = "PT1S";
-
 	@Autowired
 	@Lazy
 	private XapService xapService;

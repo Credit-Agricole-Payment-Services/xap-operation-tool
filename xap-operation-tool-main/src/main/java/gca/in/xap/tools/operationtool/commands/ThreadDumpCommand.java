@@ -19,13 +19,6 @@ import java.time.Duration;
 @CommandLine.Command(name = "threaddump")
 public class ThreadDumpCommand extends AbstractAppCommand implements Runnable {
 
-	/**
-	 * Default value of 5 seconds should be sufficient in most case.
-	 * An interval of 1 minutes is too long in some case.
-	 * If user wants a longer or shorter duration, user has to use the "--intervalDuration" option
-	 */
-	private static final String defaultIntervalDuration = "PT5S";
-
 	@Autowired
 	@Lazy
 	private XapService xapService;

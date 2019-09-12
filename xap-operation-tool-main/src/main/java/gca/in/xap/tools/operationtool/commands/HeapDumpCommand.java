@@ -19,13 +19,6 @@ import java.time.Duration;
 @CommandLine.Command(name = "heapdump")
 public class HeapDumpCommand extends AbstractAppCommand implements Runnable {
 
-	/**
-	 * Default value of 1 minute should be sufficient in most case.
-	 * An interval of 2 minutes is too long in some case.
-	 * If user wants a longer or shorter duration, user has to use the "--intervalDuration" option
-	 */
-	private static final String defaultIntervalDuration = "PT1M";
-
 	@Autowired
 	@Lazy
 	private XapService xapService;
