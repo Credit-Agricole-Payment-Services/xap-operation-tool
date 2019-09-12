@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class DefaultDemoteService {
 
 	@Setter
-	private int maxSuspendTimeInSeconds = 15;
+	private int maxSuspendTimeInSeconds = 30;
 
 	private int additionalGracePeriodForBackupToSwitchToPrimary = 30;
 
@@ -39,7 +39,7 @@ public class DefaultDemoteService {
 			String spaceInstanceId = spaceInstance.getId();
 			if (isPrimarySpaceInstancePredicate.test(spaceInstance)) {
 				try {
-					log.info("SpaceInstance {} of PU instance {} is Primary. Demoting it allowing max suspend time of {] seconds ...", spaceInstanceId, puInstanceName, maxSuspendTimeInSeconds);
+					log.info("SpaceInstance {} of PU instance {} is Primary. Demoting it allowing max suspend time of {} seconds ...", spaceInstanceId, puInstanceName, maxSuspendTimeInSeconds);
 					Future<?> demoteFuture = spaceInstance.demote(maxSuspendTimeInSeconds, TimeUnit.SECONDS);
 					Object demoteResult = demoteFuture.get();
 					demotedSpaceInstancesCount.incrementAndGet();

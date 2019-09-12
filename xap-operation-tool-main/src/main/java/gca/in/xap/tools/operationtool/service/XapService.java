@@ -9,10 +9,13 @@ import gca.in.xap.tools.operationtool.model.VirtualMachineDescription;
 import gca.in.xap.tools.operationtool.predicates.container.IsEmptyContainerPredicate;
 import gca.in.xap.tools.operationtool.service.deployer.ApplicationDeployer;
 import gca.in.xap.tools.operationtool.service.deployer.ProcessingUnitDeployer;
-import gca.in.xap.tools.operationtool.util.collectionvisit.CollectionVisitingStrategy;
-import gca.in.xap.tools.operationtool.service.restartstrategy.RestartVisitors;
-import gca.in.xap.tools.operationtool.util.collectionvisit.SequentialCollectionVisitingStrategy;
+import gca.in.xap.tools.operationtool.service.restartstrategy.DemoteThenRestartContainerItemVisitor;
+import gca.in.xap.tools.operationtool.service.restartstrategy.RestartContainerItemVisitor;
+import gca.in.xap.tools.operationtool.service.restartstrategy.RestartManagerItemVisitor;
+import gca.in.xap.tools.operationtool.service.restartstrategy.ShutdownAgentItemVisitor;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
+import gca.in.xap.tools.operationtool.util.collectionvisit.CollectionVisitingStrategy;
+import gca.in.xap.tools.operationtool.util.collectionvisit.SequentialCollectionVisitingStrategy;
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -149,6 +152,18 @@ public class XapService {
 
 	@Setter
 	private ApplicationDeployer applicationDeployer;
+
+	@Setter
+	private DemoteThenRestartContainerItemVisitor demoteThenRestartContainerItemVisitor;
+
+	@Setter
+	private RestartContainerItemVisitor restartContainerItemVisitor;
+
+	@Setter
+	private RestartManagerItemVisitor restartManagerItemVisitor;
+
+	@Setter
+	private ShutdownAgentItemVisitor shutdownAgentItemVisitor;
 
 	private final ObjectMapper objectMapper = new ObjectMapperFactory().createObjectMapper();
 
@@ -321,10 +336,14 @@ public class XapService {
 	 */
 	public void restartEmptyContainers() {
 		log.warn("Will restart all empty GSC instances ... (GSC with no PU running)");
-		restartContainers(new IsEmptyContainerPredicate(), new SequentialCollectionVisitingStrategy<>(Duration.ZERO));
+		restartContainers(new IsEmptyContainerPredicate(), new SequentialCollectionVisitingStrategy<>(Duration.ZERO), false);
 	}
 
-	public void restartContainers(@NonNull Predicate<GridServiceContainer> predicate, @NonNull CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy) {
+	public void restartContainers(
+			@NonNull Predicate<GridServiceContainer> predicate,
+			@NonNull CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy,
+			boolean demoteFirst
+	) {
 		GridServiceContainer[] containers = findContainers();
 		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
 		final int gscCount = containers.length;
@@ -333,7 +352,15 @@ public class XapService {
 
 		log.warn("Will restart {} GSC instances : {}", gscCount, containersIds);
 		userConfirmationService.askConfirmationAndWait();
-		collectionVisitingStrategy.perform(containers, new RestartVisitors.RestartContainerItemVisitor());
+
+		final CollectionVisitingStrategy.ItemVisitor itemVisitor;
+		if (demoteFirst) {
+			itemVisitor = this.demoteThenRestartContainerItemVisitor;
+		} else {
+			itemVisitor = restartContainerItemVisitor;
+		}
+		collectionVisitingStrategy.perform(containers, itemVisitor);
+
 		log.info("Triggered restart of GSC instances : {}", containersIds);
 	}
 
@@ -346,7 +373,7 @@ public class XapService {
 
 		log.warn("Will restart {] GSM instances : {}", gsmCount, managersIds);
 		userConfirmationService.askConfirmationAndWait();
-		collectionVisitingStrategy.perform(managers, new RestartVisitors.RestartManagerItemVisitor());
+		collectionVisitingStrategy.perform(managers, restartManagerItemVisitor);
 		log.info("Triggered restart of GSM instances : {}", managersIds);
 	}
 
@@ -359,7 +386,7 @@ public class XapService {
 
 		log.warn("Will shutdown {} GSA instances : {}", gsaCount, agentIds);
 		userConfirmationService.askConfirmationAndWait();
-		collectionVisitingStrategy.perform(agents, new RestartVisitors.RestartAgentItemVisitor());
+		collectionVisitingStrategy.perform(agents, shutdownAgentItemVisitor);
 		log.info("Triggered shutdown of GSA instances : {}", agentIds);
 	}
 

@@ -2,8 +2,8 @@ package gca.in.xap.tools.operationtool.commands.restartcontainers;
 
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
-import gca.in.xap.tools.operationtool.util.collectionvisit.ParallelCollectionVisitingStrategy;
 import gca.in.xap.tools.operationtool.util.collectionvisit.CollectionVisitingStrategy;
+import gca.in.xap.tools.operationtool.util.collectionvisit.ParallelCollectionVisitingStrategy;
 import gca.in.xap.tools.operationtool.util.collectionvisit.SequentialCollectionVisitingStrategy;
 import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +31,9 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 
 	private final Predicate<GridServiceContainer> predicate;
 
+	@CommandLine.Option(names = "--demoteFirst", defaultValue = "true", negatable = true, description = "In case the Container runs a Primary Stateful Processing Unit, it will ask for a demote of the Space Instance, in order to swap the primary and backup.")
+	private boolean demoteFirst;
+
 	@CommandLine.Option(names = "--intervalDuration", defaultValue = defaultIntervalDuration, description = "Interval between each component to restart. Will wait for this interval between each component, to reduce the risk to stress the system when restarting component to quickly. Duration is expressed in ISO_8601 format (example : PT30S for a duration of 30 seconds, PT2M for a duration of 2 minutes). Default value is : " + defaultIntervalDuration)
 	private String intervalDuration;
 
@@ -53,7 +56,7 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 		xapService.printReportOnContainersAndProcessingUnits(predicate);
 
 		log.info("CollectionVisitingStrategy is : {}", collectionVisitingStrategy);
-		xapService.restartContainers(predicate, collectionVisitingStrategy);
+		xapService.restartContainers(predicate, collectionVisitingStrategy, demoteFirst);
 	}
 
 	protected CollectionVisitingStrategy<GridServiceContainer> createRestartStrategy() {

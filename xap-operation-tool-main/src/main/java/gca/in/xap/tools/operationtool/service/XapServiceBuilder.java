@@ -6,6 +6,10 @@ import gca.in.xap.tools.operationtool.service.deployer.DefaultApplicationDeploye
 import gca.in.xap.tools.operationtool.service.deployer.DefaultProcessingUnitDeployer;
 import gca.in.xap.tools.operationtool.service.deployer.HttpProcessingUnitDeployer;
 import gca.in.xap.tools.operationtool.service.deployer.ProcessingUnitDeployerType;
+import gca.in.xap.tools.operationtool.service.restartstrategy.DemoteThenRestartContainerItemVisitor;
+import gca.in.xap.tools.operationtool.service.restartstrategy.RestartContainerItemVisitor;
+import gca.in.xap.tools.operationtool.service.restartstrategy.RestartManagerItemVisitor;
+import gca.in.xap.tools.operationtool.service.restartstrategy.ShutdownAgentItemVisitor;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import io.vertx.ext.web.client.WebClient;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +51,18 @@ public class XapServiceBuilder {
 
 	@Autowired
 	private ProcessingUnitConfigToDeploymentDescriptorMapper processingUnitConfigToDeploymentDescriptorMapper;
+
+	@Autowired
+	private DemoteThenRestartContainerItemVisitor demoteThenRestartContainerItemVisitor;
+
+	@Autowired
+	private RestartContainerItemVisitor restartContainerItemVisitor;
+
+	@Autowired
+	private RestartManagerItemVisitor restartManagerItemVisitor;
+
+	@Autowired
+	private ShutdownAgentItemVisitor shutdownAgentItemVisitor;
 
 	private List<String> locators;
 
@@ -158,6 +174,11 @@ public class XapServiceBuilder {
 		result.setUserConfirmationService(userConfirmationService);
 		result.setIdExtractor(idExtractor);
 		result.setApplicationDeployer(new DefaultApplicationDeployer(admin));
+		result.setRestartContainerItemVisitor(restartContainerItemVisitor);
+		result.setRestartManagerItemVisitor(restartManagerItemVisitor);
+		result.setShutdownAgentItemVisitor(shutdownAgentItemVisitor);
+		result.setDemoteThenRestartContainerItemVisitor(demoteThenRestartContainerItemVisitor);
+		//
 		switch (processingUnitDeployerType) {
 			case JAVA_API:
 				result.setProcessingUnitDeployer(new DefaultProcessingUnitDeployer(admin));
