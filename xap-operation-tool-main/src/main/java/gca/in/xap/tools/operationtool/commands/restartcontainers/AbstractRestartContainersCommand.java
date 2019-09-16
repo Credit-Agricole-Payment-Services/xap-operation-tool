@@ -22,8 +22,12 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 
 	private final Predicate<GridServiceContainer> predicate;
 
-	@CommandLine.Option(names = "--demoteFirst", defaultValue = "true", negatable = true, description = "In case the Container runs a Primary Stateful Processing Unit, it will ask for a demote of the Space Instance, in order to swap the primary and backup.")
-	private boolean demoteFirst;
+	@CommandLine.Option(
+			names = "--no-demote-first",
+			defaultValue = "true",
+			description = "In case the Container runs a Primary Stateful Processing Unit, it will ask for a demote of the Space Instance, in order to swap the primary and backup."
+	)
+	private Boolean demoteFirst;
 
 	@CommandLine.ArgGroup(exclusive = true)
 	private ContainersIterationOptions containersIterationOptions;
@@ -34,6 +38,9 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 
 	@Override
 	public void run() {
+		log.info("demoteFirst = {}", demoteFirst);
+		log.info("containersIterationOptions = {}", containersIterationOptions);
+
 		final CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy = ContainersIterationOptions.toCollectionVisitingStrategy(containersIterationOptions);
 		XapServiceBuilder.waitForClusterInfoToUpdate();
 
