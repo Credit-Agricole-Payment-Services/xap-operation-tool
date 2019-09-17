@@ -52,7 +52,7 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 	@CommandLine.Option(names = {"--whole"}, description = "Upload the application in whole.")
 	private boolean wholeMode;
 
-	@CommandLine.ArgGroup(exclusive = false, multiplicity = "1")
+	@CommandLine.ArgGroup(exclusive = false)
 	private PuNamesFilteringOptions puNamesFilteringOptions;
 
 	@CommandLine.Option(names = {"--restartEmptyContainers"}, description = "Restart all GSC that have no running Processing Unit, in order to make mitigate any memory leak")

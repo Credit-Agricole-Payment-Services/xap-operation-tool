@@ -107,7 +107,9 @@ public class XapService {
 		}
 		boolean finished = pu.waitFor(plannedNumberOfInstances, remainingDelayUntilTimeout, TimeUnit.MILLISECONDS);
 		if (!finished) {
-			throw new TimeoutException("Application deployment timed out after " + timeout);
+			final int currentInstancesCount = pu.getInstances().length;
+			log.warn("ProcessingUnit {} has {} instances after timeout of {} has been reached", puName, currentInstancesCount, timeout);
+			throw new TimeoutException("ProcessingUnit deployment timed out after " + timeout);
 		}
 		final long deploymentEndTime = System.currentTimeMillis();
 		final long deploymentDuration = deploymentEndTime - deploymentStartTime;
