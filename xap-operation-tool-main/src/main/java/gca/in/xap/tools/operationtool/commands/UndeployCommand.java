@@ -67,7 +67,7 @@ public class UndeployCommand extends AbstractAppCommand implements Runnable {
 			log.warn("Will undeploy Application : {}", mutuallyExclusiveOptions.wholeModeOptions.applicationName);
 			userConfirmationService.askConfirmationAndWait();
 
-			xapService.undeployIfExists(mutuallyExclusiveOptions.wholeModeOptions.applicationName);
+			xapService.undeployApplicationIfExists(mutuallyExclusiveOptions.wholeModeOptions.applicationName);
 		} else {
 			if (mutuallyExclusiveOptions.all) {
 				log.warn("Will undeploy ALL Processing Units");

@@ -1,6 +1,7 @@
 package gca.in.xap.tools.operationtool.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gigaspaces.grid.gsa.AgentProcessDetails;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.MultimapBuilder;
 import gca.in.xap.tools.operationtool.model.ComponentType;
@@ -24,6 +25,7 @@ import org.openspaces.admin.application.Application;
 import org.openspaces.admin.application.config.ApplicationConfig;
 import org.openspaces.admin.dump.DumpResult;
 import org.openspaces.admin.gsa.GridServiceAgent;
+import org.openspaces.admin.gsa.GridServiceAgents;
 import org.openspaces.admin.gsc.GridServiceContainer;
 import org.openspaces.admin.gsc.GridServiceContainers;
 import org.openspaces.admin.gsm.GridServiceManager;
@@ -39,6 +41,7 @@ import org.openspaces.admin.vm.VirtualMachine;
 import org.openspaces.admin.vm.VirtualMachineDetails;
 import org.openspaces.admin.vm.VirtualMachines;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
@@ -105,12 +108,21 @@ public class XapService {
 		if (remainingDelayUntilTimeout < 0L) {
 			throw new TimeoutException("Application deployment timed out after " + timeout);
 		}
-		boolean finished = pu.waitFor(plannedNumberOfInstances, remainingDelayUntilTimeout, TimeUnit.MILLISECONDS);
+		boolean finished = false;
+		// print a message every 5 seconds, in order to show progress of deployment
+		while (!finished && remainingDelayUntilTimeout > 0L) {
+			long waitDuration = Math.min(remainingDelayUntilTimeout, 5000);
+			finished = pu.waitFor(plannedNumberOfInstances, waitDuration, TimeUnit.MILLISECONDS);
+			remainingDelayUntilTimeout = expectedMaximumEndDate - System.currentTimeMillis();
+			final int currentInstancesCount = pu.getInstances().length;
+			log.warn("ProcessingUnit {} now has {} running instances", puName, currentInstancesCount, timeout);
+		}
 		if (!finished) {
 			final int currentInstancesCount = pu.getInstances().length;
-			log.warn("ProcessingUnit {} has {} instances after timeout of {} has been reached", puName, currentInstancesCount, timeout);
-			throw new TimeoutException("ProcessingUnit deployment timed out after " + timeout);
+			log.warn("ProcessingUnit {} has {} running instances after timeout of {} has been reached", puName, currentInstancesCount, timeout);
+			throw new TimeoutException("Application deployment timed out after " + timeout);
 		}
+
 		final long deploymentEndTime = System.currentTimeMillis();
 		final long deploymentDuration = deploymentEndTime - deploymentStartTime;
 
@@ -180,9 +192,17 @@ public class XapService {
 	public GridServiceManager[] findManagers() {
 		GridServiceManagers gridServiceManagers = admin.getGridServiceManagers();
 		GridServiceManager[] managers = gridServiceManagers.getManagers();
-		// we want the GSCs to be sorted by Id, for readability and reproducibility
+		// we want the GSMs to be sorted by Id, for readability and reproducibility
 		Arrays.sort(managers, Comparator.comparing(gsm -> gsm.getMachine().getHostName()));
 		return managers;
+	}
+
+	public GridServiceAgent[] findAgents() {
+		GridServiceAgents gridServiceAgents = admin.getGridServiceAgents();
+		GridServiceAgent[] agents = gridServiceAgents.getAgents();
+		// we want the GSAs to be sorted by Id, for readability and reproducibility
+		Arrays.sort(agents, Comparator.comparing(gsm -> gsm.getMachine().getHostName()));
+		return agents;
 	}
 
 	public List<String> findManagersHostnames() {
@@ -233,7 +253,7 @@ public class XapService {
 			final String hostname = entry.getKey();
 			final Collection<GridServiceContainer> containersForHost = entry.getValue();
 			final Set<String> commonZones = findCommonZones(containersForHost);
-			log.info("On machine {} : {}", hostname, commonZones);
+			log.info("On machine {} : {} : {} GSC instances", hostname, commonZones, containersForHost.size());
 			for (GridServiceContainer gsc : containersForHost) {
 				String gscId = gsc.getId();
 				Set<String> specificZones = findSpecificZones(gsc, commonZones);
@@ -265,6 +285,22 @@ public class XapService {
 		return result;
 	}
 
+	public void printReportOnAgents() {
+		final GridServiceAgent[] agents = findAgents();
+		final int gsaCount = agents.length;
+		final Collection<String> agentsIds = idExtractor.extractIds(agents);
+		log.info("Found {} running GSA instances : {}", gsaCount, agentsIds);
+		for (GridServiceAgent gsa : agents) {
+			String hostName = gsa.getMachine().getHostName();
+			Map<String, Integer> requiredGlobalInstances = gsa.getProcessesDetails().getRequiredGlobalInstances();
+			AgentProcessDetails[] processDetailsList = gsa.getProcessesDetails().getProcessDetails();
+			log.info("GSA {} : requiredGlobalInstances : {}, processes count = {}", hostName, requiredGlobalInstances, processDetailsList.length);
+			for (AgentProcessDetails agentProcessDetails : processDetailsList) {
+				log.info("ServiceType : {}, InstantiationMode : {}, ProcessId : {}, AgentId : {}", agentProcessDetails.getServiceType(), agentProcessDetails.getInstantiationMode(), agentProcessDetails.getProcessId(), agentProcessDetails.getAgentId());
+			}
+		}
+	}
+
 	public void printReportOnManagers() {
 		final GridServiceManager[] managers = findManagers();
 		final int gsmCount = managers.length;
@@ -286,12 +322,15 @@ public class XapService {
 			//
 			VirtualMachineDescription vmDescription = new VirtualMachineDescription();
 			vmDescription.setUid(jvm.getUid());
-			vmDescription.setComponentType(getComponentType(jvm));
+			vmDescription.setComponentType(guessComponentType(jvm));
 			vmDescription.setUptime(Duration.ofMillis(jvm.getStatistics().getUptime()));
 			vmDescription.setHostName(jvm.getMachine().getHostName());
 			vmDescription.setJvmDescription(jvmDescription);
-			vmDescription.setHeapSizeInMBInit(Math.round(details.getMemoryHeapInitInMB()));
-			vmDescription.setHeapSizeInMBMax(Math.round(details.getMemoryHeapMaxInMB()));
+			if (details != null) {
+				vmDescription.setPid(details.getPid());
+				vmDescription.setHeapSizeInMBInit(Math.round(details.getMemoryHeapInitInMB()));
+				vmDescription.setHeapSizeInMBMax(Math.round(details.getMemoryHeapMaxInMB()));
+			}
 			virtualMachineDescriptions.add(vmDescription);
 		}
 
@@ -300,7 +339,8 @@ public class XapService {
 		for (VirtualMachineDescription jvm : virtualMachineDescriptions) {
 			log.info("{} : {} : running on {} for {} : Heap [{} MB, {} MB] : {}",
 					jvm.getComponentType(),
-					jvm.getUid().substring(0, 7) + "...",
+					String.format("%5d", jvm.getPid()),
+					//jvm.getUid().substring(0, 7) + "...",
 					jvm.getHostName(),
 					padRight(jvm.getUptime(), 17),
 					padLeft(jvm.getHeapSizeInMBInit(), 5),
@@ -317,7 +357,8 @@ public class XapService {
 		return String.format("%-" + length + "s", value);
 	}
 
-	public ComponentType getComponentType(VirtualMachine jvm) {
+	@Nullable
+	public ComponentType guessComponentType(VirtualMachine jvm) {
 		GridServiceContainer gridServiceContainer = jvm.getGridServiceContainer();
 		if (gridServiceContainer != null) {
 			return ComponentType.GSC;
@@ -330,7 +371,7 @@ public class XapService {
 		if (gridServiceAgent != null) {
 			return ComponentType.GSA;
 		}
-		return null;
+		return ComponentType.UNKNOWN;
 	}
 
 	/**
@@ -550,7 +591,7 @@ public class XapService {
 		final ProcessingUnitConfig processingUnitConfig = pu.toProcessingUnitConfig();
 		log.debug("puName = {}, processingUnitConfig = {}", puName, processingUnitConfig);
 
-		undeployPu(puName);
+		undeployPu(puName, Duration.ofMinutes(2));
 
 		log.info("Deploying pu {} ...", puName);
 		long puDeploymentStartTime = System.currentTimeMillis();
@@ -559,12 +600,12 @@ public class XapService {
 		awaitDeployment(processingUnit, puDeploymentStartTime, timeout, expectedMaximumEndDate);
 	}
 
-	private void undeployPu(String puName) {
+	private void undeployPu(String puName, Duration timeout) {
 		doWithProcessingUnit(puName, Duration.of(10, ChronoUnit.SECONDS), existingProcessingUnit -> {
 			final int instancesCount = existingProcessingUnit.getInstances().length;
 			log.info("Undeploying pu {} ... ({} instances are running on GSCs {})", puName, instancesCount, idExtractor.extractContainerIds(existingProcessingUnit));
 			long startTime = System.currentTimeMillis();
-			boolean undeployedSuccessful = existingProcessingUnit.undeployAndWait(1, TimeUnit.MINUTES);
+			boolean undeployedSuccessful = existingProcessingUnit.undeployAndWait(timeout.toMillis(), TimeUnit.MILLISECONDS);
 			long endTime = System.currentTimeMillis();
 			long duration = endTime - startTime;
 			if (undeployedSuccessful) {
@@ -577,13 +618,13 @@ public class XapService {
 		});
 	}
 
-	public void undeploy(String applicationName) {
+	public void undeployApplication(String applicationName) {
 		log.info("Launch undeploy of {}, operationTimeout = {}", applicationName, operationTimeout);
 		doWithApplication(
 				applicationName,
 				operationTimeout,
 				application -> {
-					undeploy(application);
+					undeployApplication(application, operationTimeout);
 				},
 				appName -> {
 					throw new IllegalStateException(new TimeoutException(
@@ -592,23 +633,23 @@ public class XapService {
 		);
 	}
 
-	public void undeployIfExists(String name) {
+	public void undeployApplicationIfExists(String name) {
 		log.info("Undeploying application {} (if it exists) ...", name);
 		doWithApplication(
 				name,
 				Duration.of(5, ChronoUnit.SECONDS),
 				app -> {
-					undeploy(app);
+					undeployApplication(app, operationTimeout);
 				},
 				appName -> {
 					log.warn("Application {} was not found, could not be undeployed", name);
 				});
 	}
 
-	public void undeploy(@NonNull Application application) {
+	public void undeployApplication(@NonNull Application application, Duration timeout) {
 		final String applicationName = application.getName();
 		log.info("Undeploying application : {}", applicationName);
-		application.undeployAndWait(operationTimeout.toMillis(), TimeUnit.MILLISECONDS);
+		application.undeployAndWait(timeout.toMillis(), TimeUnit.MILLISECONDS);
 		log.info("{} has been successfully undeployed.", applicationName);
 	}
 
@@ -617,7 +658,7 @@ public class XapService {
 		allProcessingUnitsNames.stream().filter(processingUnitsNamesPredicate).forEach(puName -> {
 
 			try {
-				undeployPu(puName);
+				undeployPu(puName, Duration.ofMinutes(2));
 			} catch (RuntimeException e) {
 				log.error("Failure while undeploying PU {}", puName, e);
 			}

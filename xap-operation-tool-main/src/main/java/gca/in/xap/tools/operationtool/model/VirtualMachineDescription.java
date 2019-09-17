@@ -11,6 +11,8 @@ public class VirtualMachineDescription {
 
 	private String uid;
 
+	private Long pid;
+
 	private String hostName;
 
 	private Long heapSizeInMBInit;

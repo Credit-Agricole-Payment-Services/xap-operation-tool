@@ -103,7 +103,7 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 		xapService.printReportOnContainersAndProcessingUnits();
 
 		if (wholeMode) {
-			xapService.undeployIfExists(applicationConfig.getName());
+			xapService.undeployApplicationIfExists(applicationConfig.getName());
 			xapService.printReportOnContainersAndProcessingUnits();
 		}
 
