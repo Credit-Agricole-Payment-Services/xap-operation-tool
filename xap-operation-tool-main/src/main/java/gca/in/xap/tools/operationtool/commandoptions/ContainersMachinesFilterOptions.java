@@ -6,7 +6,7 @@ import picocli.CommandLine;
 import java.util.List;
 import java.util.function.Predicate;
 
-public class ContainersFilterOptions {
+public class ContainersMachinesFilterOptions {
 
 	@CommandLine.Option(names = {"--machinesIncludes"}, description = "List of names of the Machines to include. If you only want to act on a subset of the Machines, you can specify 1 or more machine name.")
 	public List<String> machinesIncludes;

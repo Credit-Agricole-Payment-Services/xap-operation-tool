@@ -1,7 +1,8 @@
 package gca.in.xap.tools.operationtool.commands.restartcontainers;
 
-import gca.in.xap.tools.operationtool.commandoptions.ContainersFilterOptions;
 import gca.in.xap.tools.operationtool.commandoptions.ContainersIterationOptions;
+import gca.in.xap.tools.operationtool.commandoptions.ContainersMachinesFilterOptions;
+import gca.in.xap.tools.operationtool.commandoptions.ContainersProcessingUnitFilterOptions;
 import gca.in.xap.tools.operationtool.predicates.AndPredicate;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
@@ -34,8 +35,11 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 	@CommandLine.ArgGroup(exclusive = true)
 	private ContainersIterationOptions containersIterationOptions;
 
-	@CommandLine.ArgGroup(exclusive = true)
-	private ContainersFilterOptions containersFilterOptions;
+	@CommandLine.ArgGroup(exclusive = false)
+	private ContainersMachinesFilterOptions containersMachinesFilterOptions;
+
+	@CommandLine.ArgGroup(exclusive = false)
+	private ContainersProcessingUnitFilterOptions containersProcessingUnitFilterOptions;
 
 	public AbstractRestartContainersCommand(Predicate<GridServiceContainer> predicate) {
 		this.predicate = predicate;
@@ -48,10 +52,12 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 
 		final CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy = ContainersIterationOptions.toCollectionVisitingStrategy(containersIterationOptions);
 
-		if (containersFilterOptions == null) {
-			containersFilterOptions = new ContainersFilterOptions();
+		if (containersMachinesFilterOptions == null) {
+			containersMachinesFilterOptions = new ContainersMachinesFilterOptions();
 		}
-		Predicate<GridServiceContainer> containersFilterPredicate = containersFilterOptions.toPredicate();
+		if (containersProcessingUnitFilterOptions == null) {
+			containersProcessingUnitFilterOptions = new ContainersProcessingUnitFilterOptions();
+		}
 
 		XapServiceBuilder.waitForClusterInfoToUpdate();
 
@@ -62,7 +68,13 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 		xapService.printReportOnContainersAndProcessingUnits(this.predicate);
 
 		log.info("CollectionVisitingStrategy is : {}", collectionVisitingStrategy);
-		xapService.restartContainers(new AndPredicate<>(containersFilterPredicate, this.predicate), collectionVisitingStrategy, demoteFirst);
+		xapService.restartContainers(
+				new AndPredicate<>(
+						containersMachinesFilterOptions.toPredicate(),
+						containersProcessingUnitFilterOptions.toPredicate(),
+						this.predicate),
+				collectionVisitingStrategy,
+				demoteFirst);
 	}
 
 }
