@@ -1,6 +1,8 @@
 package gca.in.xap.tools.operationtool.commands.restartcontainers;
 
+import gca.in.xap.tools.operationtool.commandoptions.ContainersFilterOptions;
 import gca.in.xap.tools.operationtool.commandoptions.ContainersIterationOptions;
+import gca.in.xap.tools.operationtool.predicates.AndPredicate;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
 import gca.in.xap.tools.operationtool.util.collectionvisit.CollectionVisitingStrategy;
@@ -32,6 +34,9 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 	@CommandLine.ArgGroup(exclusive = true)
 	private ContainersIterationOptions containersIterationOptions;
 
+	@CommandLine.ArgGroup(exclusive = true)
+	private ContainersFilterOptions containersFilterOptions;
+
 	public AbstractRestartContainersCommand(Predicate<GridServiceContainer> predicate) {
 		this.predicate = predicate;
 	}
@@ -42,16 +47,22 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 		log.info("containersIterationOptions = {}", containersIterationOptions);
 
 		final CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy = ContainersIterationOptions.toCollectionVisitingStrategy(containersIterationOptions);
+
+		if (containersFilterOptions == null) {
+			containersFilterOptions = new ContainersFilterOptions();
+		}
+		Predicate<GridServiceContainer> containersFilterPredicate = containersFilterOptions.toPredicate();
+
 		XapServiceBuilder.waitForClusterInfoToUpdate();
 
 		log.info("Report on all GSC :");
 		xapService.printReportOnContainersAndProcessingUnits();
 
 		log.info("Report on GSC to restart :");
-		xapService.printReportOnContainersAndProcessingUnits(predicate);
+		xapService.printReportOnContainersAndProcessingUnits(this.predicate);
 
 		log.info("CollectionVisitingStrategy is : {}", collectionVisitingStrategy);
-		xapService.restartContainers(predicate, collectionVisitingStrategy, demoteFirst);
+		xapService.restartContainers(new AndPredicate<>(containersFilterPredicate, this.predicate), collectionVisitingStrategy, demoteFirst);
 	}
 
 }
