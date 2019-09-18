@@ -141,10 +141,16 @@ public class XapService {
 	private Admin admin;
 
 	/**
-	 * the timeout of the operation (deployment, undeployment)
+	 * the timeout of the operations
 	 */
 	@Setter
 	private Duration operationTimeout = Duration.of(1, ChronoUnit.MINUTES);
+
+	/**
+	 * the timeout of undeployments
+	 */
+	@Setter
+	private Duration undeployProcessingUnitTimeout = Duration.ofMinutes(3);
 
 	@Setter
 	private UserDetailsConfig userDetails;
@@ -591,7 +597,7 @@ public class XapService {
 		final ProcessingUnitConfig processingUnitConfig = pu.toProcessingUnitConfig();
 		log.debug("puName = {}, processingUnitConfig = {}", puName, processingUnitConfig);
 
-		undeployPu(puName, Duration.ofMinutes(2));
+		undeployPu(puName, undeployProcessingUnitTimeout);
 
 		log.info("Deploying pu {} ...", puName);
 		long puDeploymentStartTime = System.currentTimeMillis();
@@ -658,7 +664,7 @@ public class XapService {
 		allProcessingUnitsNames.stream().filter(processingUnitsNamesPredicate).forEach(puName -> {
 
 			try {
-				undeployPu(puName, Duration.ofMinutes(2));
+				undeployPu(puName, undeployProcessingUnitTimeout);
 			} catch (RuntimeException e) {
 				log.error("Failure while undeploying PU {}", puName, e);
 			}
