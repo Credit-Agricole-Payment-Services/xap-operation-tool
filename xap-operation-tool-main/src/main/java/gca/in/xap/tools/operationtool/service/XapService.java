@@ -54,6 +54,8 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static java.util.Comparator.comparing;
+
 @Slf4j
 public class XapService {
 
@@ -191,7 +193,7 @@ public class XapService {
 		GridServiceContainers gridServiceContainers = admin.getGridServiceContainers();
 		GridServiceContainer[] containers = gridServiceContainers.getContainers();
 		// we want the GSCs to be sorted by Id, for readability and reproducibility
-		Arrays.sort(containers, Comparator.comparing(GridServiceContainer::getId));
+		Arrays.sort(containers, comparing(GridServiceContainer::getId));
 		return containers;
 	}
 
@@ -199,7 +201,7 @@ public class XapService {
 		GridServiceManagers gridServiceManagers = admin.getGridServiceManagers();
 		GridServiceManager[] managers = gridServiceManagers.getManagers();
 		// we want the GSMs to be sorted by Id, for readability and reproducibility
-		Arrays.sort(managers, Comparator.comparing(gsm -> gsm.getMachine().getHostName()));
+		Arrays.sort(managers, comparing(gsm -> gsm.getMachine().getHostName()));
 		return managers;
 	}
 
@@ -207,7 +209,7 @@ public class XapService {
 		GridServiceAgents gridServiceAgents = admin.getGridServiceAgents();
 		GridServiceAgent[] agents = gridServiceAgents.getAgents();
 		// we want the GSAs to be sorted by Id, for readability and reproducibility
-		Arrays.sort(agents, Comparator.comparing(gsm -> gsm.getMachine().getHostName()));
+		Arrays.sort(agents, comparing(gsm -> gsm.getMachine().getHostName()));
 		return agents;
 	}
 
@@ -218,7 +220,7 @@ public class XapService {
 
 	public Machine[] findAllMachines() {
 		Machine[] machines = admin.getMachines().getMachines();
-		Arrays.sort(machines, Comparator.comparing(Machine::getHostName));
+		Arrays.sort(machines, comparing(Machine::getHostName));
 		return machines;
 	}
 
@@ -257,8 +259,9 @@ public class XapService {
 		log.info("Found {} matching running GSC instances : {}", gscCount, containersIds);
 		for (Map.Entry<String, Collection<GridServiceContainer>> entry : containersPerMachine.asMap().entrySet()) {
 			final String hostname = entry.getKey();
-			final Collection<GridServiceContainer> containersForHost = entry.getValue();
+			final List<GridServiceContainer> containersForHost = (List) entry.getValue();
 			final Set<String> commonZones = findCommonZones(containersForHost);
+			Collections.sort(containersForHost, createGSCComparator(commonZones));
 			log.info("On machine {} : {} : {} GSC instances", hostname, commonZones, containersForHost.size());
 			for (GridServiceContainer gsc : containersForHost) {
 				String gscId = gsc.getId();
@@ -270,6 +273,13 @@ public class XapService {
 			}
 		}
 
+	}
+
+	private Comparator<GridServiceContainer> createGSCComparator(final Set<String> commonZones) {
+		Comparator<GridServiceContainer> result = Comparator
+				.comparing(gsc -> findSpecificZones(gsc, commonZones).toString());
+		result = result.thenComparing(gsc -> gsc.getVirtualMachine().getDetails().getPid());
+		return result;
 	}
 
 	private Set<String> findCommonZones(Collection<GridServiceContainer> containers) {
