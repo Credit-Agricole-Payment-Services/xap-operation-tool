@@ -152,7 +152,7 @@ public class XapService {
 	 * the timeout of undeployments
 	 */
 	@Setter
-	private Duration undeployProcessingUnitTimeout = Duration.ofMinutes(3);
+	private Duration undeployProcessingUnitTimeout = Duration.ofMinutes(10);
 
 	@Setter
 	private UserDetailsConfig userDetails;
