@@ -338,15 +338,15 @@ public class XapService {
 
 		for (VirtualMachine jvm : virtualMachines.getVirtualMachines()) {
 			final VirtualMachineDetails details = jvm.getDetails();
-			final String jvmDescription = details.getVmVendor() + " : " + details.getVmName() + " : " + details.getVmVersion();
 			//
 			VirtualMachineDescription vmDescription = new VirtualMachineDescription();
 			vmDescription.setUid(jvm.getUid());
 			vmDescription.setComponentType(guessComponentType(jvm));
 			vmDescription.setUptime(Duration.ofMillis(jvm.getStatistics().getUptime()));
 			vmDescription.setHostName(jvm.getMachine().getHostName());
-			vmDescription.setJvmDescription(jvmDescription);
 			if (details != null) {
+				final String jvmDescription = details.getVmVendor() + " : " + details.getVmName() + " : " + details.getVmVersion();
+				vmDescription.setJvmDescription(jvmDescription);
 				vmDescription.setPid(details.getPid());
 				vmDescription.setHeapSizeInMBInit(Math.round(details.getMemoryHeapInitInMB()));
 				vmDescription.setHeapSizeInMBMax(Math.round(details.getMemoryHeapMaxInMB()));
