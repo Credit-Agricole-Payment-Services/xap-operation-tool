@@ -350,6 +350,8 @@ public class XapService {
 				vmDescription.setPid(details.getPid());
 				vmDescription.setHeapSizeInMBInit(Math.round(details.getMemoryHeapInitInMB()));
 				vmDescription.setHeapSizeInMBMax(Math.round(details.getMemoryHeapMaxInMB()));
+				vmDescription.setEnvironmentVariables(details.getEnvironmentVariables());
+				vmDescription.setSystemProperties(details.getSystemProperties());
 			}
 			virtualMachineDescriptions.add(vmDescription);
 		}
@@ -366,6 +368,9 @@ public class XapService {
 					padLeft(jvm.getHeapSizeInMBInit(), 5),
 					padLeft(jvm.getHeapSizeInMBMax(), 5),
 					jvm.getJvmDescription());
+			//Map<String, String> environmentVariables = jvm.getEnvironmentVariables();
+			//String envVariableXapGscOptions = environmentVariables.get("XAP_GSC_OPTIONS");
+			//log.info("envVariableXapGscOptions = {}", envVariableXapGscOptions);
 		}
 	}
 
