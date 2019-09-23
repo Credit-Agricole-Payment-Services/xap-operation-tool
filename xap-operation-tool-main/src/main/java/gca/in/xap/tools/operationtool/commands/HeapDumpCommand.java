@@ -1,6 +1,10 @@
 package gca.in.xap.tools.operationtool.commands;
 
 import gca.in.xap.tools.operationtool.commandoptions.ContainersIterationOptions;
+import gca.in.xap.tools.operationtool.commandoptions.ContainersMachinesFilterOptions;
+import gca.in.xap.tools.operationtool.commandoptions.ContainersProcessingUnitFilterOptions;
+import gca.in.xap.tools.operationtool.commandoptions.ContainersZonesFilterOptions;
+import gca.in.xap.tools.operationtool.predicates.AndPredicate;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.util.collectionvisit.CollectionVisitingStrategy;
 import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
@@ -26,15 +30,39 @@ public class HeapDumpCommand extends AbstractAppCommand implements Runnable {
 	@CommandLine.ArgGroup(exclusive = true)
 	private ContainersIterationOptions containersIterationOptions;
 
+	@CommandLine.ArgGroup(exclusive = false)
+	private ContainersZonesFilterOptions containersZonesFilterOptions;
+
+	@CommandLine.ArgGroup(exclusive = false)
+	private ContainersMachinesFilterOptions containersMachinesFilterOptions;
+
+	@CommandLine.ArgGroup(exclusive = false)
+	private ContainersProcessingUnitFilterOptions containersProcessingUnitFilterOptions;
+
 	@Override
 	public void run() {
+		if (containersZonesFilterOptions == null) {
+			containersZonesFilterOptions = new ContainersZonesFilterOptions();
+		}
+		if (containersMachinesFilterOptions == null) {
+			containersMachinesFilterOptions = new ContainersMachinesFilterOptions();
+		}
+		if (containersProcessingUnitFilterOptions == null) {
+			containersProcessingUnitFilterOptions = new ContainersProcessingUnitFilterOptions();
+		}
+
 		final CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy = ContainersIterationOptions.toCollectionVisitingStrategy(containersIterationOptions);
 
 		xapService.printReportOnContainersAndProcessingUnits();
 		xapService.setDefaultTimeout(Duration.ofMinutes(5));
 
 		try {
-			xapService.generateHeapDumpOnEachContainers(gsc -> true, collectionVisitingStrategy);
+			xapService.generateHeapDumpOnEachContainers(
+					new AndPredicate<>(
+							containersZonesFilterOptions.toPredicate(),
+							containersMachinesFilterOptions.toPredicate(),
+							containersProcessingUnitFilterOptions.toPredicate()),
+					collectionVisitingStrategy);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
