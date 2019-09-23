@@ -18,6 +18,7 @@ import org.openspaces.admin.machine.Machine;
 import org.openspaces.admin.pu.ProcessingUnit;
 import org.openspaces.admin.pu.ProcessingUnitInstance;
 import org.openspaces.admin.pu.ProcessingUnitPartition;
+import org.openspaces.admin.space.SpaceInstance;
 import org.openspaces.admin.zone.config.ExactZonesConfig;
 import org.openspaces.core.cluster.ClusterInfo;
 
@@ -151,6 +152,11 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 	public void should_not_rebalance_when_only_one_container_and_only_one_puInstance() {
 		final String processingUnitName = "my-pu";
 
+		doReturn(new SpaceInstance[0]).when(processingUnitInstance1).getSpaceInstances();
+		doReturn(new SpaceInstance[0]).when(processingUnitInstance2).getSpaceInstances();
+		doReturn(new SpaceInstance[0]).when(processingUnitInstance3).getSpaceInstances();
+		doReturn(new SpaceInstance[0]).when(processingUnitInstance4).getSpaceInstances();
+
 		doReturn(clusterInfo1).when(processingUnitInstance1).getClusterInfo();
 		doReturn(clusterInfo2).when(processingUnitInstance2).getClusterInfo();
 		doReturn(clusterInfo3).when(processingUnitInstance3).getClusterInfo();
@@ -184,6 +190,11 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 	@Test
 	public void should_rebalance_when_two_puInstance_onSameMachine_but_multiple_machines_available() {
 		final String processingUnitName = "my-pu";
+
+		doReturn(new SpaceInstance[0]).when(processingUnitInstance1).getSpaceInstances();
+		doReturn(new SpaceInstance[0]).when(processingUnitInstance2).getSpaceInstances();
+		doReturn(new SpaceInstance[0]).when(processingUnitInstance3).getSpaceInstances();
+		doReturn(new SpaceInstance[0]).when(processingUnitInstance4).getSpaceInstances();
 
 		doReturn(processingUnitInstance1).when(processingUnitPartition1).getPrimary();
 		doReturn(processingUnitInstance1).when(processingUnitPartition2).getPrimary();
@@ -239,6 +250,11 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 	@Test
 	public void should_rebalance_when_two_puInstance_onSameGSC_but_multiple_GSC_available() {
 		final String processingUnitName = "my-pu";
+
+		doReturn(new SpaceInstance[0]).when(processingUnitInstance1).getSpaceInstances();
+		doReturn(new SpaceInstance[0]).when(processingUnitInstance2).getSpaceInstances();
+		doReturn(new SpaceInstance[0]).when(processingUnitInstance3).getSpaceInstances();
+		doReturn(new SpaceInstance[0]).when(processingUnitInstance4).getSpaceInstances();
 
 		doReturn(processingUnitInstance1).when(processingUnitPartition1).getPrimary();
 		doReturn(processingUnitInstance1).when(processingUnitPartition2).getPrimary();
