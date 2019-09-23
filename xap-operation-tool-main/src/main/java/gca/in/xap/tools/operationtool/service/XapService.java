@@ -312,7 +312,11 @@ public class XapService {
 			AgentProcessDetails[] processDetailsList = gsa.getProcessesDetails().getProcessDetails();
 			log.info("GSA {} : requiredGlobalInstances : {}, processes count = {}", hostName, requiredGlobalInstances, processDetailsList.length);
 			for (AgentProcessDetails agentProcessDetails : processDetailsList) {
-				log.info("ServiceType : {}, InstantiationMode : {}, ProcessId : {}, AgentId : {}", agentProcessDetails.getServiceType(), agentProcessDetails.getInstantiationMode(), agentProcessDetails.getProcessId(), agentProcessDetails.getAgentId());
+				log.info("InstantiationMode : {}, ServiceType : {}, ProcessId : {}, AgentId : {}",
+						agentProcessDetails.getInstantiationMode(),
+						agentProcessDetails.getServiceType(),
+						agentProcessDetails.getProcessId(),
+						agentProcessDetails.getAgentId());
 			}
 		}
 	}

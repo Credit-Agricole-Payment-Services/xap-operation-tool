@@ -12,27 +12,10 @@ import picocli.CommandLine;
 import javax.annotation.PostConstruct;
 import java.net.InetAddress;
 import java.time.Duration;
-import java.util.Iterator;
-import java.util.Set;
 
 @Component
 @CommandLine.Command(name = "shutdown-host")
 public class ShutdownHostCommand extends AbstractAppCommand implements Runnable {
-
-	private static class HostnamesCandidates implements Iterable<String> {
-
-		private static XapService xapService;
-
-		private static IdExtractor idExtractor;
-
-		private HostnamesCandidates() {
-		}
-
-		public Iterator<String> iterator() {
-			Set<String> containersHostsNames = idExtractor.extractHostNames(xapService.findAllMachines());
-			return containersHostsNames.iterator();
-		}
-	}
 
 
 	@Autowired
@@ -56,8 +39,8 @@ public class ShutdownHostCommand extends AbstractAppCommand implements Runnable 
 
 	@PostConstruct
 	public void init() {
-		HostnamesCandidates.xapService = this.xapService;
-		HostnamesCandidates.idExtractor = this.idExtractor;
+		HostnamesCandidates.setXapService(this.xapService);
+		HostnamesCandidates.setIdExtractor(this.idExtractor);
 	}
 
 	@Override
