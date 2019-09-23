@@ -23,12 +23,12 @@ public class ShutdownAgentsAllCommand extends AbstractAppCommand implements Runn
 	@Lazy
 	private XapService xapService;
 
-	@CommandLine.ArgGroup(exclusive = false, multiplicity = "1")
+	@CommandLine.ArgGroup(exclusive = false)
 	private AgentsIterationOptions agentsIterationOptions;
 
 	@Override
 	public void run() {
-		final CollectionVisitingStrategy<GridServiceAgent> collectionVisitingStrategy = agentsIterationOptions.toCollectionVisitingStrategy();
+		final CollectionVisitingStrategy<GridServiceAgent> collectionVisitingStrategy = AgentsIterationOptions.toCollectionVisitingStrategy(agentsIterationOptions);
 		log.info("Report on all GSM :");
 		xapService.printReportOnManagers();
 

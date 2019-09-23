@@ -31,7 +31,7 @@ public class ContainersIterationOptions {
 	@CommandLine.Option(names = "--parallel", defaultValue = "false", description = "In this case, the '--intervalDuration' option is ignored. Executes all operations in parallel (at the same time). This is faster, but this may be dangerous for some usage as it can cause data loss.")
 	private boolean parallel;
 
-	public CollectionVisitingStrategy<GridServiceContainer> toCollectionVisitingStrategy() {
+	private CollectionVisitingStrategy<GridServiceContainer> toCollectionVisitingStrategy() {
 		if (parallel) {
 			return new ParallelCollectionVisitingStrategy<>();
 		} else {

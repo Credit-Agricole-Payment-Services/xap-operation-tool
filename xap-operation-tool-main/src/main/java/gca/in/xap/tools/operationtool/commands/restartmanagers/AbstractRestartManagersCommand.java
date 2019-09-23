@@ -22,7 +22,7 @@ public abstract class AbstractRestartManagersCommand extends AbstractAppCommand 
 
 	private final Predicate<GridServiceManager> predicate;
 
-	@CommandLine.ArgGroup(exclusive = false, multiplicity = "1")
+	@CommandLine.ArgGroup(exclusive = false)
 	private ManagersIterationOptions managersIterationOptions;
 
 	public AbstractRestartManagersCommand(Predicate<GridServiceManager> predicate) {
@@ -31,7 +31,7 @@ public abstract class AbstractRestartManagersCommand extends AbstractAppCommand 
 
 	@Override
 	public void run() {
-		final CollectionVisitingStrategy<GridServiceManager> collectionVisitingStrategy = managersIterationOptions.toCollectionVisitingStrategy();
+		final CollectionVisitingStrategy<GridServiceManager> collectionVisitingStrategy = ManagersIterationOptions.toCollectionVisitingStrategy(managersIterationOptions);
 
 		XapServiceBuilder.waitForClusterInfoToUpdate();
 
