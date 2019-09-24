@@ -1,7 +1,7 @@
 package gca.in.xap.tools.operationtool.commands;
 
 import gca.in.xap.tools.operationtool.commandoptions.ContainersIterationOptions;
-import gca.in.xap.tools.operationtool.commandoptions.ContainersMachinesFilterOptions;
+import gca.in.xap.tools.operationtool.commandoptions.MachinesFilterOptions;
 import gca.in.xap.tools.operationtool.commandoptions.ContainersProcessingUnitFilterOptions;
 import gca.in.xap.tools.operationtool.commandoptions.ContainersZonesFilterOptions;
 import gca.in.xap.tools.operationtool.predicates.AndPredicate;
@@ -34,7 +34,7 @@ public class HeapDumpCommand extends AbstractAppCommand implements Runnable {
 	private ContainersZonesFilterOptions containersZonesFilterOptions;
 
 	@CommandLine.ArgGroup(exclusive = false)
-	private ContainersMachinesFilterOptions containersMachinesFilterOptions;
+	private MachinesFilterOptions<GridServiceContainer> machinesFilterOptions;
 
 	@CommandLine.ArgGroup(exclusive = false)
 	private ContainersProcessingUnitFilterOptions containersProcessingUnitFilterOptions;
@@ -44,8 +44,8 @@ public class HeapDumpCommand extends AbstractAppCommand implements Runnable {
 		if (containersZonesFilterOptions == null) {
 			containersZonesFilterOptions = new ContainersZonesFilterOptions();
 		}
-		if (containersMachinesFilterOptions == null) {
-			containersMachinesFilterOptions = new ContainersMachinesFilterOptions();
+		if (machinesFilterOptions == null) {
+			machinesFilterOptions = new MachinesFilterOptions<>();
 		}
 		if (containersProcessingUnitFilterOptions == null) {
 			containersProcessingUnitFilterOptions = new ContainersProcessingUnitFilterOptions();
@@ -60,7 +60,7 @@ public class HeapDumpCommand extends AbstractAppCommand implements Runnable {
 			xapService.generateHeapDumpOnEachContainers(
 					new AndPredicate<>(
 							containersZonesFilterOptions.toPredicate(),
-							containersMachinesFilterOptions.toPredicate(),
+							machinesFilterOptions.toPredicate(),
 							containersProcessingUnitFilterOptions.toPredicate()),
 					collectionVisitingStrategy);
 		} catch (IOException e) {

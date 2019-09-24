@@ -1,12 +1,12 @@
 package gca.in.xap.tools.operationtool.commandoptions;
 
-import org.openspaces.admin.gsc.GridServiceContainer;
+import org.openspaces.admin.GridComponent;
 import picocli.CommandLine;
 
 import java.util.List;
 import java.util.function.Predicate;
 
-public class ContainersMachinesFilterOptions {
+public class MachinesFilterOptions<T extends GridComponent> {
 
 	@CommandLine.Option(names = {"--machinesIncludes"}, split = ",", description = "List of names of the Machines to include. If you only want to act on a subset of the Machines, you can specify 1 or more machine name.")
 	public List<String> machinesIncludes;
@@ -14,15 +14,15 @@ public class ContainersMachinesFilterOptions {
 	@CommandLine.Option(names = {"--machinesExcludes"}, split = ",", description = "List of names of the Machines to exclude. If you only want to act on a subset of the Machines, you can specify 1 or more machine name.")
 	public List<String> machinesExcludes;
 
-	public Predicate<GridServiceContainer> toPredicate() {
-		Predicate<GridServiceContainer> includePredicate;
+	public Predicate<T> toPredicate() {
+		Predicate<T> includePredicate;
 		if (machinesIncludes != null) {
-			includePredicate = gsc -> machinesIncludes.contains(gsc.getMachine().getHostName()) || machinesIncludes.contains(gsc.getMachine().getHostAddress());
+			includePredicate = gridComponent -> machinesIncludes.contains(gridComponent.getMachine().getHostName()) || machinesIncludes.contains(gridComponent.getMachine().getHostAddress());
 		} else {
 			includePredicate = value -> true;
 		}
 		if (machinesExcludes != null) {
-			return gsc -> !machinesExcludes.contains(gsc.getMachine().getHostName()) && !machinesExcludes.contains(gsc.getMachine().getHostAddress()) && includePredicate.test(gsc);
+			return gridComponent -> !machinesExcludes.contains(gridComponent.getMachine().getHostName()) && !machinesExcludes.contains(gridComponent.getMachine().getHostAddress()) && includePredicate.test(gridComponent);
 		} else {
 			return includePredicate;
 		}

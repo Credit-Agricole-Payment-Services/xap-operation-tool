@@ -1,6 +1,8 @@
 package gca.in.xap.tools.operationtool.commands.restartmanagers;
 
+import gca.in.xap.tools.operationtool.commandoptions.MachinesFilterOptions;
 import gca.in.xap.tools.operationtool.commandoptions.ManagersIterationOptions;
+import gca.in.xap.tools.operationtool.predicates.AndPredicate;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
 import gca.in.xap.tools.operationtool.util.collectionvisit.CollectionVisitingStrategy;
@@ -25,12 +27,19 @@ public abstract class AbstractRestartManagersCommand extends AbstractAppCommand 
 	@CommandLine.ArgGroup(exclusive = false)
 	private ManagersIterationOptions managersIterationOptions;
 
+	@CommandLine.ArgGroup(exclusive = false)
+	private MachinesFilterOptions<GridServiceManager> machinesFilterOptions;
+
 	public AbstractRestartManagersCommand(Predicate<GridServiceManager> predicate) {
 		this.predicate = predicate;
 	}
 
 	@Override
 	public void run() {
+		if (machinesFilterOptions == null) {
+			machinesFilterOptions = new MachinesFilterOptions<>();
+		}
+
 		final CollectionVisitingStrategy<GridServiceManager> collectionVisitingStrategy = ManagersIterationOptions.toCollectionVisitingStrategy(managersIterationOptions);
 
 		XapServiceBuilder.waitForClusterInfoToUpdate();
@@ -39,7 +48,11 @@ public abstract class AbstractRestartManagersCommand extends AbstractAppCommand 
 		xapService.printReportOnManagers();
 
 		log.info("CollectionVisitingStrategy is : {}", collectionVisitingStrategy);
-		xapService.restartManagers(predicate, collectionVisitingStrategy);
+		xapService.restartManagers(
+				new AndPredicate<>(
+						machinesFilterOptions.toPredicate(),
+						this.predicate),
+				collectionVisitingStrategy);
 	}
 
 }

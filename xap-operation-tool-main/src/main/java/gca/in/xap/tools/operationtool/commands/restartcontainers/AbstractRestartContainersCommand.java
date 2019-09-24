@@ -1,7 +1,7 @@
 package gca.in.xap.tools.operationtool.commands.restartcontainers;
 
 import gca.in.xap.tools.operationtool.commandoptions.ContainersIterationOptions;
-import gca.in.xap.tools.operationtool.commandoptions.ContainersMachinesFilterOptions;
+import gca.in.xap.tools.operationtool.commandoptions.MachinesFilterOptions;
 import gca.in.xap.tools.operationtool.commandoptions.ContainersProcessingUnitFilterOptions;
 import gca.in.xap.tools.operationtool.commandoptions.ContainersZonesFilterOptions;
 import gca.in.xap.tools.operationtool.predicates.AndPredicate;
@@ -40,7 +40,7 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 	private ContainersZonesFilterOptions containersZonesFilterOptions;
 
 	@CommandLine.ArgGroup(exclusive = false)
-	private ContainersMachinesFilterOptions containersMachinesFilterOptions;
+	private MachinesFilterOptions<GridServiceContainer> machinesFilterOptions;
 
 	@CommandLine.ArgGroup(exclusive = false)
 	private ContainersProcessingUnitFilterOptions containersProcessingUnitFilterOptions;
@@ -57,8 +57,8 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 		if (containersZonesFilterOptions == null) {
 			containersZonesFilterOptions = new ContainersZonesFilterOptions();
 		}
-		if (containersMachinesFilterOptions == null) {
-			containersMachinesFilterOptions = new ContainersMachinesFilterOptions();
+		if (machinesFilterOptions == null) {
+			machinesFilterOptions = new MachinesFilterOptions<>();
 		}
 		if (containersProcessingUnitFilterOptions == null) {
 			containersProcessingUnitFilterOptions = new ContainersProcessingUnitFilterOptions();
@@ -78,7 +78,7 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 		xapService.restartContainers(
 				new AndPredicate<>(
 						containersZonesFilterOptions.toPredicate(),
-						containersMachinesFilterOptions.toPredicate(),
+						machinesFilterOptions.toPredicate(),
 						containersProcessingUnitFilterOptions.toPredicate(),
 						this.predicate),
 				collectionVisitingStrategy,
