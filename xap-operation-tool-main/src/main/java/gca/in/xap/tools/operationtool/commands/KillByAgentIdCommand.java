@@ -49,13 +49,13 @@ public class KillByAgentIdCommand extends AbstractAppCommand implements Runnable
 		Arrays.stream(agents)
 				.filter(gsa -> machinePredicate.test(gsa.getMachine()))
 				.forEach(gsa -> {
-			String gsaHostname = gsa.getMachine().getHostName();
-			log.info("Found GSA {}", gsaHostname);
-			for (Integer agentId : agentIds) {
-				log.info("Killing JVM with agentId {} on {}...", agentId, gsaHostname);
-				gsa.killByAgentId(agentId);
-			}
-		});
+					String gsaHostname = gsa.getMachine().getHostName();
+					log.info("Found GSA {}", gsaHostname);
+					for (Integer agentId : agentIds) {
+						log.info("Killing JVM with agentId {} on {}...", agentId, gsaHostname);
+						gsa.killByAgentId(agentId);
+					}
+				});
 	}
 
 }
