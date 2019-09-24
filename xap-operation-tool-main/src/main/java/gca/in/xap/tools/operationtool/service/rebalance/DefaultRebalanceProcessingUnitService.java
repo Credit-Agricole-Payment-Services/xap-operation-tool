@@ -93,10 +93,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		}
 		final Predicate<ProcessingUnitInstance> matchingProcessingUnitPredicateForBreakdown = processingUnitInstance -> true;
 		rebalanced = rebalanceByBreakDown("total instances", stateSnapshotBefore.processingUnitInstanceRepartitionSnapshot.actualTotalCounts, stateSnapshotBefore, zonesGroups, matchingProcessingUnitPredicateForBreakdown);
-		if (rebalanced) {
-			return true;
-		}
-		return false;
+		return rebalanced;
 	}
 
 	private boolean rebalanceByBreakDownOnEachPartition(
