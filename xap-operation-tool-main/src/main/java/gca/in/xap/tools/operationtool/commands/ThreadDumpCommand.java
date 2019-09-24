@@ -1,9 +1,9 @@
 package gca.in.xap.tools.operationtool.commands;
 
 import gca.in.xap.tools.operationtool.commandoptions.ContainersIterationOptions;
-import gca.in.xap.tools.operationtool.commandoptions.MachinesFilterOptions;
 import gca.in.xap.tools.operationtool.commandoptions.ContainersProcessingUnitFilterOptions;
 import gca.in.xap.tools.operationtool.commandoptions.ContainersZonesFilterOptions;
+import gca.in.xap.tools.operationtool.commandoptions.MachinesFilterOptions;
 import gca.in.xap.tools.operationtool.predicates.AndPredicate;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.util.collectionvisit.CollectionVisitingStrategy;
