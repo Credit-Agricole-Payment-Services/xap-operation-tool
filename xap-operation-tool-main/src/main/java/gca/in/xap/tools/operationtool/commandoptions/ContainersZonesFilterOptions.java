@@ -10,10 +10,10 @@ import java.util.function.Predicate;
 
 public class ContainersZonesFilterOptions {
 
-	@CommandLine.Option(names = {"--zonesIncludes"}, split = ",", description = "List of names of the Zones to include. If you only want to act on a subset of the Zones, you can specify 1 or more zone name.")
+	@CommandLine.Option(names = {"--zones-includes"}, split = ",", description = "List of names of the Zones to include. If you only want to act on a subset of the Zones, you can specify 1 or more zone name.")
 	public List<String> zonesIncludes;
 
-	@CommandLine.Option(names = {"--zonesExcludes"}, split = ",", description = "List of names of the Zones to exclude. If you only want to act on a subset of the Zones, you can specify 1 or more zone name.")
+	@CommandLine.Option(names = {"--zones-excludes"}, split = ",", description = "List of names of the Zones to exclude. If you only want to act on a subset of the Zones, you can specify 1 or more zone name.")
 	public List<String> zonesExcludes;
 
 	public Predicate<GridServiceContainer> toPredicate() {

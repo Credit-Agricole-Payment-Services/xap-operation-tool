@@ -55,7 +55,7 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 	@CommandLine.ArgGroup(exclusive = false)
 	private PuNamesFilteringOptions puNamesFilteringOptions;
 
-	@CommandLine.Option(names = {"--restartEmptyContainers"}, description = "Restart all GSC that have no running Processing Unit, in order to make mitigate any memory leak")
+	@CommandLine.Option(names = {"--restart-empty-containers"}, description = "Restart all GSC that have no running Processing Unit, in order to make mitigate any memory leak")
 	private boolean restartEmptyContainers;
 
 	@CommandLine.Option(names = "-f", defaultValue = ".", description = "Path to the File or Directory that contains the application.xml descriptor. Default is current working directory.")

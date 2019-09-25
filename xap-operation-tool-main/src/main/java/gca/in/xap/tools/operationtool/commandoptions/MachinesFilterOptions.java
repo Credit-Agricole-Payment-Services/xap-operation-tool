@@ -8,10 +8,10 @@ import java.util.function.Predicate;
 
 public class MachinesFilterOptions<T extends GridComponent> {
 
-	@CommandLine.Option(names = {"--machinesIncludes"}, split = ",", description = "List of names of the Machines to include. If you only want to act on a subset of the Machines, you can specify 1 or more machine name.")
+	@CommandLine.Option(names = {"--machines-includes"}, split = ",", description = "List of names of the Machines to include. If you only want to act on a subset of the Machines, you can specify 1 or more machine name.")
 	public List<String> machinesIncludes;
 
-	@CommandLine.Option(names = {"--machinesExcludes"}, split = ",", description = "List of names of the Machines to exclude. If you only want to act on a subset of the Machines, you can specify 1 or more machine name.")
+	@CommandLine.Option(names = {"--machines-excludes"}, split = ",", description = "List of names of the Machines to exclude. If you only want to act on a subset of the Machines, you can specify 1 or more machine name.")
 	public List<String> machinesExcludes;
 
 	public Predicate<T> toPredicate() {
