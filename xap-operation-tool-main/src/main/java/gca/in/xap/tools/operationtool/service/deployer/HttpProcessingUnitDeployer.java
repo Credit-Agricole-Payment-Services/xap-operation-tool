@@ -19,6 +19,7 @@ import org.openspaces.admin.gsm.GridServiceManagers;
 import org.openspaces.admin.pu.ProcessingUnit;
 import org.openspaces.admin.pu.config.ProcessingUnitConfig;
 
+import javax.annotation.Nullable;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -293,15 +294,18 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 		@Override
 		public void handle(AsyncResult<HttpResponse<Buffer>> httpResponseAsyncResult) {
 			final Throwable cause = httpResponseAsyncResult.cause();
-			final HttpResponse<Buffer> result = httpResponseAsyncResult.result();
+			final @Nullable HttpResponse<Buffer> result = httpResponseAsyncResult.result();
 
 			RequestReport requestReport = new RequestReport();
 			requestReport.setSucceeded(httpResponseAsyncResult.succeeded());
 			requestReport.setError(cause);
-			requestReport.setStatusCode(result.statusCode());
-			requestReport.setStatusMessage(result.statusMessage());
-			requestReport.setResponseBodyAsString(result.bodyAsString("UTF-8"));
-			//requestReport.setResponseBodyAsJsonObject(result.bodyAsJsonObject());
+
+			if (result != null) {
+				requestReport.setStatusCode(result.statusCode());
+				requestReport.setStatusMessage(result.statusMessage());
+				requestReport.setResponseBodyAsString(result.bodyAsString("UTF-8"));
+				//requestReport.setResponseBodyAsJsonObject(result.bodyAsJsonObject());
+			}
 			this.requestReport = requestReport;
 			log.info("requestReport = {}", requestReport);
 
@@ -310,30 +314,33 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 
 		public void waitAndcheck(Integer... expectedHttpStatusCode) {
 			try {
-				requestFinished.await(httpRequestTimeout.toMillis(), TimeUnit.MILLISECONDS);
-				if (requestReport.getError() != null) {
-					log.error("HTTP request failed", requestReport.getError());
-					throw new RuntimeException("HTTP request failed, Maybe the Manager service is down ?", requestReport.getError());
-				}
-				List<Integer> acceptedHttpStatusCode = Arrays.asList(expectedHttpStatusCode);
-				if (!acceptedHttpStatusCode.contains(requestReport.getStatusCode())) {
+				boolean requestIsFinished = requestFinished.await(httpRequestTimeout.toMillis(), TimeUnit.MILLISECONDS);
+				if (requestIsFinished) {
+					if (requestReport.getError() != null) {
+						log.error("HTTP request failed", requestReport.getError());
+						throw new RuntimeException("HTTP request failed, Maybe the Manager service is down ?", requestReport.getError());
+					}
+					List<Integer> acceptedHttpStatusCode = Arrays.asList(expectedHttpStatusCode);
+					if (!acceptedHttpStatusCode.contains(requestReport.getStatusCode())) {
 
-					if (requestReport.getStatusCode() >= 500) {
-						String errorMessage = String.format("Server error : requestReport = %s", requestReport);
+						if (requestReport.getStatusCode() >= 500) {
+							String errorMessage = String.format("Server error : requestReport = %s", requestReport);
+							log.error(errorMessage);
+							throw new RuntimeException(errorMessage);
+						}
+						if (requestReport.getStatusCode() >= 400) {
+							String errorMessage = String.format("Bad request : requestReport = %s", requestReport);
+							log.error(errorMessage);
+							throw new RuntimeException(errorMessage);
+						}
+						String errorMessage = String.format("HTTP status code is different than expected : acceptedHttpStatusCode = %s, requestReport = %s", acceptedHttpStatusCode, requestReport);
 						log.error(errorMessage);
 						throw new RuntimeException(errorMessage);
 					}
-					if (requestReport.getStatusCode() >= 400) {
-						String errorMessage = String.format("Bad request : requestReport = %s", requestReport);
-						log.error(errorMessage);
-						throw new RuntimeException(errorMessage);
-					}
-
-					String errorMessage = String.format("HTTP status code is different than expected : acceptedHttpStatusCode = %s, requestReport = %s", acceptedHttpStatusCode, requestReport);
-					log.error(errorMessage);
-					throw new RuntimeException(errorMessage);
+					log.info("HTTP request to {} was successful : requestReport = {}", url, requestReport);
+				} else {
+					throw new RuntimeException("Timeout while waiting for HTTP request to complete");
 				}
-				log.info("HTTP request to {} was successful : requestReport = {}", url, requestReport);
 			} catch (InterruptedException e) {
 				throw new RuntimeException("Timeout while waiting for HTTP request to complete", e);
 			}

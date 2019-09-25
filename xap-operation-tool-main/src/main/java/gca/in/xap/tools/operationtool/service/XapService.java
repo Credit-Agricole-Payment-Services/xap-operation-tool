@@ -382,7 +382,7 @@ public class XapService {
 		return String.format("%-" + length + "s", value);
 	}
 
-	@Nullable
+	@NonNull
 	public ComponentType guessComponentType(VirtualMachine jvm) {
 		GridServiceContainer gridServiceContainer = jvm.getGridServiceContainer();
 		if (gridServiceContainer != null) {
