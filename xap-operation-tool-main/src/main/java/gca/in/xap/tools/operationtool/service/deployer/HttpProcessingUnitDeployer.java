@@ -133,7 +133,7 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 
 		doListResource(managerHostName);
 		String resourceName = new File(deploymentDescriptor.getResource()).getName();
-		doDeleteResource(managerHostName, resourceName);
+		attemptDeleteResource(managerHostName, resourceName, 3);
 		doUploadResourcesWithRetries(managerHostName, puName, deploymentDescriptor, 5);
 
 		sleepALittleBit(5);
@@ -215,6 +215,24 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 				.sendMultipartForm(form, handler);
 
 		handler.waitAndcheck(201);
+	}
+
+	private void attemptDeleteResource(final String managerHostName, final String resourceName, final int remainingAttempts) {
+		if (remainingAttempts > 0) {
+			try {
+				doDeleteResource(managerHostName, resourceName);
+			} catch (RuntimeException e) {
+				log.error("Exception while deleting resource {}", resourceName);
+				try {
+					TimeUnit.SECONDS.sleep(1);
+				} catch (InterruptedException e1) {
+					throw new RuntimeException(e);
+				}
+				attemptDeleteResource(managerHostName, resourceName, remainingAttempts - 1);
+			}
+		} else {
+			log.warn("Reached maximum attempt count, ignoring ...");
+		}
 	}
 
 	private void doDeleteResource(String managerHostName, String resourceName) {
