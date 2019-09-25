@@ -5,7 +5,7 @@
 
 	<groupId>gca.caps.xap</groupId>
 	<artifactId>xap-operation-tool</artifactId>
-	<version>1.6.0</version>
+	<version>1.7.0</version>
 	<packaging>pom</packaging>
 
 	<parent>
@@ -222,7 +222,7 @@
 			<dependency>
 				<groupId>info.picocli</groupId>
 				<artifactId>picocli</artifactId>
-				<version>4.0.0-beta-2</version>
+				<version>4.0.4</version>
 			</dependency>
 
 			<dependency>

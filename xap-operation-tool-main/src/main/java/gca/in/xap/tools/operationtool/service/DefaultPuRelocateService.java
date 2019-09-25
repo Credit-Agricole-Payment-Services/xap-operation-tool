@@ -27,6 +27,9 @@ public class DefaultPuRelocateService implements PuRelocateService {
 	@Autowired
 	private IdExtractor idExtractor;
 
+	@Autowired
+	private DefaultDemoteService defaultDemoteService;
+
 	private Predicate<GridServiceContainer> createContainerPredicate(@NonNull RequiredZonesConfig puRequiredContainerZones) {
 		return gsc -> {
 			final ExactZonesConfig containerExactZones = gsc.getExactZones();
@@ -38,7 +41,8 @@ public class DefaultPuRelocateService implements PuRelocateService {
 	public void relocatePuInstance(
 			@NonNull ProcessingUnitInstance puInstance,
 			@NonNull Predicate<Machine> targetMachinePredicate,
-			boolean await
+			boolean await,
+			boolean demoteFirst
 	) {
 		final GridServiceContainer sourceContainer = puInstance.getGridServiceContainer();
 		final GridServiceContainer gscWherePuIsCurrentlyRunning = puInstance.getGridServiceContainer();
@@ -46,6 +50,8 @@ public class DefaultPuRelocateService implements PuRelocateService {
 		final ProcessingUnit processingUnit = puInstance.getProcessingUnit();
 		//
 		final GridServiceContainer destinationContainer = findBestContainerToRelocate(processingUnit, targetMachinePredicate, gridServiceContainerPredicate);
+
+		defaultDemoteService.demotePrimarySpaceInstances(puInstance);
 
 		log.info("PU instance '{}' of PU '{}' will be relocated from {} ({}) to {} ({}) ... (if this is allowed by the SLA)",
 				idExtractor.extractProcessingUnitInstanceNameAndDescription(puInstance),

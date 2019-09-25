@@ -1,10 +1,13 @@
 package gca.in.xap.tools.operationtool.commands.restartcontainers;
 
+import gca.in.xap.tools.operationtool.commandoptions.ContainersIterationOptions;
+import gca.in.xap.tools.operationtool.commandoptions.ContainersProcessingUnitFilterOptions;
+import gca.in.xap.tools.operationtool.commandoptions.ContainersZonesFilterOptions;
+import gca.in.xap.tools.operationtool.commandoptions.MachinesFilterOptions;
+import gca.in.xap.tools.operationtool.predicates.AndPredicate;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
-import gca.in.xap.tools.operationtool.service.restartstrategy.ParallelRestartStrategy;
-import gca.in.xap.tools.operationtool.service.restartstrategy.RestartStrategy;
-import gca.in.xap.tools.operationtool.service.restartstrategy.SequentialRestartStrategy;
+import gca.in.xap.tools.operationtool.util.collectionvisit.CollectionVisitingStrategy;
 import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsc.GridServiceContainer;
@@ -12,18 +15,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import picocli.CommandLine;
 
-import java.time.Duration;
 import java.util.function.Predicate;
 
 @Slf4j
 public abstract class AbstractRestartContainersCommand extends AbstractAppCommand implements Runnable {
-
-	/**
-	 * Default value of 1 minute should be sufficient in most case.
-	 * An interval of 2 minutes is too long in some case.
-	 * If user wants a longer or shorter duration, user has to use the "--intervalDuration" option
-	 */
-	private static final String defaultIntervalDuration = "PT1M";
 
 	@Autowired
 	@Lazy
@@ -31,11 +26,24 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 
 	private final Predicate<GridServiceContainer> predicate;
 
-	@CommandLine.Option(names = "--intervalDuration", defaultValue = defaultIntervalDuration, description = "Interval between each component to restart. Will wait for this interval between each component, to reduce the risk to stress the system when restarting component to quickly. Duration is expressed in ISO_8601 format (example : PT30S for a duration of 30 seconds, PT2M for a duration of 2 minutes). Default value is : " + defaultIntervalDuration)
-	private String intervalDuration;
+	@CommandLine.Option(
+			names = "--no-demote-first",
+			defaultValue = "true",
+			description = "In case the Container runs a Primary Stateful Processing Unit, it will ask for a demote of the Space Instance, in order to swap the primary and backup."
+	)
+	private Boolean demoteFirst;
 
-	@CommandLine.Option(names = "--parallel", defaultValue = "false", description = "In this case, the '--intervalDuration' option is ignored. Executes all restarts in parallel (at the same time). This is faster, but this may be dangerous for some usage as it can cause data loss.")
-	private boolean parallel;
+	@CommandLine.ArgGroup(exclusive = true)
+	private ContainersIterationOptions containersIterationOptions;
+
+	@CommandLine.ArgGroup(exclusive = false)
+	private ContainersZonesFilterOptions containersZonesFilterOptions;
+
+	@CommandLine.ArgGroup(exclusive = false)
+	private MachinesFilterOptions<GridServiceContainer> machinesFilterOptions;
+
+	@CommandLine.ArgGroup(exclusive = false)
+	private ContainersProcessingUnitFilterOptions containersProcessingUnitFilterOptions;
 
 	public AbstractRestartContainersCommand(Predicate<GridServiceContainer> predicate) {
 		this.predicate = predicate;
@@ -43,25 +51,38 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 
 	@Override
 	public void run() {
-		final RestartStrategy<GridServiceContainer> restartStrategy = createRestartStrategy();
+		log.info("demoteFirst = {}", demoteFirst);
+		log.info("containersIterationOptions = {}", containersIterationOptions);
+
+		if (containersZonesFilterOptions == null) {
+			containersZonesFilterOptions = new ContainersZonesFilterOptions();
+		}
+		if (machinesFilterOptions == null) {
+			machinesFilterOptions = new MachinesFilterOptions<>();
+		}
+		if (containersProcessingUnitFilterOptions == null) {
+			containersProcessingUnitFilterOptions = new ContainersProcessingUnitFilterOptions();
+		}
+
+		CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy = ContainersIterationOptions.toCollectionVisitingStrategy(containersIterationOptions);
+
 		XapServiceBuilder.waitForClusterInfoToUpdate();
 
 		log.info("Report on all GSC :");
 		xapService.printReportOnContainersAndProcessingUnits();
 
 		log.info("Report on GSC to restart :");
-		xapService.printReportOnContainersAndProcessingUnits(predicate);
+		xapService.printReportOnContainersAndProcessingUnits(this.predicate);
 
-		log.info("RestartStrategy is : {}", restartStrategy);
-		xapService.restartContainers(predicate, restartStrategy);
-	}
-
-	protected RestartStrategy<GridServiceContainer> createRestartStrategy() {
-		if (parallel) {
-			return new ParallelRestartStrategy<>();
-		} else {
-			return new SequentialRestartStrategy<>(Duration.parse(intervalDuration));
-		}
+		log.info("CollectionVisitingStrategy is : {}", collectionVisitingStrategy);
+		xapService.restartContainers(
+				new AndPredicate<>(
+						containersZonesFilterOptions.toPredicate(),
+						machinesFilterOptions.toPredicate(),
+						containersProcessingUnitFilterOptions.toPredicate(),
+						this.predicate),
+				collectionVisitingStrategy,
+				demoteFirst);
 	}
 
 }

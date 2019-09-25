@@ -17,6 +17,7 @@ public class PrintReportCommand extends AbstractAppCommand implements Runnable {
 
 	public void run() {
 		xapService.printReportOnManagers();
+		xapService.printReportOnAgents();
 		xapService.printReportOnVirtualMachines();
 		xapService.printReportOnContainersAndProcessingUnits();
 	}

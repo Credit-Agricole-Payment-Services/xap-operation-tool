@@ -93,10 +93,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		}
 		final Predicate<ProcessingUnitInstance> matchingProcessingUnitPredicateForBreakdown = processingUnitInstance -> true;
 		rebalanced = rebalanceByBreakDown("total instances", stateSnapshotBefore.processingUnitInstanceRepartitionSnapshot.actualTotalCounts, stateSnapshotBefore, zonesGroups, matchingProcessingUnitPredicateForBreakdown);
-		if (rebalanced) {
-			return true;
-		}
-		return false;
+		return rebalanced;
 	}
 
 	private boolean rebalanceByBreakDownOnEachPartition(
@@ -180,7 +177,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		userConfirmationService.askConfirmationAndWait();
 
 		//
-		puRelocateService.relocatePuInstance(processingUnitInstanceToRelocate, targetMachinePredicate, true);
+		puRelocateService.relocatePuInstance(processingUnitInstanceToRelocate, targetMachinePredicate, true, true);
 	}
 
 	private void rebalanceByZone(

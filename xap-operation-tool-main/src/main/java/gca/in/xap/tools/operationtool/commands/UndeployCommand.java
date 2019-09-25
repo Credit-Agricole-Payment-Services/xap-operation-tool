@@ -1,5 +1,6 @@
 package gca.in.xap.tools.operationtool.commands;
 
+import gca.in.xap.tools.operationtool.commandoptions.PuNamesFilteringOptions;
 import gca.in.xap.tools.operationtool.predicates.punames.FilterPuNamesPredicate;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
@@ -66,7 +67,7 @@ public class UndeployCommand extends AbstractAppCommand implements Runnable {
 			log.warn("Will undeploy Application : {}", mutuallyExclusiveOptions.wholeModeOptions.applicationName);
 			userConfirmationService.askConfirmationAndWait();
 
-			xapService.undeployIfExists(mutuallyExclusiveOptions.wholeModeOptions.applicationName);
+			xapService.undeployApplicationIfExists(mutuallyExclusiveOptions.wholeModeOptions.applicationName);
 		} else {
 			if (mutuallyExclusiveOptions.all) {
 				log.warn("Will undeploy ALL Processing Units");

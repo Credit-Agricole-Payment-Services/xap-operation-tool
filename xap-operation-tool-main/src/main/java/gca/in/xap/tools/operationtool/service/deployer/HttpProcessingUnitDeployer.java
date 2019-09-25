@@ -6,6 +6,7 @@ import gca.in.xap.tools.operationtool.deploymentdescriptors.puconfig.ProcessingU
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.json.JsonArray;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.multipart.MultipartForm;
@@ -20,6 +21,7 @@ import org.openspaces.admin.pu.config.ProcessingUnitConfig;
 
 import javax.annotation.Nullable;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InterfaceAddress;
@@ -51,7 +53,13 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 	private String uploadResourceEndpoint = "/v2/pus/resources";
 
 	@Setter
-	private Duration uploadHttpRequestTimeout = Duration.ofSeconds(15);
+	private Duration getResourcesHttpRequestTimeout = Duration.ofSeconds(15);
+
+	@Setter
+	private Duration deleteResourceHttpRequestTimeout = Duration.ofSeconds(15);
+
+	@Setter
+	private Duration uploadResourceHttpRequestTimeout = Duration.ofSeconds(15);
 
 	@Setter
 	private Duration deployHttpRequestTimeout = Duration.ofSeconds(15);
@@ -123,6 +131,9 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 		String processingUnitArchiveFilePath = processingUnitConfig.getProcessingUnit();
 		log.debug("processingUnitArchiveFilePath = {}", processingUnitArchiveFilePath);
 
+		doListResource(managerHostName);
+		String resourceName = new File(deploymentDescriptor.getResource()).getName();
+		doDeleteResource(managerHostName, resourceName);
 		doUploadResourcesWithRetries(managerHostName, puName, deploymentDescriptor, 5);
 
 		sleepALittleBit(5);
@@ -186,7 +197,7 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 	}
 
 	private void doUploadResources(String managerHostName, String processingUnitName, DeploymentDescriptor deploymentDescriptor) {
-		AsyncResultHandler handler = new AsyncResultHandler(uploadResourceEndpoint, uploadHttpRequestTimeout);
+		AsyncResultHandler handler = new AsyncResultHandler(uploadResourceEndpoint, uploadResourceHttpRequestTimeout);
 
 		String partName = "file";
 		String filename = processingUnitName + ".jar";
@@ -204,6 +215,34 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 				.sendMultipartForm(form, handler);
 
 		handler.waitAndcheck(201);
+	}
+
+	private void doDeleteResource(String managerHostName, String resourceName) {
+		String requestURI = uploadResourceEndpoint + "/" + resourceName;
+		AsyncResultHandler handler = new AsyncResultHandler(requestURI, deleteResourceHttpRequestTimeout);
+
+		log.info("Sending HTTP delete request to {} ...", requestURI);
+		webClient
+				.delete(httpPort, managerHostName, requestURI)
+				.send(handler);
+
+		handler.waitAndcheck(204, 404);
+	}
+
+	private void doListResource(String managerHostName) {
+		String requestURI = uploadResourceEndpoint;
+		AsyncResultHandler handler = new AsyncResultHandler(requestURI, getResourcesHttpRequestTimeout);
+
+		log.info("Sending HTTP get request to {} ...", requestURI);
+		webClient
+				.get(httpPort, managerHostName, requestURI)
+				.send(handler);
+
+		handler.waitAndcheck(200);
+
+		JsonArray jsonArray = new JsonArray(handler.requestReport.getResponseBodyAsString());
+		List result = jsonArray.getList();
+		log.info("Found Resources = {}", result);
 	}
 
 	private void doDeploy(String managerHostName, String processingUnitJson) {
@@ -233,6 +272,8 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 
 		private String responseBodyAsString;
 
+		//private JsonObject responseBodyAsJsonObject;
+
 	}
 
 	private static class AsyncResultHandler implements Handler<AsyncResult<HttpResponse<Buffer>>> {
@@ -258,10 +299,12 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 			RequestReport requestReport = new RequestReport();
 			requestReport.setSucceeded(httpResponseAsyncResult.succeeded());
 			requestReport.setError(cause);
+
 			if (result != null) {
 				requestReport.setStatusCode(result.statusCode());
 				requestReport.setStatusMessage(result.statusMessage());
 				requestReport.setResponseBodyAsString(result.bodyAsString("UTF-8"));
+				//requestReport.setResponseBodyAsJsonObject(result.bodyAsJsonObject());
 			}
 			this.requestReport = requestReport;
 			log.info("requestReport = {}", requestReport);
@@ -269,7 +312,7 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 			requestFinished.countDown();
 		}
 
-		public void waitAndcheck(int expectedHttpStatusCode) {
+		public void waitAndcheck(Integer... expectedHttpStatusCode) {
 			try {
 				boolean requestIsFinished = requestFinished.await(httpRequestTimeout.toMillis(), TimeUnit.MILLISECONDS);
 				if (requestIsFinished) {
@@ -277,22 +320,24 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 						log.error("HTTP request failed", requestReport.getError());
 						throw new RuntimeException("HTTP request failed, Maybe the Manager service is down ?", requestReport.getError());
 					}
-					if (requestReport.getStatusCode() >= 500) {
-						String errorMessage = String.format("Server error : requestReport = %s", requestReport);
+					List<Integer> acceptedHttpStatusCode = Arrays.asList(expectedHttpStatusCode);
+					if (!acceptedHttpStatusCode.contains(requestReport.getStatusCode())) {
+
+						if (requestReport.getStatusCode() >= 500) {
+							String errorMessage = String.format("Server error : requestReport = %s", requestReport);
+							log.error(errorMessage);
+							throw new RuntimeException(errorMessage);
+						}
+						if (requestReport.getStatusCode() >= 400) {
+							String errorMessage = String.format("Bad request : requestReport = %s", requestReport);
+							log.error(errorMessage);
+							throw new RuntimeException(errorMessage);
+						}
+						String errorMessage = String.format("HTTP status code is different than expected : acceptedHttpStatusCode = %s, requestReport = %s", acceptedHttpStatusCode, requestReport);
 						log.error(errorMessage);
 						throw new RuntimeException(errorMessage);
 					}
-					if (requestReport.getStatusCode() >= 400) {
-						String errorMessage = String.format("Bad request : requestReport = %s", requestReport);
-						log.error(errorMessage);
-						throw new RuntimeException(errorMessage);
-					}
-					if (requestReport.getStatusCode() != expectedHttpStatusCode) {
-						String errorMessage = String.format("HTTP status code is different than expected : expectedHttpStatusCode = %d, requestReport = %s", expectedHttpStatusCode, requestReport);
-						log.error(errorMessage);
-						throw new RuntimeException(errorMessage);
-					}
-					log.info("HTTP Post request to {} was successful : requestReport = {}", url, requestReport);
+					log.info("HTTP request to {} was successful : requestReport = {}", url, requestReport);
 				} else {
 					throw new RuntimeException("Timeout while waiting for HTTP request to complete");
 				}

@@ -1,6 +1,7 @@
 package gca.in.xap.tools.operationtool.commands;
 
 import gca.in.xap.tools.operationtool.XapClientDiscovery;
+import gca.in.xap.tools.operationtool.commandoptions.PuNamesFilteringOptions;
 import gca.in.xap.tools.operationtool.deploymentdescriptors.json.DeploymentDescriptorUnmarshaller;
 import gca.in.xap.tools.operationtool.predicates.punames.FilterPuNamesPredicate;
 import gca.in.xap.tools.operationtool.service.ApplicationFileLocator;
@@ -21,7 +22,6 @@ import picocli.CommandLine;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 
@@ -52,13 +52,10 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 	@CommandLine.Option(names = {"--whole"}, description = "Upload the application in whole.")
 	private boolean wholeMode;
 
-	@CommandLine.Option(names = {"--puIncludes"}, description = "List of names of the Processing Units to include. If you only want to deploy a subset of the Processing Units, you can specify 1 or more processing units to include in this deployment.")
-	private List<String> processingUnitsIncludes;
+	@CommandLine.ArgGroup(exclusive = false)
+	private PuNamesFilteringOptions puNamesFilteringOptions;
 
-	@CommandLine.Option(names = {"--puExcludes"}, description = "List of names of the Processing Units to exclude. If you only want to deploy a subset of the Processing Units, you can specify 1 or more processing units to exclude from this deployment.")
-	private List<String> processingUnitsExcludes;
-
-	@CommandLine.Option(names = {"--restartEmptyContainers"}, description = "Restart all GSC that have no running Processing Unit, in order to make mitigate any memory leak")
+	@CommandLine.Option(names = {"--restart-empty-containers"}, description = "Restart all GSC that have no running Processing Unit, in order to make mitigate any memory leak")
 	private boolean restartEmptyContainers;
 
 	@CommandLine.Option(names = "-f", defaultValue = ".", description = "Path to the File or Directory that contains the application.xml descriptor. Default is current working directory.")
@@ -94,8 +91,10 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 				.sharedProperties(sharedProperties)
 				.build();
 
-
-		final Predicate<String> processingUnitsPredicate = FilterPuNamesPredicate.createProcessingUnitsPredicate(processingUnitsIncludes, processingUnitsExcludes);
+		if (puNamesFilteringOptions == null) {
+			puNamesFilteringOptions = new PuNamesFilteringOptions();
+		}
+		final Predicate<String> processingUnitsPredicate = FilterPuNamesPredicate.createProcessingUnitsPredicate(puNamesFilteringOptions.processingUnitsIncludes, puNamesFilteringOptions.processingUnitsExcludes);
 		final ApplicationConfig applicationConfig = appDeployBuilder.loadApplicationConfig(processingUnitsPredicate);
 
 		log.warn("Will deploy ApplicationConfig : {}", applicationConfig);
@@ -104,7 +103,7 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 		xapService.printReportOnContainersAndProcessingUnits();
 
 		if (wholeMode) {
-			xapService.undeployIfExists(applicationConfig.getName());
+			xapService.undeployApplicationIfExists(applicationConfig.getName());
 			xapService.printReportOnContainersAndProcessingUnits();
 		}
 

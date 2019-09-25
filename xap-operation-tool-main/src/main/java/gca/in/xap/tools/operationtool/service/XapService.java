@@ -1,15 +1,22 @@
 package gca.in.xap.tools.operationtool.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gigaspaces.grid.gsa.AgentProcessDetails;
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.MultimapBuilder;
 import gca.in.xap.tools.operationtool.model.ComponentType;
 import gca.in.xap.tools.operationtool.model.DumpReport;
 import gca.in.xap.tools.operationtool.model.VirtualMachineDescription;
 import gca.in.xap.tools.operationtool.predicates.container.IsEmptyContainerPredicate;
 import gca.in.xap.tools.operationtool.service.deployer.ApplicationDeployer;
 import gca.in.xap.tools.operationtool.service.deployer.ProcessingUnitDeployer;
-import gca.in.xap.tools.operationtool.service.restartstrategy.RestartStrategy;
-import gca.in.xap.tools.operationtool.service.restartstrategy.SequentialRestartStrategy;
+import gca.in.xap.tools.operationtool.service.restartstrategy.DemoteThenRestartContainerItemVisitor;
+import gca.in.xap.tools.operationtool.service.restartstrategy.RestartContainerItemVisitor;
+import gca.in.xap.tools.operationtool.service.restartstrategy.RestartManagerItemVisitor;
+import gca.in.xap.tools.operationtool.service.restartstrategy.ShutdownAgentItemVisitor;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
+import gca.in.xap.tools.operationtool.util.collectionvisit.CollectionVisitingStrategy;
+import gca.in.xap.tools.operationtool.util.collectionvisit.SequentialCollectionVisitingStrategy;
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +25,7 @@ import org.openspaces.admin.application.Application;
 import org.openspaces.admin.application.config.ApplicationConfig;
 import org.openspaces.admin.dump.DumpResult;
 import org.openspaces.admin.gsa.GridServiceAgent;
+import org.openspaces.admin.gsa.GridServiceAgents;
 import org.openspaces.admin.gsc.GridServiceContainer;
 import org.openspaces.admin.gsc.GridServiceContainers;
 import org.openspaces.admin.gsm.GridServiceManager;
@@ -33,6 +41,7 @@ import org.openspaces.admin.vm.VirtualMachine;
 import org.openspaces.admin.vm.VirtualMachineDetails;
 import org.openspaces.admin.vm.VirtualMachines;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
@@ -44,6 +53,8 @@ import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+
+import static java.util.Comparator.comparing;
 
 @Slf4j
 public class XapService {
@@ -99,10 +110,21 @@ public class XapService {
 		if (remainingDelayUntilTimeout < 0L) {
 			throw new TimeoutException("Application deployment timed out after " + timeout);
 		}
-		boolean finished = pu.waitFor(plannedNumberOfInstances, remainingDelayUntilTimeout, TimeUnit.MILLISECONDS);
+		boolean finished = false;
+		// print a message every 5 seconds, in order to show progress of deployment
+		while (!finished && remainingDelayUntilTimeout > 0L) {
+			long waitDuration = Math.min(remainingDelayUntilTimeout, 5000);
+			finished = pu.waitFor(plannedNumberOfInstances, waitDuration, TimeUnit.MILLISECONDS);
+			remainingDelayUntilTimeout = expectedMaximumEndDate - System.currentTimeMillis();
+			final int currentInstancesCount = pu.getInstances().length;
+			log.warn("ProcessingUnit {} now has {} running instances", puName, currentInstancesCount, timeout);
+		}
 		if (!finished) {
+			final int currentInstancesCount = pu.getInstances().length;
+			log.warn("ProcessingUnit {} has {} running instances after timeout of {} has been reached", puName, currentInstancesCount, timeout);
 			throw new TimeoutException("Application deployment timed out after " + timeout);
 		}
+
 		final long deploymentEndTime = System.currentTimeMillis();
 		final long deploymentDuration = deploymentEndTime - deploymentStartTime;
 
@@ -121,10 +143,16 @@ public class XapService {
 	private Admin admin;
 
 	/**
-	 * the timeout of the operation (deployment, undeployment)
+	 * the timeout of the operations
 	 */
 	@Setter
 	private Duration operationTimeout = Duration.of(1, ChronoUnit.MINUTES);
+
+	/**
+	 * the timeout of undeployments
+	 */
+	@Setter
+	private Duration undeployProcessingUnitTimeout = Duration.ofMinutes(10);
 
 	@Setter
 	private UserDetailsConfig userDetails;
@@ -147,22 +175,42 @@ public class XapService {
 	@Setter
 	private ApplicationDeployer applicationDeployer;
 
+	@Setter
+	private DemoteThenRestartContainerItemVisitor demoteThenRestartContainerItemVisitor;
+
+	@Setter
+	private RestartContainerItemVisitor restartContainerItemVisitor;
+
+	@Setter
+	private RestartManagerItemVisitor restartManagerItemVisitor;
+
+	@Setter
+	private ShutdownAgentItemVisitor shutdownAgentItemVisitor;
+
 	private final ObjectMapper objectMapper = new ObjectMapperFactory().createObjectMapper();
 
 	public GridServiceContainer[] findContainers() {
 		GridServiceContainers gridServiceContainers = admin.getGridServiceContainers();
 		GridServiceContainer[] containers = gridServiceContainers.getContainers();
 		// we want the GSCs to be sorted by Id, for readability and reproducibility
-		Arrays.sort(containers, Comparator.comparing(GridServiceContainer::getId));
+		Arrays.sort(containers, comparing(GridServiceContainer::getId));
 		return containers;
 	}
 
 	public GridServiceManager[] findManagers() {
 		GridServiceManagers gridServiceManagers = admin.getGridServiceManagers();
 		GridServiceManager[] managers = gridServiceManagers.getManagers();
-		// we want the GSCs to be sorted by Id, for readability and reproducibility
-		Arrays.sort(managers, Comparator.comparing(gsm -> gsm.getMachine().getHostName()));
+		// we want the GSMs to be sorted by Id, for readability and reproducibility
+		Arrays.sort(managers, comparing(gsm -> gsm.getMachine().getHostName()));
 		return managers;
+	}
+
+	public GridServiceAgent[] findAgents() {
+		GridServiceAgents gridServiceAgents = admin.getGridServiceAgents();
+		GridServiceAgent[] agents = gridServiceAgents.getAgents();
+		// we want the GSAs to be sorted by Id, for readability and reproducibility
+		Arrays.sort(agents, comparing(gsm -> gsm.getMachine().getHostName()));
+		return agents;
 	}
 
 	public List<String> findManagersHostnames() {
@@ -172,7 +220,7 @@ public class XapService {
 
 	public Machine[] findAllMachines() {
 		Machine[] machines = admin.getMachines().getMachines();
-		Arrays.sort(machines, Comparator.comparing(Machine::getHostName));
+		Arrays.sort(machines, comparing(Machine::getHostName));
 		return machines;
 	}
 
@@ -196,21 +244,80 @@ public class XapService {
 		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
 		final int gscCount = containers.length;
 		final Collection<String> containersIds = idExtractor.extractIds(containers);
-		//
-		Machine previousGscMachine = null;
-		log.info("Found {} matching running GSC instances : {}", gscCount, containersIds);
+
+		// regroup GSCs per hostname
+		// create a MultiMap that is sorted on keys
+		// key is the hostname
+		// values are GSC
+		final ListMultimap<String, GridServiceContainer> containersPerMachine = MultimapBuilder.treeKeys().linkedListValues().build();
 		for (GridServiceContainer gsc : containers) {
 			Machine currentGscMachine = gsc.getMachine();
-			if (previousGscMachine == null || !previousGscMachine.equals(currentGscMachine)) {
-				log.info("On machine {} : ", currentGscMachine.getHostName());
+			String hostName = currentGscMachine.getHostName();
+			containersPerMachine.put(hostName, gsc);
+		}
+
+		log.info("Found {} matching running GSC instances : {}", gscCount, containersIds);
+		for (Map.Entry<String, Collection<GridServiceContainer>> entry : containersPerMachine.asMap().entrySet()) {
+			final String hostname = entry.getKey();
+			final List<GridServiceContainer> containersForHost = (List) entry.getValue();
+			final Set<String> commonZones = findCommonZones(containersForHost);
+			Collections.sort(containersForHost, createGSCComparator(commonZones));
+			log.info("On machine {} : {} : {} GSC instances", hostname, commonZones, containersForHost.size());
+			for (GridServiceContainer gsc : containersForHost) {
+				String gscId = gsc.getId();
+				Set<String> specificZones = findSpecificZones(gsc, commonZones);
+				ProcessingUnitInstance[] puInstances = gsc.getProcessingUnitInstances();
+				final int puCount = puInstances.length;
+				final Collection<String> puNames = idExtractor.extractProcessingUnitsNamesAndDescription(puInstances);
+				log.info("GSC {} {} is running {} Processing Units : {}", String.format("%1$-15s", gscId), specificZones, puCount, puNames);
 			}
-			String gscId = gsc.getId();
-			ProcessingUnitInstance[] puInstances = gsc.getProcessingUnitInstances();
-			final int puCount = puInstances.length;
-			final Collection<String> puNames = idExtractor.extractProcessingUnitsNamesAndDescription(puInstances);
-			log.info("GSC {} is running {} Processing Units : {}", gscId, puCount, puNames);
-			//
-			previousGscMachine = currentGscMachine;
+		}
+
+	}
+
+	private Comparator<GridServiceContainer> createGSCComparator(final Set<String> commonZones) {
+		Comparator<GridServiceContainer> result = Comparator
+				.comparing(gsc -> findSpecificZones(gsc, commonZones).toString());
+		result = result.thenComparing(gsc -> gsc.getVirtualMachine().getDetails().getPid());
+		return result;
+	}
+
+	private Set<String> findCommonZones(Collection<GridServiceContainer> containers) {
+		Set<String> result = new TreeSet<>();
+		// first we put all the zones into the Set
+		for (GridServiceContainer gsc : containers) {
+			result.addAll(gsc.getExactZones().getZones());
+		}
+		// then we keep only the zones that are set on every GSC
+		for (GridServiceContainer gsc : containers) {
+			result.retainAll(gsc.getExactZones().getZones());
+		}
+		return result;
+	}
+
+	private Set<String> findSpecificZones(GridServiceContainer gsc, Set<String> commonZones) {
+		Set<String> result = new TreeSet<>(gsc.getExactZones().getZones());
+		result.removeAll(commonZones);
+		return result;
+	}
+
+	public void printReportOnAgents() {
+		final GridServiceAgent[] agents = findAgents();
+		final int gsaCount = agents.length;
+		final Collection<String> agentsIds = idExtractor.extractIds(agents);
+		log.info("Found {} running GSA instances : {}", gsaCount, agentsIds);
+		for (GridServiceAgent gsa : agents) {
+			String hostName = gsa.getMachine().getHostName();
+			Map<String, Integer> requiredGlobalInstances = gsa.getProcessesDetails().getRequiredGlobalInstances();
+			AgentProcessDetails[] processDetailsList = gsa.getProcessesDetails().getProcessDetails();
+			log.info("GSA {} : requiredGlobalInstances : {}, processes count = {}", hostName, requiredGlobalInstances, processDetailsList.length);
+			for (AgentProcessDetails agentProcessDetails : processDetailsList) {
+				log.info("InstantiationMode : {}, ServiceType : {}, ProcessId : {}, AgentId : {}",
+						agentProcessDetails.getInstantiationMode(),
+						agentProcessDetails.getServiceType(),
+						agentProcessDetails.getProcessId(),
+						agentProcessDetails.getAgentId());
+			}
 		}
 	}
 
@@ -231,16 +338,21 @@ public class XapService {
 
 		for (VirtualMachine jvm : virtualMachines.getVirtualMachines()) {
 			final VirtualMachineDetails details = jvm.getDetails();
-			final String jvmDescription = details.getVmVendor() + " : " + details.getVmName() + " : " + details.getVmVersion();
 			//
 			VirtualMachineDescription vmDescription = new VirtualMachineDescription();
 			vmDescription.setUid(jvm.getUid());
-			vmDescription.setComponentType(getComponentType(jvm));
+			vmDescription.setComponentType(guessComponentType(jvm));
 			vmDescription.setUptime(Duration.ofMillis(jvm.getStatistics().getUptime()));
 			vmDescription.setHostName(jvm.getMachine().getHostName());
-			vmDescription.setJvmDescription(jvmDescription);
-			vmDescription.setHeapSizeInMBInit(Math.round(details.getMemoryHeapInitInMB()));
-			vmDescription.setHeapSizeInMBMax(Math.round(details.getMemoryHeapMaxInMB()));
+			if (details != null) {
+				final String jvmDescription = details.getVmVendor() + " : " + details.getVmName() + " : " + details.getVmVersion();
+				vmDescription.setJvmDescription(jvmDescription);
+				vmDescription.setPid(details.getPid());
+				vmDescription.setHeapSizeInMBInit(Math.round(details.getMemoryHeapInitInMB()));
+				vmDescription.setHeapSizeInMBMax(Math.round(details.getMemoryHeapMaxInMB()));
+				vmDescription.setEnvironmentVariables(details.getEnvironmentVariables());
+				vmDescription.setSystemProperties(details.getSystemProperties());
+			}
 			virtualMachineDescriptions.add(vmDescription);
 		}
 
@@ -249,12 +361,16 @@ public class XapService {
 		for (VirtualMachineDescription jvm : virtualMachineDescriptions) {
 			log.info("{} : {} : running on {} for {} : Heap [{} MB, {} MB] : {}",
 					jvm.getComponentType(),
-					jvm.getUid().substring(0, 7) + "...",
+					String.format("%5d", jvm.getPid()),
+					//jvm.getUid().substring(0, 7) + "...",
 					jvm.getHostName(),
 					padRight(jvm.getUptime(), 17),
 					padLeft(jvm.getHeapSizeInMBInit(), 5),
 					padLeft(jvm.getHeapSizeInMBMax(), 5),
 					jvm.getJvmDescription());
+			//Map<String, String> environmentVariables = jvm.getEnvironmentVariables();
+			//String envVariableXapGscOptions = environmentVariables.get("XAP_GSC_OPTIONS");
+			//log.info("envVariableXapGscOptions = {}", envVariableXapGscOptions);
 		}
 	}
 
@@ -267,7 +383,7 @@ public class XapService {
 	}
 
 	@NonNull
-	public ComponentType getComponentType(VirtualMachine jvm) {
+	public ComponentType guessComponentType(VirtualMachine jvm) {
 		GridServiceContainer gridServiceContainer = jvm.getGridServiceContainer();
 		if (gridServiceContainer != null) {
 			return ComponentType.GSC;
@@ -288,10 +404,14 @@ public class XapService {
 	 */
 	public void restartEmptyContainers() {
 		log.warn("Will restart all empty GSC instances ... (GSC with no PU running)");
-		restartContainers(new IsEmptyContainerPredicate(), new SequentialRestartStrategy<>(Duration.ZERO));
+		restartContainers(new IsEmptyContainerPredicate(), new SequentialCollectionVisitingStrategy<>(Duration.ZERO), false);
 	}
 
-	public void restartContainers(@NonNull Predicate<GridServiceContainer> predicate, @NonNull RestartStrategy<GridServiceContainer> restartStrategy) {
+	public void restartContainers(
+			@NonNull Predicate<GridServiceContainer> predicate,
+			@NonNull CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy,
+			boolean demoteFirst
+	) {
 		GridServiceContainer[] containers = findContainers();
 		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
 		final int gscCount = containers.length;
@@ -300,11 +420,19 @@ public class XapService {
 
 		log.warn("Will restart {} GSC instances : {}", gscCount, containersIds);
 		userConfirmationService.askConfirmationAndWait();
-		restartStrategy.perform(containers, new RestartStrategy.ContainerItemVisitor());
+
+		final CollectionVisitingStrategy.ItemVisitor itemVisitor;
+		if (demoteFirst) {
+			itemVisitor = this.demoteThenRestartContainerItemVisitor;
+		} else {
+			itemVisitor = restartContainerItemVisitor;
+		}
+		collectionVisitingStrategy.perform(containers, itemVisitor);
+
 		log.info("Triggered restart of GSC instances : {}", containersIds);
 	}
 
-	public void restartManagers(@NonNull Predicate<GridServiceManager> predicate, @NonNull RestartStrategy<GridServiceManager> restartStrategy) {
+	public void restartManagers(@NonNull Predicate<GridServiceManager> predicate, @NonNull CollectionVisitingStrategy<GridServiceManager> collectionVisitingStrategy) {
 		GridServiceManager[] managers = findManagers();
 		managers = Arrays.stream(managers).filter(predicate).toArray(GridServiceManager[]::new);
 		final int gsmCount = managers.length;
@@ -313,11 +441,11 @@ public class XapService {
 
 		log.warn("Will restart {] GSM instances : {}", gsmCount, managersIds);
 		userConfirmationService.askConfirmationAndWait();
-		restartStrategy.perform(managers, new RestartStrategy.ManagerItemVisitor());
+		collectionVisitingStrategy.perform(managers, restartManagerItemVisitor);
 		log.info("Triggered restart of GSM instances : {}", managersIds);
 	}
 
-	public void shutdownAgents(@NonNull Predicate<GridServiceAgent> predicate, @NonNull RestartStrategy<GridServiceAgent> restartStrategy) {
+	public void shutdownAgents(@NonNull Predicate<GridServiceAgent> predicate, @NonNull CollectionVisitingStrategy<GridServiceAgent> collectionVisitingStrategy) {
 		GridServiceAgent[] agents = admin.getGridServiceAgents().getAgents();
 		agents = Arrays.stream(agents).filter(predicate).toArray(GridServiceAgent[]::new);
 		final int gsaCount = agents.length;
@@ -326,51 +454,49 @@ public class XapService {
 
 		log.warn("Will shutdown {} GSA instances : {}", gsaCount, agentIds);
 		userConfirmationService.askConfirmationAndWait();
-		restartStrategy.perform(agents, new RestartStrategy.AgentItemVisitor());
+		collectionVisitingStrategy.perform(agents, shutdownAgentItemVisitor);
 		log.info("Triggered shutdown of GSA instances : {}", agentIds);
 	}
 
-	public void triggerGarbageCollectorOnEachGsc() {
-		final GridServiceContainer[] containers = findContainers();
+	public void triggerGarbageCollectorOnContainers(@NonNull Predicate<GridServiceContainer> predicate, @NonNull CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy) {
+		GridServiceContainer[] containers = findContainers();
+		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
 		final int gscCount = containers.length;
 		final Collection<String> containersIds = idExtractor.extractIds(containers);
-		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
+		log.info("Found {} matching GSC instances : {}", gscCount, containersIds);
 
-		final List<Future<?>> taskResults = new ArrayList<>();
-		// this can be done in parallel to perform quicker when there are a lot of containers
-		Arrays.stream(containers).forEach(gsc -> {
-			Future<?> taskResult = executorService.submit(() -> {
-				final String gscId = gsc.getId();
-				try {
-					log.info("Triggering GC on GSC {} ...", gscId);
-					gsc.getVirtualMachine().runGc();
-				} catch (RuntimeException e) {
-					log.error("Failure while triggering Garbage Collector on GSC {}", gscId, e);
-				}
-			});
-			taskResults.add(taskResult);
+		log.warn("Will trigger Garbage Collector on {} GSC instances : {}", gscCount, containersIds);
+		userConfirmationService.askConfirmationAndWait();
+		collectionVisitingStrategy.perform(containers, gsc -> {
+			final String gscId = gsc.getId();
+			try {
+				log.info("Triggering GC on GSC {} ...", gscId);
+				gsc.getVirtualMachine().runGc();
+			} catch (RuntimeException e) {
+				log.error("Failure while triggering Garbage Collector on GSC {}", gscId, e);
+			}
 		});
-		awaitTermination(taskResults);
 		log.info("Triggered GC on GSC instances : {}", containersIds);
 	}
 
-	public void generateHeapDumpOnEachGsc() throws IOException {
+	public void generateHeapDumpOnEachContainers(@NonNull Predicate<GridServiceContainer> predicate, @NonNull CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy) throws IOException {
 		String[] dumpTypes = {"heap"};
 		final File outputDirectory = new File("dumps/heap");
-		generateDumpOnEachGsc(outputDirectory, dumpTypes);
+		generateDumpOnEachGsc(predicate, collectionVisitingStrategy, outputDirectory, dumpTypes);
 	}
 
-	public void generateThreadDumpOnEachGsc() throws IOException {
+	public void generateThreadDumpOnContainers(@NonNull Predicate<GridServiceContainer> predicate, @NonNull CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy) throws IOException {
 		String[] dumpTypes = {"thread"};
 		final File outputDirectory = new File("dumps/thread");
-		generateDumpOnEachGsc(outputDirectory, dumpTypes);
+		generateDumpOnEachGsc(predicate, collectionVisitingStrategy, outputDirectory, dumpTypes);
 	}
 
-	private void generateDumpOnEachGsc(final File outputDirectory, final String[] dumpTypes) throws IOException {
-		final GridServiceContainer[] containers = findContainers();
+	private void generateDumpOnEachGsc(@NonNull Predicate<GridServiceContainer> predicate, @NonNull CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy, final File outputDirectory, final String[] dumpTypes) throws IOException {
+		GridServiceContainer[] containers = findContainers();
+		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
 		final int gscCount = containers.length;
 		final Collection<String> containersIds = idExtractor.extractIds(containers);
-		log.info("Found {} running GSC instances : {}", gscCount, containersIds);
+		log.info("Found {} matching GSC instances : {}", gscCount, containersIds);
 
 		boolean outputDirectoryCreated = outputDirectory.mkdirs();
 		log.debug("outputDirectoryCreated = {]", outputDirectoryCreated);
@@ -378,21 +504,17 @@ public class XapService {
 			throw new IOException("Cannot write to directory " + outputDirectory + " (" + outputDirectory.getAbsolutePath() + "). Please execute the command from a working directory where you have write access.");
 		}
 
-		final List<Future<?>> taskResults = new ArrayList<>();
-		// this can be done in parallel to perform quicker when there are a lot of containers
-		Arrays.stream(containers).forEach(gsc -> {
-			Future<?> taskResult = executorService.submit(() -> {
-				final String gscId = gsc.getId();
-				try {
-					generateDump(gsc, outputDirectory, dumpTypes);
-				} catch (RuntimeException | IOException e) {
-					log.error("Failure while generating a Heap Dump on GSC {}", gscId, e);
-				}
-			});
-			taskResults.add(taskResult);
+		log.warn("Will trigger Dump on {} GSC instances : {}", gscCount, containersIds);
+		userConfirmationService.askConfirmationAndWait();
+		collectionVisitingStrategy.perform(containers, gsc -> {
+			final String gscId = gsc.getId();
+			try {
+				generateDump(gsc, outputDirectory, dumpTypes);
+			} catch (RuntimeException | IOException e) {
+				log.error("Failure while generating a Heap Dump on GSC {}", gscId, e);
+			}
 		});
-		awaitTermination(taskResults);
-		log.info("Triggered Heap Dump on GSC instances : {}", containersIds);
+		log.info("Triggered Dump on GSC instances : {}", containersIds);
 	}
 
 	private void generateDump(@NonNull GridServiceContainer gsc, @NonNull final File outputDirectory, String[] dumpTypes) throws IOException {
@@ -494,7 +616,7 @@ public class XapService {
 		final ProcessingUnitConfig processingUnitConfig = pu.toProcessingUnitConfig();
 		log.debug("puName = {}, processingUnitConfig = {}", puName, processingUnitConfig);
 
-		undeployPu(puName);
+		undeployPu(puName, undeployProcessingUnitTimeout);
 
 		log.info("Deploying pu {} ...", puName);
 		long puDeploymentStartTime = System.currentTimeMillis();
@@ -503,12 +625,12 @@ public class XapService {
 		awaitDeployment(processingUnit, puDeploymentStartTime, timeout, expectedMaximumEndDate);
 	}
 
-	private void undeployPu(String puName) {
+	private void undeployPu(String puName, Duration timeout) {
 		doWithProcessingUnit(puName, Duration.of(10, ChronoUnit.SECONDS), existingProcessingUnit -> {
 			final int instancesCount = existingProcessingUnit.getInstances().length;
 			log.info("Undeploying pu {} ... ({} instances are running on GSCs {})", puName, instancesCount, idExtractor.extractContainerIds(existingProcessingUnit));
 			long startTime = System.currentTimeMillis();
-			boolean undeployedSuccessful = existingProcessingUnit.undeployAndWait(1, TimeUnit.MINUTES);
+			boolean undeployedSuccessful = existingProcessingUnit.undeployAndWait(timeout.toMillis(), TimeUnit.MILLISECONDS);
 			long endTime = System.currentTimeMillis();
 			long duration = endTime - startTime;
 			if (undeployedSuccessful) {
@@ -521,13 +643,13 @@ public class XapService {
 		});
 	}
 
-	public void undeploy(String applicationName) {
+	public void undeployApplication(String applicationName) {
 		log.info("Launch undeploy of {}, operationTimeout = {}", applicationName, operationTimeout);
 		doWithApplication(
 				applicationName,
 				operationTimeout,
 				application -> {
-					undeploy(application);
+					undeployApplication(application, operationTimeout);
 				},
 				appName -> {
 					throw new IllegalStateException(new TimeoutException(
@@ -536,23 +658,23 @@ public class XapService {
 		);
 	}
 
-	public void undeployIfExists(String name) {
+	public void undeployApplicationIfExists(String name) {
 		log.info("Undeploying application {} (if it exists) ...", name);
 		doWithApplication(
 				name,
 				Duration.of(5, ChronoUnit.SECONDS),
 				app -> {
-					undeploy(app);
+					undeployApplication(app, operationTimeout);
 				},
 				appName -> {
 					log.warn("Application {} was not found, could not be undeployed", name);
 				});
 	}
 
-	public void undeploy(@NonNull Application application) {
+	public void undeployApplication(@NonNull Application application, Duration timeout) {
 		final String applicationName = application.getName();
 		log.info("Undeploying application : {}", applicationName);
-		application.undeployAndWait(operationTimeout.toMillis(), TimeUnit.MILLISECONDS);
+		application.undeployAndWait(timeout.toMillis(), TimeUnit.MILLISECONDS);
 		log.info("{} has been successfully undeployed.", applicationName);
 	}
 
@@ -561,7 +683,7 @@ public class XapService {
 		allProcessingUnitsNames.stream().filter(processingUnitsNamesPredicate).forEach(puName -> {
 
 			try {
-				undeployPu(puName);
+				undeployPu(puName, undeployProcessingUnitTimeout);
 			} catch (RuntimeException e) {
 				log.error("Failure while undeploying PU {}", puName, e);
 			}
