@@ -108,7 +108,7 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 		final Predicate<String> processingUnitsPredicate = FilterPuNamesPredicate.createProcessingUnitsPredicate(puNamesFilteringOptions.processingUnitsIncludes, puNamesFilteringOptions.processingUnitsExcludes);
 		final ApplicationConfig applicationConfig = appDeployBuilder.loadApplicationConfig(processingUnitsPredicate);
 
-		log.warn("Will deploy ApplicationConfig : {}", applicationConfig);
+		log.debug("Will deploy ApplicationConfig : {}", applicationConfig);
 		userConfirmationService.askConfirmationAndWait();
 
 		xapService.printReportOnContainersAndProcessingUnits();
