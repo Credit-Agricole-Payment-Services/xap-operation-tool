@@ -1,10 +1,7 @@
 package gca.in.xap.tools.operationtool.commands;
 
+import gca.in.xap.tools.operationtool.commandoptions.CommonContainerFilteringOptions;
 import gca.in.xap.tools.operationtool.commandoptions.ContainersIterationOptions;
-import gca.in.xap.tools.operationtool.commandoptions.ContainersProcessingUnitFilterOptions;
-import gca.in.xap.tools.operationtool.commandoptions.ContainersZonesFilterOptions;
-import gca.in.xap.tools.operationtool.commandoptions.MachinesFilterOptions;
-import gca.in.xap.tools.operationtool.predicates.AndPredicate;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.util.collectionvisit.CollectionVisitingStrategy;
 import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
@@ -17,6 +14,7 @@ import picocli.CommandLine;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.function.Predicate;
 
 @Slf4j
 @Component
@@ -31,37 +29,19 @@ public class ThreadDumpCommand extends AbstractAppCommand implements Runnable {
 	private ContainersIterationOptions containersIterationOptions;
 
 	@CommandLine.ArgGroup(exclusive = false)
-	private ContainersZonesFilterOptions containersZonesFilterOptions;
-
-	@CommandLine.ArgGroup(exclusive = false)
-	private MachinesFilterOptions<GridServiceContainer> machinesFilterOptions;
-
-	@CommandLine.ArgGroup(exclusive = false)
-	private ContainersProcessingUnitFilterOptions containersProcessingUnitFilterOptions;
+	private CommonContainerFilteringOptions commonContainerFilteringOptions;
 
 	@Override
 	public void run() {
-		if (containersZonesFilterOptions == null) {
-			containersZonesFilterOptions = new ContainersZonesFilterOptions();
-		}
-		if (machinesFilterOptions == null) {
-			machinesFilterOptions = new MachinesFilterOptions<>();
-		}
-		if (containersProcessingUnitFilterOptions == null) {
-			containersProcessingUnitFilterOptions = new ContainersProcessingUnitFilterOptions();
-		}
-
 		final CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy = ContainersIterationOptions.toCollectionVisitingStrategy(containersIterationOptions);
+		final Predicate<GridServiceContainer> predicate = CommonContainerFilteringOptions.toPredicate(commonContainerFilteringOptions);
 
 		xapService.printReportOnContainersAndProcessingUnits();
 		xapService.setDefaultTimeout(Duration.ofMinutes(5));
 
 		try {
 			xapService.generateThreadDumpOnContainers(
-					new AndPredicate<>(
-							containersZonesFilterOptions.toPredicate(),
-							machinesFilterOptions.toPredicate(),
-							containersProcessingUnitFilterOptions.toPredicate()),
+					predicate,
 					collectionVisitingStrategy);
 		} catch (IOException e) {
 			throw new RuntimeException(e);

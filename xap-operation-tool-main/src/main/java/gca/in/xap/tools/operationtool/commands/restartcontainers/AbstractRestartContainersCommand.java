@@ -1,9 +1,7 @@
 package gca.in.xap.tools.operationtool.commands.restartcontainers;
 
+import gca.in.xap.tools.operationtool.commandoptions.CommonContainerFilteringOptions;
 import gca.in.xap.tools.operationtool.commandoptions.ContainersIterationOptions;
-import gca.in.xap.tools.operationtool.commandoptions.ContainersProcessingUnitFilterOptions;
-import gca.in.xap.tools.operationtool.commandoptions.ContainersZonesFilterOptions;
-import gca.in.xap.tools.operationtool.commandoptions.MachinesFilterOptions;
 import gca.in.xap.tools.operationtool.predicates.AndPredicate;
 import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.service.XapServiceBuilder;
@@ -24,7 +22,7 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 	@Lazy
 	private XapService xapService;
 
-	private final Predicate<GridServiceContainer> predicate;
+	private final Predicate<GridServiceContainer> restartScopePredicate;
 
 	@CommandLine.Option(
 			names = "--no-demote-first",
@@ -37,34 +35,18 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 	private ContainersIterationOptions containersIterationOptions;
 
 	@CommandLine.ArgGroup(exclusive = false)
-	private ContainersZonesFilterOptions containersZonesFilterOptions;
+	private CommonContainerFilteringOptions commonContainerFilteringOptions;
 
-	@CommandLine.ArgGroup(exclusive = false)
-	private MachinesFilterOptions<GridServiceContainer> machinesFilterOptions;
-
-	@CommandLine.ArgGroup(exclusive = false)
-	private ContainersProcessingUnitFilterOptions containersProcessingUnitFilterOptions;
-
-	public AbstractRestartContainersCommand(Predicate<GridServiceContainer> predicate) {
-		this.predicate = predicate;
+	public AbstractRestartContainersCommand(Predicate<GridServiceContainer> restartScopePredicate) {
+		this.restartScopePredicate = restartScopePredicate;
 	}
 
 	@Override
 	public void run() {
 		log.info("demoteFirst = {}", demoteFirst);
 		log.info("containersIterationOptions = {}", containersIterationOptions);
-
-		if (containersZonesFilterOptions == null) {
-			containersZonesFilterOptions = new ContainersZonesFilterOptions();
-		}
-		if (machinesFilterOptions == null) {
-			machinesFilterOptions = new MachinesFilterOptions<>();
-		}
-		if (containersProcessingUnitFilterOptions == null) {
-			containersProcessingUnitFilterOptions = new ContainersProcessingUnitFilterOptions();
-		}
-
-		CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy = ContainersIterationOptions.toCollectionVisitingStrategy(containersIterationOptions);
+		final CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy = ContainersIterationOptions.toCollectionVisitingStrategy(containersIterationOptions);
+		final Predicate<GridServiceContainer> predicate = CommonContainerFilteringOptions.toPredicate(commonContainerFilteringOptions);
 
 		XapServiceBuilder.waitForClusterInfoToUpdate();
 
@@ -72,15 +54,13 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 		xapService.printReportOnContainersAndProcessingUnits();
 
 		log.info("Report on GSC to restart :");
-		xapService.printReportOnContainersAndProcessingUnits(this.predicate);
+		xapService.printReportOnContainersAndProcessingUnits(this.restartScopePredicate);
 
 		log.info("CollectionVisitingStrategy is : {}", collectionVisitingStrategy);
 		xapService.restartContainers(
 				new AndPredicate<>(
-						containersZonesFilterOptions.toPredicate(),
-						machinesFilterOptions.toPredicate(),
-						containersProcessingUnitFilterOptions.toPredicate(),
-						this.predicate),
+						predicate,
+						this.restartScopePredicate),
 				collectionVisitingStrategy,
 				demoteFirst);
 	}
