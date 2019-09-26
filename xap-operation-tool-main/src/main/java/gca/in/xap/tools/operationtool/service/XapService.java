@@ -74,7 +74,9 @@ public class XapService {
 			@NonNull final ApplicationConfig applicationConfig,
 			@NonNull final Application dataApp,
 			final long deploymentStartTime,
-			@NonNull final Duration timeout) throws TimeoutException {
+			@NonNull final Duration timeout,
+			@NonNull XapService xapService
+	) throws TimeoutException {
 		long timeoutTime = deploymentStartTime + timeout.toMillis();
 
 		final String applicationConfigName = applicationConfig.getName();
@@ -89,7 +91,7 @@ public class XapService {
 
 		for (String puName : puNamesInOrderOfDeployment) {
 			ProcessingUnit pu = processingUnits.getProcessingUnit(puName);
-			awaitDeployment(pu, deploymentStartTime, timeout, timeoutTime);
+			awaitDeployment(pu, deploymentStartTime, timeout, timeoutTime, xapService);
 			deployedPuNames.add(puName);
 		}
 
@@ -100,10 +102,17 @@ public class XapService {
 		log.info("Application deployed in : {} ms", appDeploymentDuration);
 	}
 
-	static void awaitDeployment(@NonNull ProcessingUnit pu, long deploymentStartTime, @NonNull Duration timeout, long expectedMaximumEndDate) throws TimeoutException {
+	static void awaitDeployment(@NonNull ProcessingUnit pu, long deploymentStartTime, @NonNull Duration timeout, long expectedMaximumEndDate, @NonNull XapService xapService) throws TimeoutException {
 		String puName = pu.getName();
 		final int plannedNumberOfInstances = pu.getPlannedNumberOfInstances();
-		log.info("Waiting for PU {} to deploy {} instances ...", puName, plannedNumberOfInstances);
+
+		final long candidatesContainersCount = Arrays
+				.stream(xapService.findContainers())
+				.filter(gsc -> pu.getRequiredContainerZones().isSatisfiedBy(gsc.getExactZones()))
+				.filter(gsc -> !pu.isRequiresIsolation() || gsc.getProcessingUnitInstances().length == 0)
+				.count();
+
+		log.info("Waiting for PU {} to deploy {} instances ... (found {} GSCs matching PU constraints)", puName, plannedNumberOfInstances, candidatesContainersCount);
 
 		long remainingDelayUntilTimeout = expectedMaximumEndDate - System.currentTimeMillis();
 		if (remainingDelayUntilTimeout < 0L) {
@@ -573,7 +582,7 @@ public class XapService {
 		}
 
 		long deploymentStartTime = deployRequestEndTime;
-		awaitDeployment(applicationConfig, dataApp, deploymentStartTime, operationTimeout);
+		awaitDeployment(applicationConfig, dataApp, deploymentStartTime, operationTimeout, this);
 	}
 
 	public void deployProcessingUnits(
@@ -621,7 +630,7 @@ public class XapService {
 		long puDeploymentStartTime = System.currentTimeMillis();
 
 		ProcessingUnit processingUnit = processingUnitDeployer.deploy(puName, processingUnitConfig);
-		awaitDeployment(processingUnit, puDeploymentStartTime, timeout, expectedMaximumEndDate);
+		awaitDeployment(processingUnit, puDeploymentStartTime, timeout, expectedMaximumEndDate, this);
 	}
 
 	private void undeployPu(String puName, Duration timeout) {
