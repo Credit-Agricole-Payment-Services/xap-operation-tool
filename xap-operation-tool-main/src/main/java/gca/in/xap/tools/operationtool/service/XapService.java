@@ -4,10 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gigaspaces.grid.gsa.AgentProcessDetails;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.MultimapBuilder;
-import gca.in.xap.tools.operationtool.model.ComponentType;
-import gca.in.xap.tools.operationtool.model.DumpReport;
-import gca.in.xap.tools.operationtool.model.VirtualMachineDescription;
+import gca.in.xap.tools.operationtool.model.*;
 import gca.in.xap.tools.operationtool.predicates.container.IsEmptyContainerPredicate;
+import gca.in.xap.tools.operationtool.predicates.machine.MachineWithSameNamePredicate;
 import gca.in.xap.tools.operationtool.service.deployer.ApplicationDeployer;
 import gca.in.xap.tools.operationtool.service.deployer.ProcessingUnitDeployer;
 import gca.in.xap.tools.operationtool.service.restartstrategy.DemoteThenRestartContainerItemVisitor;
@@ -39,7 +38,6 @@ import org.openspaces.admin.pu.config.UserDetailsConfig;
 import org.openspaces.admin.pu.topology.ProcessingUnitConfigHolder;
 import org.openspaces.admin.vm.VirtualMachine;
 import org.openspaces.admin.vm.VirtualMachineDetails;
-import org.openspaces.admin.vm.VirtualMachines;
 
 import java.io.File;
 import java.io.IOException;
@@ -232,6 +230,11 @@ public class XapService {
 		return machines;
 	}
 
+	public VirtualMachine[] findAllVirtualMachines() {
+		VirtualMachine[] virtualMachines = admin.getVirtualMachines().getVirtualMachines();
+		return virtualMachines;
+	}
+
 	public ProcessingUnit findProcessingUnitByName(String processingUnitName) {
 		ProcessingUnit processingUnit = admin.getProcessingUnits().getProcessingUnit(processingUnitName);
 		return processingUnit;
@@ -241,6 +244,51 @@ public class XapService {
 		ProcessingUnit[] processingUnits = admin.getProcessingUnits().getProcessingUnits();
 		List<String> result = Arrays.stream(processingUnits).map(processingUnit -> processingUnit.getName()).collect(Collectors.toList());
 		return result;
+	}
+
+	public GridServiceContainer findContainerByGlobalProcessIdentifier(GlobalProcessId gpid) {
+		Map<String, GridServiceAgent> hostNames = admin.getGridServiceAgents().getHostNames();
+		GridServiceAgent gsa = hostNames.get(gpid.getHostName());
+		if (gsa != null) {
+			GridServiceContainer[] containers = gsa.getGridServiceContainers().getContainers();
+			Optional<GridServiceContainer> match = Arrays.stream(containers)
+					.filter(gsc -> gsc.getVirtualMachine().getDetails().getPid() == gpid.getPid())
+					.findFirst();
+			if (match.isPresent()) {
+				return match.get();
+			}
+		}
+		return null;
+	}
+
+	public GlobalAgentId findGlobalAgentIdByGlobalProcessIdentifier(GlobalProcessId gpid) {
+		final GridServiceAgent[] agents = findAgents();
+		for (GridServiceAgent gsa : agents) {
+			String hostName = gsa.getMachine().getHostName();
+			if (gpid.getHostName().equals(hostName)) {
+				AgentProcessDetails[] processDetailsList = gsa.getProcessesDetails().getProcessDetails();
+				for (AgentProcessDetails agentProcessDetails : processDetailsList) {
+					if (agentProcessDetails.getProcessId() == gpid.getPid()) {
+						return new GlobalAgentId(hostName, agentProcessDetails.getAgentId());
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	public void killByGlobalAgentId(GlobalAgentId globalAgentId) {
+		log.info("Attempt to kill agent with id {} on {} ...", globalAgentId.getAgentId(), globalAgentId.getHostName());
+		final Predicate<Machine> machinePredicate = new MachineWithSameNamePredicate(globalAgentId.getHostName());
+		GridServiceAgent[] agents = findAgents();
+		GridServiceAgent matchingGSA = Arrays.stream(agents)
+				.filter(gsa -> machinePredicate.test(gsa.getMachine()))
+				.findFirst()
+				.orElseThrow(() -> new RuntimeException("Failed to find service with agentId " + globalAgentId.getAgentId() + " on host " + globalAgentId.getHostName()));
+		String gsaHostName = matchingGSA.getMachine().getHostName();
+		log.info("Found GSA {}", gsaHostName);
+		log.info("Killing JVM with agentId {} on {}...", globalAgentId.getAgentId(), gsaHostName);
+		matchingGSA.killByAgentId(globalAgentId.getAgentId());
 	}
 
 	public void printReportOnContainersAndProcessingUnits() {
@@ -337,14 +385,14 @@ public class XapService {
 	}
 
 	public void printReportOnVirtualMachines() {
-		VirtualMachines virtualMachines = admin.getVirtualMachines();
-		final int jvmCount = virtualMachines.getSize();
+		VirtualMachine[] virtualMachines = findAllVirtualMachines();
+		final int jvmCount = virtualMachines.length;
 		log.info("Found {} JVMs", jvmCount);
 
 		final List<VirtualMachineDescription> virtualMachineDescriptions = new ArrayList<>();
 
 
-		for (VirtualMachine jvm : virtualMachines.getVirtualMachines()) {
+		for (VirtualMachine jvm : virtualMachines) {
 			final VirtualMachineDetails details = jvm.getDetails();
 			//
 			VirtualMachineDescription vmDescription = new VirtualMachineDescription();
