@@ -5,6 +5,7 @@ import org.openspaces.admin.gsc.GridServiceContainer;
 import org.openspaces.admin.vm.VirtualMachine;
 import org.openspaces.admin.vm.VirtualMachineDetails;
 
+import java.time.Duration;
 import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -17,8 +18,8 @@ public class ContainersUptimeFilterOptionsTest {
 	@Test
 	public void test_between_5min_and_10min() {
 		ContainersUptimeFilterOptions filterOptions = new ContainersUptimeFilterOptions();
-		filterOptions.setUptimeGreaterThan("PT5M");
-		filterOptions.setUptimeLessThan("PT10M");
+		filterOptions.setUptimeGreaterThanDuration(Duration.ofMinutes(5));
+		filterOptions.setUptimeLessThanDuration(Duration.ofMinutes(10));
 		//
 		Predicate<GridServiceContainer> predicate = filterOptions.toPredicate();
 		//
@@ -36,7 +37,7 @@ public class ContainersUptimeFilterOptionsTest {
 	@Test
 	public void test_older_than_1_day() {
 		ContainersUptimeFilterOptions filterOptions = new ContainersUptimeFilterOptions();
-		filterOptions.setUptimeGreaterThan("P1D");
+		filterOptions.setUptimeGreaterThanDuration(Duration.ofDays(1));
 		//
 		Predicate<GridServiceContainer> predicate = filterOptions.toPredicate();
 		//
@@ -54,7 +55,7 @@ public class ContainersUptimeFilterOptionsTest {
 	@Test
 	public void test_not_older_than_1_day() {
 		ContainersUptimeFilterOptions filterOptions = new ContainersUptimeFilterOptions();
-		filterOptions.setUptimeGreaterThan("P1D");
+		filterOptions.setUptimeGreaterThanDuration(Duration.ofDays(1));
 		//
 		Predicate<GridServiceContainer> predicate = filterOptions.toPredicate();
 		//
@@ -72,7 +73,7 @@ public class ContainersUptimeFilterOptionsTest {
 	@Test
 	public void test_less_than_2_day() {
 		ContainersUptimeFilterOptions filterOptions = new ContainersUptimeFilterOptions();
-		filterOptions.setUptimeLessThan("P2D");
+		filterOptions.setUptimeLessThanDuration(Duration.ofDays(2));
 		//
 		Predicate<GridServiceContainer> predicate = filterOptions.toPredicate();
 		//
@@ -90,7 +91,7 @@ public class ContainersUptimeFilterOptionsTest {
 	@Test
 	public void test_not_less_than_2_day() {
 		ContainersUptimeFilterOptions filterOptions = new ContainersUptimeFilterOptions();
-		filterOptions.setUptimeLessThan("P2D");
+		filterOptions.setUptimeLessThanDuration(Duration.ofDays(2));
 		//
 		Predicate<GridServiceContainer> predicate = filterOptions.toPredicate();
 		//

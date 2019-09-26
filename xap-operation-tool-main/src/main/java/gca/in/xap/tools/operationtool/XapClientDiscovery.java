@@ -77,11 +77,11 @@ public class XapClientDiscovery {
 	}
 
 	static List<String> findLookupGroups() {
-		return findProperty("XAP_LOOKUP_GROUPS", "lookup.groups", "xap");
+		return findProperty("XAP_LOOKUP_GROUPS", PROP_LOOKUP_GROUPS, "xap");
 	}
 
 	static List<String> findLookupLocators() {
-		return findProperty("XAP_MANAGER_SERVERS", "lookup.locators", "localhost");
+		return findProperty("XAP_MANAGER_SERVERS", PROP_LOOKUP_LOCATORS, "localhost");
 	}
 
 	static List<String> findProperty(@NonNull String envVariableName, @NonNull String systemPropertyName, @NonNull String defaultValue) {
@@ -95,16 +95,6 @@ public class XapClientDiscovery {
 			log.warn("It is recommended to run the following command before using the tool, in order to have ENV variables set : source $XAP_ROOT_PATH/bin/setenv.sh");
 		}
 		return Arrays.asList(value.split(","));
-	}
-
-	public static String generateUsageString() {
-		return "args: <zipFile> (<propsFile>)"
-				+ "\nAvailable system properties:"
-				+ "\n -D" + PROP_LOOKUP_GROUPS + " (comma separated multi-values. Default value (cf. env:XAP_LOOKUP_GROUPS) : " + findLookupGroups() + ")"
-				+ "\n -D" + PROP_LOOKUP_LOCATORS + " (comma separated multi-values. Default (cf. env:XAP_MANAGER_SERVERS) : " + findLookupGroups() + ")"
-				+ "\n -D" + PROP_CREDENTIAL_USERNAME + " (URL Encoded value)"
-				+ "\n -D" + PROP_CREDENTIAL_SECRET + " (URL Encoded value)"
-				+ "\n -D" + PROP_TIMEOUT + " (ISO-8601 Duration. Default value: " + PROP_TIMEOUT_DEFAULT + ")";
 	}
 
 }

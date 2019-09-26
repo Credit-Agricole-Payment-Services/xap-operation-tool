@@ -25,8 +25,12 @@ public class ManagersIterationOptions {
 	 */
 	private final String defaultIntervalDuration = "PT1M";
 
-	@CommandLine.Option(names = "--interval-duration", defaultValue = defaultIntervalDuration, description = "Interval between each component to process. Will wait for this interval between each component, to reduce the risk to stress the system when operating components to quickly. Duration is expressed in ISO_8601 format (example : PT30S for a duration of 30 seconds, PT2M for a duration of 2 minutes). Default value is : " + defaultIntervalDuration)
-	private String intervalDuration = defaultIntervalDuration;
+	@CommandLine.Option(
+			names = "--interval-duration",
+			defaultValue = defaultIntervalDuration,
+			description = "Interval between each component to process. Will wait for this interval between each component, to reduce the risk to stress the system when operating components to quickly. Duration is expressed in ISO_8601 format (example : PT30S for a duration of 30 seconds, PT2M for a duration of 2 minutes). Default value is : " + defaultIntervalDuration
+	)
+	private Duration intervalDuration = Duration.parse(defaultIntervalDuration);
 
 	@CommandLine.Option(names = "--parallel", defaultValue = "false", description = "In this case, the '--interval-duration' option is ignored. Executes all operations in parallel (at the same time). This is faster, but this may be dangerous for some usage as it can cause data loss.")
 	private boolean parallel;
@@ -35,7 +39,7 @@ public class ManagersIterationOptions {
 		if (parallel) {
 			return new ParallelCollectionVisitingStrategy<>();
 		} else {
-			return new SequentialCollectionVisitingStrategy<>(Duration.parse(intervalDuration));
+			return new SequentialCollectionVisitingStrategy<>(intervalDuration);
 		}
 	}
 

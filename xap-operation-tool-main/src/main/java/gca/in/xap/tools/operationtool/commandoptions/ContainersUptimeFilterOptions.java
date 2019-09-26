@@ -1,5 +1,6 @@
 package gca.in.xap.tools.operationtool.commandoptions;
 
+import gca.in.xap.tools.operationtool.util.picoclicommands.DurationTypeConverter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsc.GridServiceContainer;
@@ -11,18 +12,21 @@ import java.util.function.Predicate;
 @Slf4j
 public class ContainersUptimeFilterOptions {
 
-	@CommandLine.Option(names = {"--uptime-greater-than"}, description = "If the Container is up for more than this duration, the action will be performed. Duration is expressed in ISO_8601 format (example : PT30S for a duration of 30 seconds, PT2M for a duration of 2 minutes)")
+	@CommandLine.Option(
+			names = {"--uptime-greater-than"},
+			converter = DurationTypeConverter.class,
+			description = "If the Container is up for more than this duration, the action will be performed. Duration is expressed in ISO_8601 format (example : PT30S for a duration of 30 seconds, PT2M for a duration of 2 minutes)")
 	@Setter
-	public String uptimeGreaterThan;
+	public Duration uptimeGreaterThanDuration;
 
-	@CommandLine.Option(names = {"--uptime-less-than"}, description = "If the Container is up for less than this duration, the action will be performed. Duration is expressed in ISO_8601 format (example : PT30S for a duration of 30 seconds, PT2M for a duration of 2 minutes)")
+	@CommandLine.Option(
+			names = {"--uptime-less-than"},
+			converter = DurationTypeConverter.class,
+			description = "If the Container is up for less than this duration, the action will be performed. Duration is expressed in ISO_8601 format (example : PT30S for a duration of 30 seconds, PT2M for a duration of 2 minutes)")
 	@Setter
-	public String uptimeLessThan;
+	public Duration uptimeLessThanDuration;
 
 	public Predicate<GridServiceContainer> toPredicate() {
-		// first parse user input as Duration, in order to fail fast in case of invalid input
-		Duration uptimeGreaterThanDuration = uptimeGreaterThan != null ? Duration.parse(uptimeGreaterThan) : null;
-		Duration uptimeLessThanDuration = uptimeLessThan != null ? Duration.parse(uptimeLessThan) : null;
 		//
 		Predicate<GridServiceContainer> includePredicate;
 		if (uptimeGreaterThanDuration != null) {
