@@ -58,7 +58,7 @@ public class RestartBadContainersCommand extends AbstractAppCommand implements R
 
 		// we list all JVMs that are either GSC or UNKNOWN
 		List<GlobalProcessId> allJvmIds = Arrays.stream(xapService.findAllVirtualMachines())
-				.map(this::toProcessIdentifier)
+				.map(GlobalProcessId::toProcessIdentifier)
 				.collect(Collectors.toList());
 		Collections.sort(allJvmIds);
 
@@ -70,7 +70,7 @@ public class RestartBadContainersCommand extends AbstractAppCommand implements R
 					@NonNull ComponentType componentType = xapService.guessComponentType(jvm);
 					return componentType.equals(ComponentType.GSA) || componentType.equals(ComponentType.GSM);
 				})
-				.map(this::toProcessIdentifier)
+				.map(GlobalProcessId::toProcessIdentifier)
 				.collect(Collectors.toList());
 		Collections.sort(allAgentsAndManagersJvmIds);
 
@@ -78,7 +78,7 @@ public class RestartBadContainersCommand extends AbstractAppCommand implements R
 
 		// we list all GSCs and get the Uid of their JVM
 		List<GlobalProcessId> allValidGscIds = Arrays.stream(xapService.findContainers())
-				.map(gsc -> toProcessIdentifier(gsc.getVirtualMachine()))
+				.map(gsc -> GlobalProcessId.toProcessIdentifier(gsc.getVirtualMachine()))
 				.collect(Collectors.toList());
 
 		Collections.sort(allValidGscIds);
@@ -113,10 +113,6 @@ public class RestartBadContainersCommand extends AbstractAppCommand implements R
 					}
 				});
 
-	}
-
-	private GlobalProcessId toProcessIdentifier(VirtualMachine jvm) {
-		return new GlobalProcessId(jvm.getMachine().getHostName(), jvm.getDetails().getPid());
 	}
 
 }

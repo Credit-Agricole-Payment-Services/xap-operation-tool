@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NonNull;
+import org.openspaces.admin.vm.VirtualMachine;
 
 import java.util.Comparator;
 
@@ -11,6 +12,10 @@ import java.util.Comparator;
 @EqualsAndHashCode
 @AllArgsConstructor
 public class GlobalProcessId implements Comparable<GlobalProcessId> {
+
+	public static GlobalProcessId toProcessIdentifier(VirtualMachine jvm) {
+		return new GlobalProcessId(jvm.getMachine().getHostName(), jvm.getDetails().getPid());
+	}
 
 	@NonNull
 	private final String hostName;

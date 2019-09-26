@@ -1,0 +1,17 @@
+<process
+		initial-instances="script"
+		shutdown-class="com.gigaspaces.grid.gsa.GigaSpacesShutdownProcessHandler"
+		restart-on-exit="always">
+	<script
+			enable="true"
+			work-dir="${com.gs.home}/bin"
+			windows="${com.gs.home}\bin\gs.bat" unix="${com.gs.home}/bin/gs.sh">
+		<argument>services=GSC</argument>
+		<environment name="XAP_COMPONENT_OPTIONS">${XAP_GSC_OPTIONS} -Xloggc:${LOG_HOME}/sctinst/gc-log-gsc_LARGE_01.log -Xms5G -Xmx5G -DappInstanceId=gsc_LARGE_01 -Dcom.gs.zones=ZONE_A,DAL,LARGE_HEAP,LARGE_01  -javaagent:/app/in/bin/jmx_prometheus_javaagent.jar=9020:/app/in/etc/jmx-exporter.yml</environment>
+	</script>
+	<vm enable="true" work-dir="${com.gs.home}/bin" main-class="com.gigaspaces.start.SystemBoot">
+		<input-argument></input-argument>
+		<argument>services=GSC</argument>
+	</vm>
+	<restart-regex>.*java\.lang\.OutOfMemoryError.*</restart-regex>
+</process>

@@ -2,6 +2,7 @@ package gca.in.xap.tools.operationtool.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gigaspaces.grid.gsa.AgentProcessDetails;
+import com.gigaspaces.grid.gsa.GSProcessRestartOnExit;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.MultimapBuilder;
 import gca.in.xap.tools.operationtool.model.*;
@@ -25,6 +26,7 @@ import org.openspaces.admin.application.config.ApplicationConfig;
 import org.openspaces.admin.dump.DumpResult;
 import org.openspaces.admin.gsa.GridServiceAgent;
 import org.openspaces.admin.gsa.GridServiceAgents;
+import org.openspaces.admin.gsa.GridServiceContainerOptions;
 import org.openspaces.admin.gsc.GridServiceContainer;
 import org.openspaces.admin.gsc.GridServiceContainers;
 import org.openspaces.admin.gsm.GridServiceManager;
@@ -768,6 +770,33 @@ public class XapService {
 	public void setDefaultTimeout(Duration timeout) {
 		log.info("Admin will use a default timeout of {} ms", timeout.toMillis());
 		admin.setDefaultTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS);
+	}
+
+	public void startNewContainer(File file) {
+		GsaGscXmlFileParser parser = new GsaGscXmlFileParser();
+		final String jvmArgs;
+		try {
+			jvmArgs = parser.extractContainerJvmArgs(file);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		log.info("jvmArgs = {}", jvmArgs);
+		final LocalMachineGridServiceLocator localMachineGridServiceLocator = new LocalMachineGridServiceLocator();
+		final GridServiceAgent gridServiceAgent = localMachineGridServiceLocator.pickAgentOnLocalMachine(findAgents());
+		GridServiceContainerOptions gridServiceContainerOptions = new GridServiceContainerOptions()
+				.useScript()
+				.restartOnExit(GSProcessRestartOnExit.ALWAYS)
+				//.overrideVmInputArguments()
+				.environmentVariable("XAP_COMPONENT_OPTIONS", jvmArgs);
+
+		String[] jvmArgsArray = jvmArgs.split(" ");
+		Arrays.stream(jvmArgsArray).forEach(
+				value ->
+						gridServiceContainerOptions.vmInputArgument(value)
+		);
+
+		GridServiceContainer gsc = gridServiceAgent.startGridServiceAndWait(gridServiceContainerOptions);
+		log.info("Started GSC {}", gsc.getId());
 	}
 
 }

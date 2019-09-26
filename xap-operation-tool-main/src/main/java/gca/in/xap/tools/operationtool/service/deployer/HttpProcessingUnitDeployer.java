@@ -3,6 +3,7 @@ package gca.in.xap.tools.operationtool.service.deployer;
 import gca.in.xap.tools.operationtool.deploymentdescriptors.DeploymentDescriptor;
 import gca.in.xap.tools.operationtool.deploymentdescriptors.json.DeploymentDescriptorMarshaller;
 import gca.in.xap.tools.operationtool.deploymentdescriptors.puconfig.ProcessingUnitConfigToDeploymentDescriptorMapper;
+import gca.in.xap.tools.operationtool.service.LocalMachineGridServiceLocator;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
@@ -23,12 +24,9 @@ import javax.annotation.Nullable;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InterfaceAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
 import java.time.Duration;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -79,35 +77,13 @@ public class HttpProcessingUnitDeployer implements ProcessingUnitDeployer {
 		this.processingUnitConfigToDeploymentDescriptorMapper = processingUnitConfigToDeploymentDescriptorMapper;
 	}
 
-	private Set<String> findAllNetworkAddresses() {
-		Enumeration<NetworkInterface> networkInterfaces;
-		try {
-			networkInterfaces = NetworkInterface.getNetworkInterfaces();
-		} catch (SocketException e) {
-			return new HashSet<>();
-		}
-
-		Set<String> result = new HashSet<>();
-		for (NetworkInterface networkInterface : Collections.list(networkInterfaces)) {
-			List<InterfaceAddress> interfaceAddresses = networkInterface.getInterfaceAddresses();
-			for (InterfaceAddress currentAddress : interfaceAddresses) {
-				InetAddress localAddress = currentAddress.getAddress();
-				String ifAddress = localAddress.getHostAddress();
-				result.add(ifAddress);
-			}
-		}
-		return result;
-	}
 
 	private GridServiceManager pickManager() {
 		final GridServiceManagers gridServiceManagers = admin.getGridServiceManagers();
 		final GridServiceManager[] managers = gridServiceManagers.getManagers();
 
-		// if a manager is running on the same machine that we are using to run the tool
-		// then we prefer to use it
-		final Set<String> allNetworkAddresses = findAllNetworkAddresses();
-		log.info("Local host network interfaces are : {}", allNetworkAddresses);
-		final GridServiceManager preferredManager = Arrays.stream(managers).filter(manager -> allNetworkAddresses.contains(manager.getMachine().getHostAddress())).findFirst().orElse(null);
+		LocalMachineGridServiceLocator localMachineGridServiceLocator = new LocalMachineGridServiceLocator();
+		final GridServiceManager preferredManager = localMachineGridServiceLocator.pickManagerOnLocalMachine(managers);
 		if (preferredManager != null) {
 			log.info("A XAP Manager has been found on the local host where xap-operation-tool is executing, we will be using this manager to schedule deployments");
 			return preferredManager;
