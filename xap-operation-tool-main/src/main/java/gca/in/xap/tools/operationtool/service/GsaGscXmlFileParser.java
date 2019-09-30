@@ -17,13 +17,15 @@ import java.io.InputStream;
 
 public class GsaGscXmlFileParser {
 
-	public String extractContainerJvmArgs(File file) throws IOException {
+	public static final String expression = "/process/script/environment";
+
+	public String extractXPath(File file, String xpathExpression) throws IOException {
 		try (FileInputStream inputStream = new FileInputStream(file)) {
-			return extractContainerJvmArgs(inputStream);
+			return extractXPath(inputStream, xpathExpression);
 		}
 	}
 
-	public String extractContainerJvmArgs(InputStream inputStream) {
+	public String extractXPath(InputStream inputStream, String xpathExpression) {
 		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 		try {
 			DocumentBuilder builder = factory.newDocumentBuilder();
@@ -33,9 +35,7 @@ public class GsaGscXmlFileParser {
 			XPathFactory xpf = XPathFactory.newInstance();
 			XPath path = xpf.newXPath();
 
-			String expression = "/process/script/environment";
-			String value = (String) path.evaluate(expression, root);
-			return value;
+			return path.evaluate(xpathExpression, root);
 		} catch (ParserConfigurationException | SAXException | IOException | XPathExpressionException e) {
 			throw new RuntimeException(e);
 		}

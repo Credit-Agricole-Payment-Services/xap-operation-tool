@@ -776,11 +776,14 @@ public class XapService {
 		GsaGscXmlFileParser parser = new GsaGscXmlFileParser();
 		final String jvmArgs;
 		try {
-			jvmArgs = parser.extractContainerJvmArgs(file);
+			jvmArgs = parser.extractXPath(file, "/process/script/environment");
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
+
+		// jvmArgs = ${XAP_GSC_OPTIONS} -Xloggc:${LOG_HOME}/sctinst/gc-log-gsc_LARGE_01.log -Xms5G -Xmx5G -DappInstanceId=gsc_LARGE_01 -Dcom.gs.zones=ZONE_A,DAL,LARGE_HEAP,LARGE_01  -javaagent:/app/in/bin/jmx_prometheus_javaagent.jar=9020:/app/in/etc/jmx-exporter.yml
 		log.info("jvmArgs = {}", jvmArgs);
+
 		final LocalMachineGridServiceLocator localMachineGridServiceLocator = new LocalMachineGridServiceLocator();
 		final GridServiceAgent gridServiceAgent = localMachineGridServiceLocator.pickAgentOnLocalMachine(findAgents());
 		GridServiceContainerOptions gridServiceContainerOptions = new GridServiceContainerOptions()
