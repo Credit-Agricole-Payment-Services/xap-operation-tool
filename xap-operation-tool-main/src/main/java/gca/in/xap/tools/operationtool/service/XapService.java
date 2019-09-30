@@ -184,10 +184,10 @@ public class XapService {
 	private ApplicationDeployer applicationDeployer;
 
 	@Setter
-	private DemoteThenRestartContainerItemVisitor demoteThenRestartContainerItemVisitor;
+	private RestartContainerItemVisitor restartContainerItemVisitor;
 
 	@Setter
-	private RestartContainerItemVisitor restartContainerItemVisitor;
+	private DemoteService demoteService;
 
 	@Setter
 	private RestartManagerItemVisitor restartManagerItemVisitor;
@@ -462,13 +462,14 @@ public class XapService {
 	 */
 	public void restartEmptyContainers() {
 		log.warn("Will restart all empty GSC instances ... (GSC with no PU running)");
-		restartContainers(new IsEmptyContainerPredicate(), new SequentialCollectionVisitingStrategy<>(Duration.ZERO), false);
+		restartContainers(new IsEmptyContainerPredicate(), new SequentialCollectionVisitingStrategy<>(Duration.ZERO), false, null);
 	}
 
 	public void restartContainers(
 			@NonNull Predicate<GridServiceContainer> predicate,
 			@NonNull CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy,
-			boolean demoteFirst
+			boolean demoteFirst,
+			Duration demoteMaxSuspendDuration
 	) {
 		GridServiceContainer[] containers = findContainers();
 		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
@@ -481,7 +482,7 @@ public class XapService {
 
 		final CollectionVisitingStrategy.ItemVisitor itemVisitor;
 		if (demoteFirst) {
-			itemVisitor = this.demoteThenRestartContainerItemVisitor;
+			itemVisitor = new DemoteThenRestartContainerItemVisitor(restartContainerItemVisitor, demoteService, demoteMaxSuspendDuration);
 		} else {
 			itemVisitor = restartContainerItemVisitor;
 		}

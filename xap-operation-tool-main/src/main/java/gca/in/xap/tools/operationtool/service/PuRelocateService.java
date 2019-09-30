@@ -5,6 +5,7 @@ import org.openspaces.admin.machine.Machine;
 import org.openspaces.admin.pu.ProcessingUnit;
 import org.openspaces.admin.pu.ProcessingUnitInstance;
 
+import java.time.Duration;
 import java.util.function.Predicate;
 
 public interface PuRelocateService {
@@ -13,7 +14,8 @@ public interface PuRelocateService {
 			ProcessingUnitInstance puInstance,
 			Predicate<Machine> machinePredicate,
 			boolean await,
-			boolean demoteFirst
+			boolean demoteFirst,
+			Duration demoteMaxSuspendDuration
 	);
 
 	GridServiceContainer[] findBestContainersToRelocate(

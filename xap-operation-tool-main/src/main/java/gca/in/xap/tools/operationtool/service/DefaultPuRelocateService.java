@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.function.Predicate;
@@ -28,7 +29,7 @@ public class DefaultPuRelocateService implements PuRelocateService {
 	private IdExtractor idExtractor;
 
 	@Autowired
-	private DefaultDemoteService defaultDemoteService;
+	private DemoteService demoteService;
 
 	private Predicate<GridServiceContainer> createContainerPredicate(@NonNull RequiredZonesConfig puRequiredContainerZones) {
 		return gsc -> {
@@ -42,7 +43,8 @@ public class DefaultPuRelocateService implements PuRelocateService {
 			@NonNull ProcessingUnitInstance puInstance,
 			@NonNull Predicate<Machine> targetMachinePredicate,
 			boolean await,
-			boolean demoteFirst
+			boolean demoteFirst,
+			Duration demoteMaxSuspendDuration
 	) {
 		final GridServiceContainer sourceContainer = puInstance.getGridServiceContainer();
 		final GridServiceContainer gscWherePuIsCurrentlyRunning = puInstance.getGridServiceContainer();
@@ -51,7 +53,7 @@ public class DefaultPuRelocateService implements PuRelocateService {
 		//
 		final GridServiceContainer destinationContainer = findBestContainerToRelocate(processingUnit, targetMachinePredicate, gridServiceContainerPredicate);
 
-		defaultDemoteService.demotePrimarySpaceInstances(puInstance);
+		demoteService.demotePrimarySpaceInstances(puInstance, demoteMaxSuspendDuration);
 
 		log.info("PU instance '{}' of PU '{}' will be relocated from {} ({}) to {} ({}) ... (if this is allowed by the SLA)",
 				idExtractor.extractProcessingUnitInstanceNameAndDescription(puInstance),

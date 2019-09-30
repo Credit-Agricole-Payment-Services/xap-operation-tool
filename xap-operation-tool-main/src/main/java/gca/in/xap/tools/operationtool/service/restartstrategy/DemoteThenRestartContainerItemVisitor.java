@@ -1,25 +1,30 @@
 package gca.in.xap.tools.operationtool.service.restartstrategy;
 
-import gca.in.xap.tools.operationtool.service.DefaultDemoteService;
+import gca.in.xap.tools.operationtool.service.DemoteService;
 import gca.in.xap.tools.operationtool.util.collectionvisit.CollectionVisitingStrategy;
+import lombok.AllArgsConstructor;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsc.GridServiceContainer;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+
+import java.time.Duration;
 
 @Slf4j
-@Component
+@AllArgsConstructor
 public class DemoteThenRestartContainerItemVisitor implements CollectionVisitingStrategy.ItemVisitor<GridServiceContainer> {
 
-	@Autowired
-	private RestartContainerItemVisitor restartContainerItemVisitor;
+	@NonNull
+	private final RestartContainerItemVisitor restartContainerItemVisitor;
 
-	@Autowired
-	private DefaultDemoteService defaultDemoteService;
+	@NonNull
+	private final DemoteService demoteService;
+
+	@NonNull
+	private final Duration demoteMaxSuspendDuration;
 
 	@Override
 	public void visit(GridServiceContainer gsc) {
-		defaultDemoteService.demotePrimarySpaceInstances(gsc);
+		demoteService.demotePrimarySpaceInstances(gsc, demoteMaxSuspendDuration);
 		restartContainerItemVisitor.visit(gsc);
 	}
 }

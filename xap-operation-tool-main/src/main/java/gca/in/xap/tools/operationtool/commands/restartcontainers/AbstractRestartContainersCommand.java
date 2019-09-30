@@ -13,10 +13,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import picocli.CommandLine;
 
+import java.time.Duration;
 import java.util.function.Predicate;
 
 @Slf4j
 public abstract class AbstractRestartContainersCommand extends AbstractAppCommand implements Runnable {
+
+	private static final String defaultDemoteMaxSuspendDuration = "PT15S";
 
 	@Autowired
 	@Lazy
@@ -30,6 +33,13 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 			description = "In case the Container runs a Primary Stateful Processing Unit, it will ask for a demote of the Space Instance, in order to swap the primary and backup."
 	)
 	private Boolean demoteFirst;
+
+	@CommandLine.Option(
+			names = "--demote-max-suspend-time",
+			defaultValue = defaultDemoteMaxSuspendDuration,
+			description = "The maximum duration the space partition can be suspended while demoting. Default is " + defaultDemoteMaxSuspendDuration + "."
+	)
+	private Duration demoteMaxSuspendDuration = Duration.parse(defaultDemoteMaxSuspendDuration);
 
 	@CommandLine.ArgGroup(exclusive = true)
 	private ContainersIterationOptions containersIterationOptions;
@@ -62,7 +72,8 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 						predicate,
 						this.restartScopePredicate),
 				collectionVisitingStrategy,
-				demoteFirst);
+				demoteFirst,
+				demoteMaxSuspendDuration);
 	}
 
 }

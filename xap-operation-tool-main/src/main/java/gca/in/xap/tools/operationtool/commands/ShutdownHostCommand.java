@@ -17,6 +17,7 @@ import java.time.Duration;
 @CommandLine.Command(name = "shutdown-host")
 public class ShutdownHostCommand extends AbstractAppCommand implements Runnable {
 
+	private static final String defaultDemoteMaxSuspendDuration = "PT15S";
 
 	@Autowired
 	@Lazy
@@ -37,6 +38,13 @@ public class ShutdownHostCommand extends AbstractAppCommand implements Runnable 
 	@CommandLine.Parameters(index = "0", arity = "1", description = "name of the host to shutdown", completionCandidates = HostnamesCandidates.class)
 	private InetAddress hostname;
 
+	@CommandLine.Option(
+			names = "--demote-max-suspend-time",
+			defaultValue = defaultDemoteMaxSuspendDuration,
+			description = "The maximum duration the space partition can be suspended while demoting. Default is " + defaultDemoteMaxSuspendDuration + "."
+	)
+	private Duration demoteMaxSuspendDuration = Duration.parse(defaultDemoteMaxSuspendDuration);
+
 	@PostConstruct
 	public void init() {
 		HostnamesCandidates.setXapService(this.xapService);
@@ -47,7 +55,7 @@ public class ShutdownHostCommand extends AbstractAppCommand implements Runnable 
 	public void run() {
 		xapService.printReportOnContainersAndProcessingUnits();
 		xapService.setDefaultTimeout(Duration.ofMinutes(5));
-		shutdownHostService.shutdownHost(hostname.getHostName(), skipRelocateProcessingUnits, skipShutdownAgent);
+		shutdownHostService.shutdownHost(hostname.getHostName(), skipRelocateProcessingUnits, skipShutdownAgent, demoteMaxSuspendDuration);
 	}
 
 }

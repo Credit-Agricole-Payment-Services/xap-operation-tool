@@ -1,13 +1,14 @@
 package gca.in.xap.tools.operationtool.service;
 
 import gca.in.xap.tools.operationtool.predicates.space.IsPrimarySpaceInstancePredicate;
-import lombok.Setter;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsc.GridServiceContainer;
 import org.openspaces.admin.pu.ProcessingUnitInstance;
 import org.openspaces.admin.space.SpaceInstance;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -15,21 +16,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
 @Slf4j
-public class DefaultDemoteService {
-
-	@Setter
-	private int maxSuspendTimeInSeconds = 30;
+public class DefaultDemoteService implements DemoteService {
 
 	private int additionalGracePeriodForBackupToSwitchToPrimary = 30;
 
-	public void demotePrimarySpaceInstances(GridServiceContainer gsc) {
+	@Override
+	public void demotePrimarySpaceInstances(@NonNull GridServiceContainer gsc, @NonNull Duration demoteMaxSuspendDuration) {
 		ProcessingUnitInstance[] processingUnitInstances = gsc.getProcessingUnitInstances();
 		for (ProcessingUnitInstance puInstance : processingUnitInstances) {
-			demotePrimarySpaceInstances(puInstance);
+			demotePrimarySpaceInstances(puInstance, demoteMaxSuspendDuration);
 		}
 	}
 
-	public void demotePrimarySpaceInstances(ProcessingUnitInstance puInstance) {
+	@Override
+	public void demotePrimarySpaceInstances(@NonNull ProcessingUnitInstance puInstance, @NonNull Duration demoteMaxSuspendDuration) {
 		final String gscId = puInstance.getGridServiceContainer().getId();
 		final String puInstanceName = puInstance.getName();
 		final SpaceInstance[] spaceInstances = puInstance.getSpaceInstances();
@@ -39,10 +39,10 @@ public class DefaultDemoteService {
 		for (SpaceInstance spaceInstance : spaceInstances) {
 			String spaceInstanceId = spaceInstance.getId();
 			if (isPrimarySpaceInstancePredicate.test(spaceInstance)) {
-				log.info("In GSC {}, on PU {}, the SpaceInstance {} is Primary. Demoting it allowing max suspend time of {} seconds ...", gscId, puInstanceName, spaceInstanceId, maxSuspendTimeInSeconds);
+				log.info("In GSC {}, on PU {}, the SpaceInstance {} is Primary. Demoting it allowing max suspend time of {} ...", gscId, puInstanceName, spaceInstanceId, demoteMaxSuspendDuration);
 				long startTime = System.currentTimeMillis();
 				try {
-					Future<?> demoteFuture = spaceInstance.demote(maxSuspendTimeInSeconds, TimeUnit.SECONDS);
+					Future<?> demoteFuture = spaceInstance.demote(demoteMaxSuspendDuration.toMillis(), TimeUnit.MILLISECONDS);
 					Object demoteResult = demoteFuture.get();
 					demotedSpaceInstancesCount.incrementAndGet();
 					long endTime = System.currentTimeMillis();

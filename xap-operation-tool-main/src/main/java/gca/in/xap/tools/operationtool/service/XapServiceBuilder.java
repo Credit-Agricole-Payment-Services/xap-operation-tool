@@ -6,7 +6,6 @@ import gca.in.xap.tools.operationtool.service.deployer.DefaultApplicationDeploye
 import gca.in.xap.tools.operationtool.service.deployer.DefaultProcessingUnitDeployer;
 import gca.in.xap.tools.operationtool.service.deployer.HttpProcessingUnitDeployer;
 import gca.in.xap.tools.operationtool.service.deployer.ProcessingUnitDeployerType;
-import gca.in.xap.tools.operationtool.service.restartstrategy.DemoteThenRestartContainerItemVisitor;
 import gca.in.xap.tools.operationtool.service.restartstrategy.RestartContainerItemVisitor;
 import gca.in.xap.tools.operationtool.service.restartstrategy.RestartManagerItemVisitor;
 import gca.in.xap.tools.operationtool.service.restartstrategy.ShutdownAgentItemVisitor;
@@ -53,9 +52,6 @@ public class XapServiceBuilder {
 	private ProcessingUnitConfigToDeploymentDescriptorMapper processingUnitConfigToDeploymentDescriptorMapper;
 
 	@Autowired
-	private DemoteThenRestartContainerItemVisitor demoteThenRestartContainerItemVisitor;
-
-	@Autowired
 	private RestartContainerItemVisitor restartContainerItemVisitor;
 
 	@Autowired
@@ -63,6 +59,9 @@ public class XapServiceBuilder {
 
 	@Autowired
 	private ShutdownAgentItemVisitor shutdownAgentItemVisitor;
+
+	@Autowired
+	private DemoteService demoteService;
 
 	private List<String> locators;
 
@@ -177,7 +176,7 @@ public class XapServiceBuilder {
 		result.setRestartContainerItemVisitor(restartContainerItemVisitor);
 		result.setRestartManagerItemVisitor(restartManagerItemVisitor);
 		result.setShutdownAgentItemVisitor(shutdownAgentItemVisitor);
-		result.setDemoteThenRestartContainerItemVisitor(demoteThenRestartContainerItemVisitor);
+		result.setDemoteService(demoteService);
 		//
 		switch (processingUnitDeployerType) {
 			case JAVA_API:

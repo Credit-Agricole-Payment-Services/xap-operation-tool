@@ -19,6 +19,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Nullable;
+import java.time.Duration;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -58,7 +59,8 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 	public void rebalanceProcessingUnit(
 			@NonNull String processingUnitName,
 			boolean onceOnly,
-			@Nullable ZonesGroups zonesGroups
+			@Nullable ZonesGroups zonesGroups,
+			Duration demoteMaxSuspendDuration
 	) {
 		log.debug("processingUnitName = {}", processingUnitName);
 		ProcessingUnit processingUnit = xapService.findProcessingUnitByName(processingUnitName);
@@ -73,7 +75,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		ProcessingUnitInstanceStateSnapshot latestStateSnapshot = initialStateSnapshot;
 		boolean lastIterationRebalanced;
 		do {
-			lastIterationRebalanced = doRebalance(latestStateSnapshot, zonesGroups);
+			lastIterationRebalanced = doRebalance(latestStateSnapshot, zonesGroups, demoteMaxSuspendDuration);
 
 			if (lastIterationRebalanced) {
 				final ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotAfter = processingUnitInstanceStateSnapshotService.takeSnapshot(processingUnit);
@@ -85,20 +87,22 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 
 	private boolean doRebalance(
 			@NonNull ProcessingUnitInstanceStateSnapshot stateSnapshotBefore,
-			@Nullable ZonesGroups zonesGroups
+			@Nullable ZonesGroups zonesGroups,
+			Duration demoteMaxSuspendDuration
 	) {
-		boolean rebalanced = rebalanceByBreakDownOnEachPartition(stateSnapshotBefore, zonesGroups);
+		boolean rebalanced = rebalanceByBreakDownOnEachPartition(stateSnapshotBefore, zonesGroups, demoteMaxSuspendDuration);
 		if (rebalanced) {
 			return true;
 		}
 		final Predicate<ProcessingUnitInstance> matchingProcessingUnitPredicateForBreakdown = processingUnitInstance -> true;
-		rebalanced = rebalanceByBreakDown("total instances", stateSnapshotBefore.processingUnitInstanceRepartitionSnapshot.actualTotalCounts, stateSnapshotBefore, zonesGroups, matchingProcessingUnitPredicateForBreakdown);
+		rebalanced = rebalanceByBreakDown("total instances", stateSnapshotBefore.processingUnitInstanceRepartitionSnapshot.actualTotalCounts, stateSnapshotBefore, zonesGroups, matchingProcessingUnitPredicateForBreakdown, demoteMaxSuspendDuration);
 		return rebalanced;
 	}
 
 	private boolean rebalanceByBreakDownOnEachPartition(
 			@NonNull ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotBefore,
-			@Nullable ZonesGroups zonesGroups
+			@Nullable ZonesGroups zonesGroups,
+			Duration demoteMaxSuspendDuration
 	) {
 		for (Map.Entry<Integer, ProcessingUnitInstanceRepartitionSnapshot> entry : processingUnitInstanceStateSnapshotBefore.processingUnitInstanceRepartitionSnapshotPerPartition.entrySet()) {
 			final Integer partitionId = entry.getKey();
@@ -108,7 +112,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 			final String breakdownDescription = "Partition #" + partitionIndex;
 			//
 			final Predicate<ProcessingUnitInstance> matchingProcessingUnitPredicateForBreakdown = processingUnitInstance -> processingUnitInstance.getPartition().getPartitionId() == partitionId;
-			boolean rebalanceDone = rebalanceByBreakDown(breakdownDescription, snapshotForPartition.actualTotalCounts, processingUnitInstanceStateSnapshotBefore, zonesGroups, matchingProcessingUnitPredicateForBreakdown);
+			boolean rebalanceDone = rebalanceByBreakDown(breakdownDescription, snapshotForPartition.actualTotalCounts, processingUnitInstanceStateSnapshotBefore, zonesGroups, matchingProcessingUnitPredicateForBreakdown, demoteMaxSuspendDuration);
 			if (rebalanceDone) {
 				log.info("Partition Id {} has been relocated", partitionId);
 				return true;
@@ -122,7 +126,8 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 			@NonNull ProcessingUnitInstanceBreakdownSnapshot breakdown,
 			@NonNull ProcessingUnitInstanceStateSnapshot processingUnitInstanceStateSnapshotBefore,
 			@Nullable ZonesGroups zonesGroups,
-			@NonNull Predicate<ProcessingUnitInstance> matchingProcessingUnitPredicateForBreakdown
+			@NonNull Predicate<ProcessingUnitInstance> matchingProcessingUnitPredicateForBreakdown,
+			@NonNull Duration demoteMaxSuspendDuration
 	) {
 		if (zonesGroups != null) {
 			for (ZonesGroup zonesGroup : zonesGroups.getGroups()) {
@@ -136,7 +141,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 						minAndMaxByZone,
 						needsRebalancedByZone);
 				if (needsRebalancedByZone) {
-					rebalanceByZone(processingUnitInstanceStateSnapshotBefore.allProcessingUnitInstances, minAndMaxByZone, matchingProcessingUnitPredicateForBreakdown);
+					rebalanceByZone(processingUnitInstanceStateSnapshotBefore.allProcessingUnitInstances, minAndMaxByZone, matchingProcessingUnitPredicateForBreakdown, demoteMaxSuspendDuration);
 					return true;
 				}
 			}
@@ -144,13 +149,13 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		MinAndMax<String> minAndMaxByMachine = findMinAndMax(breakdown.countByMachine);
 		boolean needsRebalancedByMachine = minAndMaxByMachine != null && minAndMaxByMachine.needsRebalancing();
 		if (needsRebalancedByMachine) {
-			rebalanceByMachine(processingUnitInstanceStateSnapshotBefore.allProcessingUnitInstances, minAndMaxByMachine, matchingProcessingUnitPredicateForBreakdown);
+			rebalanceByMachine(processingUnitInstanceStateSnapshotBefore.allProcessingUnitInstances, minAndMaxByMachine, matchingProcessingUnitPredicateForBreakdown, demoteMaxSuspendDuration);
 			return true;
 		}
 		MinAndMax<String> minAndMaxByGSC = findMinAndMax(breakdown.countByGSC);
 		boolean needsRebalancedByGSC = minAndMaxByGSC != null && minAndMaxByGSC.needsRebalancing();
 		if (needsRebalancedByGSC) {
-			rebalanceByGSC(processingUnitInstanceStateSnapshotBefore.allProcessingUnitInstances, minAndMaxByGSC, matchingProcessingUnitPredicateForBreakdown);
+			rebalanceByGSC(processingUnitInstanceStateSnapshotBefore.allProcessingUnitInstances, minAndMaxByGSC, matchingProcessingUnitPredicateForBreakdown, demoteMaxSuspendDuration);
 			return true;
 		}
 		log.info("Does not need to relocate any PU Instance for distribution of {}", breakdownDescription);
@@ -161,7 +166,8 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 			@NonNull ProcessingUnitInstance processingUnitInstanceToRelocate,
 			@NonNull MinAndMax<String> minAndMax,
 			@NonNull Predicate<Machine> targetMachinePredicate,
-			@NonNull BreakdownAxis breakdownAxis
+			@NonNull BreakdownAxis breakdownAxis,
+			@NonNull Duration demoteMaxSuspendDuration
 	) {
 		ProcessingUnitPartition processingUnitPartition = processingUnitInstanceToRelocate.getPartition();
 		final int partitionIndex = processingUnitPartition.getPartitionId() + 1;
@@ -177,13 +183,14 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		userConfirmationService.askConfirmationAndWait();
 
 		//
-		puRelocateService.relocatePuInstance(processingUnitInstanceToRelocate, targetMachinePredicate, true, true);
+		puRelocateService.relocatePuInstance(processingUnitInstanceToRelocate, targetMachinePredicate, true, true, demoteMaxSuspendDuration);
 	}
 
 	private void rebalanceByZone(
 			@NonNull ProcessingUnitInstance[] allProcessingUnitInstances,
 			@NonNull MinAndMax<String> minAndMaxByZone,
-			@NonNull Predicate<ProcessingUnitInstance> matchingProcessingUnitPredicateForBreakdown
+			@NonNull Predicate<ProcessingUnitInstance> matchingProcessingUnitPredicateForBreakdown,
+			@NonNull Duration demoteMaxSuspendDuration
 	) {
 		log.info("Rebalancing ProcessingUnit by Zone : minAndMaxByZone = {}", minAndMaxByZone);
 
@@ -208,13 +215,14 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		final ProcessingUnitInstance processingUnitInstanceToRelocate = candidateProcessingUnitInstancesToRelocate.get(0);
 		final Predicate<Machine> targetMachinePredicate = machine -> true;
 
-		doRelocate(processingUnitInstanceToRelocate, minAndMaxByZone, targetMachinePredicate, BreakdownAxis.ZONE);
+		doRelocate(processingUnitInstanceToRelocate, minAndMaxByZone, targetMachinePredicate, BreakdownAxis.ZONE, demoteMaxSuspendDuration);
 	}
 
 	private void rebalanceByMachine(
 			@NonNull ProcessingUnitInstance[] allProcessingUnitInstances,
 			@NonNull MinAndMax<String> minAndMaxByMachine,
-			@NonNull Predicate<ProcessingUnitInstance> matchingProcessingUnitPredicateForBreakdown
+			@NonNull Predicate<ProcessingUnitInstance> matchingProcessingUnitPredicateForBreakdown,
+			@NonNull Duration demoteMaxSuspendDuration
 	) {
 		log.info("Rebalancing ProcessingUnit by Machine : minAndMaxByMachine = {}", minAndMaxByMachine);
 
@@ -237,13 +245,14 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		final ProcessingUnitInstance processingUnitInstanceToRelocate = candidateProcessingUnitInstancesToRelocate.get(0);
 		final Predicate<Machine> targetMachinePredicate = new MachineWithSameNamePredicate(minAndMaxByMachine.getBestKeyOfMin());
 
-		doRelocate(processingUnitInstanceToRelocate, minAndMaxByMachine, targetMachinePredicate, BreakdownAxis.MACHINE);
+		doRelocate(processingUnitInstanceToRelocate, minAndMaxByMachine, targetMachinePredicate, BreakdownAxis.MACHINE, demoteMaxSuspendDuration);
 	}
 
 	private void rebalanceByGSC(
 			@NonNull ProcessingUnitInstance[] allProcessingUnitInstances,
 			@NonNull MinAndMax<String> minAndMaxByGSC,
-			@NonNull Predicate<ProcessingUnitInstance> matchingProcessingUnitPredicateForBreakdown
+			@NonNull Predicate<ProcessingUnitInstance> matchingProcessingUnitPredicateForBreakdown,
+			@NonNull Duration demoteMaxSuspendDuration
 	) {
 		log.info("Rebalancing ProcessingUnit by GSC ...");
 
@@ -266,7 +275,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		final ProcessingUnitInstance processingUnitInstanceToRelocate = candidateProcessingUnitInstancesToRelocate.get(0);
 		final Predicate<Machine> targetMachinePredicate = machine -> true;
 
-		doRelocate(processingUnitInstanceToRelocate, minAndMaxByGSC, targetMachinePredicate, BreakdownAxis.CONTAINER);
+		doRelocate(processingUnitInstanceToRelocate, minAndMaxByGSC, targetMachinePredicate, BreakdownAxis.CONTAINER, demoteMaxSuspendDuration);
 	}
 
 }
