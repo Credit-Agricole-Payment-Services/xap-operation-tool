@@ -30,6 +30,7 @@ public class DefaultDemoteService {
 	}
 
 	public void demotePrimarySpaceInstances(ProcessingUnitInstance puInstance) {
+		final String gscId = puInstance.getGridServiceContainer().getId();
 		final String puInstanceName = puInstance.getName();
 		final SpaceInstance[] spaceInstances = puInstance.getSpaceInstances();
 		final IsPrimarySpaceInstancePredicate isPrimarySpaceInstancePredicate = new IsPrimarySpaceInstancePredicate();
@@ -38,20 +39,25 @@ public class DefaultDemoteService {
 		for (SpaceInstance spaceInstance : spaceInstances) {
 			String spaceInstanceId = spaceInstance.getId();
 			if (isPrimarySpaceInstancePredicate.test(spaceInstance)) {
+				log.info("In GSC {}, on PU {}, the SpaceInstance {} is Primary. Demoting it allowing max suspend time of {} seconds ...", gscId, puInstanceName, spaceInstanceId, maxSuspendTimeInSeconds);
+				long startTime = System.currentTimeMillis();
 				try {
-					log.info("SpaceInstance {} of PU instance {} is Primary. Demoting it allowing max suspend time of {} seconds ...", spaceInstanceId, puInstanceName, maxSuspendTimeInSeconds);
 					Future<?> demoteFuture = spaceInstance.demote(maxSuspendTimeInSeconds, TimeUnit.SECONDS);
 					Object demoteResult = demoteFuture.get();
 					demotedSpaceInstancesCount.incrementAndGet();
-					log.info("demoteResult = {}", demoteResult);
+					long endTime = System.currentTimeMillis();
+					long duration = endTime - startTime;
+					log.info("Demote finished successfully (result = {}), duration = {} ms", demoteResult, duration);
 				} catch (InterruptedException | ExecutionException e) {
-					throw new RuntimeException("Failed to demotePrimarySpaceInstances SpaceInstance " + spaceInstanceId, e);
+					long endTime = System.currentTimeMillis();
+					long duration = endTime - startTime;
+					throw new RuntimeException("Failure after " + duration + " ms while demoting Primary space instance " + spaceInstanceId, e);
 				}
 			}
 		}
 
 		if (demotedSpaceInstancesCount.get() > 0) {
-			log.info("{} SpaceInstances were demoted. Waiting for {} seconds in order to let the system stabilize ...", demotedSpaceInstancesCount.get(), additionalGracePeriodForBackupToSwitchToPrimary);
+			log.info("{} SpaceInstances were demoted in GSC {} on PU {}. Waiting for {} seconds in order to let the system stabilize ...", demotedSpaceInstancesCount.get(), gscId, puInstanceName, additionalGracePeriodForBackupToSwitchToPrimary);
 			try {
 				TimeUnit.SECONDS.sleep(additionalGracePeriodForBackupToSwitchToPrimary);
 			} catch (InterruptedException e) {
