@@ -28,7 +28,7 @@ public abstract class AbstractRestartContainersCommand extends AbstractAppComman
 	private final Predicate<GridServiceContainer> restartScopePredicate;
 
 	@CommandLine.Option(
-			names = "--no-demote-first",
+			names = "--no-demote",
 			defaultValue = "true",
 			description = "In case the Container runs a Primary Stateful Processing Unit, it will ask for a demote of the Space Instance, in order to swap the primary and backup."
 	)
