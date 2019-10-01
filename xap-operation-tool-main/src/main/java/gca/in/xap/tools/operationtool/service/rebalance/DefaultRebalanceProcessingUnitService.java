@@ -183,7 +183,7 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 		userConfirmationService.askConfirmationAndWait();
 
 		//
-		puRelocateService.relocatePuInstance(processingUnitInstanceToRelocate, targetMachinePredicate, true, true, demoteMaxSuspendDuration);
+		puRelocateService.relocatePuInstance(processingUnitInstanceToRelocate, targetMachinePredicate, true, true, demoteMaxSuspendDuration, true);
 	}
 
 	private void rebalanceByZone(

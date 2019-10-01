@@ -15,7 +15,8 @@ public interface PuRelocateService {
 			Predicate<Machine> machinePredicate,
 			boolean await,
 			boolean demoteFirst,
-			Duration demoteMaxSuspendDuration
+			Duration demoteMaxSuspendDuration,
+			boolean restartOriginContainer
 	);
 
 	GridServiceContainer[] findBestContainersToRelocate(

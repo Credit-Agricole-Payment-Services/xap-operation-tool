@@ -104,7 +104,7 @@ public class DefaultShutdownHostService implements ShutdownHostService {
 				foundProcessingUnitsCounter.incrementAndGet();
 
 				try {
-					puRelocateService.relocatePuInstance(puInstance, new NotPredicate<>(machinePredicate), true, true, demoteMaxSuspendDuration);
+					puRelocateService.relocatePuInstance(puInstance, new NotPredicate<>(machinePredicate), true, true, demoteMaxSuspendDuration, false);
 				} catch (RuntimeException e) {
 					// if there is a failure on 1 PU, maybe other PUs can be relocated, so we continue
 					// this exception needs to be catched in order to be able to proceed on other PUs if any

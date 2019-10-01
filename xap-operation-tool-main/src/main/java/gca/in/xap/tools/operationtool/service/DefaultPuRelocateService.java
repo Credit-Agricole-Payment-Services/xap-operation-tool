@@ -44,7 +44,8 @@ public class DefaultPuRelocateService implements PuRelocateService {
 			@NonNull Predicate<Machine> targetMachinePredicate,
 			boolean await,
 			boolean demoteFirst,
-			Duration demoteMaxSuspendDuration
+			Duration demoteMaxSuspendDuration,
+			boolean restartOriginContainer
 	) {
 		final GridServiceContainer sourceContainer = puInstance.getGridServiceContainer();
 		final GridServiceContainer gscWherePuIsCurrentlyRunning = puInstance.getGridServiceContainer();
@@ -67,6 +68,19 @@ public class DefaultPuRelocateService implements PuRelocateService {
 			puInstance.relocateAndWait(destinationContainer);
 		} else {
 			puInstance.relocate(destinationContainer);
+		}
+
+		// after the PU is relocated
+		// we may prefer to restart the GSC
+		// in order to be sure no bad thing is left over in the JVM
+		if (restartOriginContainer) {
+			int remainingPuCount = sourceContainer.getProcessingUnitInstances().length;
+			if (remainingPuCount == 0) {
+				String gscId = sourceContainer.getId();
+				log.info("Restarting GSC {} ...", gscId);
+				sourceContainer.restart();
+				log.info("GSC {} restarted", gscId);
+			}
 		}
 	}
 
