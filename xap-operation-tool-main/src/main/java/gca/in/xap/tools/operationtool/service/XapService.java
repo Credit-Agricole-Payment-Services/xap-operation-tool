@@ -2,7 +2,6 @@ package gca.in.xap.tools.operationtool.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gigaspaces.grid.gsa.AgentProcessDetails;
-import com.gigaspaces.grid.gsa.GSProcessRestartOnExit;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.MultimapBuilder;
 import gca.in.xap.tools.operationtool.model.*;
@@ -787,18 +786,57 @@ public class XapService {
 
 		final LocalMachineGridServiceLocator localMachineGridServiceLocator = new LocalMachineGridServiceLocator();
 		final GridServiceAgent gridServiceAgent = localMachineGridServiceLocator.pickAgentOnLocalMachine(findAgents());
+
+		Map<String, String> environmentVariables = gridServiceAgent.getVirtualMachine().getDetails().getEnvironmentVariables();
+
 		GridServiceContainerOptions gridServiceContainerOptions = new GridServiceContainerOptions()
 				.useScript()
-				.restartOnExit(GSProcessRestartOnExit.ALWAYS)
+				//.restartOnExit(GSProcessRestartOnExit.ALWAYS)
 				//.overrideVmInputArguments()
-				.environmentVariable("XAP_COMPONENT_OPTIONS", jvmArgs);
+				//.environmentVariable("XAP_COMPONENT_OPTIONS", jvmArgs)
+				;
 
+		StringBuilder filteredJvmArgs = new StringBuilder();
 		String[] jvmArgsArray = jvmArgs.split(" ");
-		Arrays.stream(jvmArgsArray).forEach(
-				value ->
-						gridServiceContainerOptions.vmInputArgument(value)
+		Arrays.stream(jvmArgsArray)
+				.map(value -> value.trim())
+				.forEach(
+						value -> {
+							if (value.equals("")) {
+								return;
+							}
+							if (value.startsWith("$")) {
+								return;
+							}
+							if (value.startsWith("-javaagent")) {
+								return;
+							}
+							log.info("Using vmInputArgument : {}", value);
+							gridServiceContainerOptions.vmInputArgument(value);
+							filteredJvmArgs.append(" ").append(value);
+						}
+				);
+
+		log.info("filteredJvmArgs = {}", filteredJvmArgs);
+		String finalXapComponentOptions = environmentVariables.get("XAP_GSC_OPTIONS") + " " + filteredJvmArgs.toString();
+		log.info("finalXapComponentOptions = {}", finalXapComponentOptions);
+		gridServiceContainerOptions.environmentVariable("XAP_COMPONENT_OPTIONS", finalXapComponentOptions);
+
+		environmentVariables.entrySet().forEach(
+				entry -> {
+					final String envVariableName = entry.getKey();
+					final String envVariableValue;
+					envVariableValue = entry.getValue();
+					log.info("Env variable {} = {}", envVariableName, envVariableValue);
+					//gridServiceContainerOptions.environmentVariable(envVariableName, envVariableValue);
+				}
 		);
 
+		//final int memoryInMbs = 2345;
+		//gridServiceContainerOptions.vmInputArgument("-Xms" + memoryInMbs + "m");
+		//gridServiceContainerOptions.vmInputArgument("-Xmx" + memoryInMbs + "m");
+
+		log.info("gridServiceContainerOptions = {}", gridServiceContainerOptions);
 		GridServiceContainer gsc = gridServiceAgent.startGridServiceAndWait(gridServiceContainerOptions);
 		log.info("Started GSC {}", gsc.getId());
 	}
