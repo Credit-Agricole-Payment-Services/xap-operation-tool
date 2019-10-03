@@ -2,6 +2,7 @@ package gca.in.xap.tools.operationtool.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gigaspaces.grid.gsa.AgentProcessDetails;
+import com.gigaspaces.grid.gsa.GSProcessRestartOnExit;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.MultimapBuilder;
 import gca.in.xap.tools.operationtool.model.*;
@@ -42,7 +43,9 @@ import org.openspaces.admin.vm.VirtualMachine;
 import org.openspaces.admin.vm.VirtualMachineDetails;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -386,7 +389,7 @@ public class XapService {
 		log.info("Found {} running GSM instances : {}", gsmCount, managersIds);
 	}
 
-	public void printReportOnVirtualMachines() {
+	public void printReportOnVirtualMachines(boolean withJvmDetails) {
 		VirtualMachine[] virtualMachines = findAllVirtualMachines();
 		final int jvmCount = virtualMachines.length;
 		log.info("Found {} JVMs", jvmCount);
@@ -426,9 +429,42 @@ public class XapService {
 					padLeft(jvm.getHeapSizeInMBInit(), 5),
 					padLeft(jvm.getHeapSizeInMBMax(), 5),
 					jvm.getJvmDescription());
-			//Map<String, String> environmentVariables = jvm.getEnvironmentVariables();
-			//String envVariableXapGscOptions = environmentVariables.get("XAP_GSC_OPTIONS");
-			//log.info("envVariableXapGscOptions = {}", envVariableXapGscOptions);
+		}
+
+		if (withJvmDetails) {
+			saveJvmDetails(virtualMachineDescriptions);
+		}
+	}
+
+	private void saveJvmDetails(final List<VirtualMachineDescription> virtualMachineDescriptions) {
+		File outputDirectory = new File("jvm-details");
+		outputDirectory.mkdirs();
+		for (VirtualMachineDescription jvm : virtualMachineDescriptions) {
+			File outputFile = new File(outputDirectory, "jvm-details-" + jvm.getHostName() + "-" + jvm.getComponentType() + "-" + jvm.getPid() + ".txt");
+			try (FileOutputStream fos = new FileOutputStream(outputFile)) {
+				try (PrintWriter printWriter = new PrintWriter(fos)) {
+					StringBuilder builder = new StringBuilder();
+					builder.append(jvm.getComponentType());
+					builder.append(" : ");
+					builder.append(String.format("%5d", jvm.getPid()));
+					builder.append(" : running on ");
+					builder.append(jvm.getHostName());
+					builder.append(" for ");
+					builder.append(padRight(jvm.getUptime(), 17));
+					builder.append(" : Heap [");
+					builder.append(padLeft(jvm.getHeapSizeInMBInit(), 5));
+					builder.append(" MB, ");
+					builder.append(padLeft(jvm.getHeapSizeInMBMax(), 5));
+					builder.append(" MB] : ");
+					builder.append(jvm.getJvmDescription());
+					printWriter.println(builder.toString());
+					//
+					printMap("JVM Environment Variables : ", jvm.getEnvironmentVariables(), printWriter);
+					printMap("JVM System Properties : ", jvm.getSystemProperties(), printWriter);
+				}
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
 		}
 	}
 
@@ -782,7 +818,9 @@ public class XapService {
 			throw new RuntimeException(e);
 		}
 
-		// jvmArgs = ${XAP_GSC_OPTIONS} -Xloggc:${LOG_HOME}/sctinst/gc-log-gsc_LARGE_01.log -Xms5G -Xmx5G -DappInstanceId=gsc_LARGE_01 -Dcom.gs.zones=ZONE_A,DAL,LARGE_HEAP,LARGE_01  -javaagent:/app/in/bin/jmx_prometheus_javaagent.jar=9020:/app/in/etc/jmx-exporter.yml
+		//
+		// example value of jvmArgs = ${XAP_GSC_OPTIONS} -Xloggc:${LOG_HOME}/sctinst/gc-log-gsc_LARGE_01.log -Xms5G -Xmx5G -DappInstanceId=gsc_LARGE_01 -Dcom.gs.zones=ZONE_A,DAL,LARGE_HEAP,LARGE_01  -javaagent:/app/in/bin/jmx_prometheus_javaagent.jar=9020:/app/in/etc/jmx-exporter.yml
+		//
 		log.info("jvmArgs = {}", jvmArgs);
 
 		final LocalMachineGridServiceLocator localMachineGridServiceLocator = new LocalMachineGridServiceLocator();
@@ -791,15 +829,13 @@ public class XapService {
 		final Map<String, String> gsaEnvironmentVariables = gridServiceAgent.getVirtualMachine().getDetails().getEnvironmentVariables();
 		final Map<String, String> gsaSystemProperties = gridServiceAgent.getVirtualMachine().getDetails().getSystemProperties();
 
-		printEnvVariables("GSA Environment Variables : ", gsaEnvironmentVariables);
-		printSystemProperties("GSA System Properties : ", gsaSystemProperties);
+		logMap("GSA Environment Variables : ", gsaEnvironmentVariables);
+		logMap("GSA System Properties : ", gsaSystemProperties);
 
-		GridServiceContainerOptions gridServiceContainerOptions = new GridServiceContainerOptions()
+		final GridServiceContainerOptions gridServiceContainerOptions = new GridServiceContainerOptions()
 				.useScript()
-				//.restartOnExit(GSProcessRestartOnExit.ALWAYS)
-				.overrideVmInputArguments()
-				//.environmentVariable("XAP_COMPONENT_OPTIONS", jvmArgs)
-				;
+				.restartOnExit(GSProcessRestartOnExit.ALWAYS)
+				.overrideVmInputArguments();
 
 		StringBuilder filteredJvmArgs = new StringBuilder();
 		String[] jvmArgsArray = jvmArgs.split(" ");
@@ -817,7 +853,7 @@ public class XapService {
 							//	return;
 							//}
 							log.info("Using vmInputArgument : {}", value);
-							gridServiceContainerOptions.vmInputArgument(value);
+							//gridServiceContainerOptions.vmInputArgument(value);
 							filteredJvmArgs.append(" ").append(value);
 						}
 				);
@@ -839,25 +875,25 @@ public class XapService {
 		final Map<String, String> newGscEnvVariables = gsc.getVirtualMachine().getDetails().getEnvironmentVariables();
 		final Map<String, String> newGscSystemProperties = gsc.getVirtualMachine().getDetails().getSystemProperties();
 
-		printEnvVariables("New GSC Environment Variables : ", newGscEnvVariables);
-		printSystemProperties("New GSC System Properties : ", newGscSystemProperties);
+		logMap("New GSC Environment Variables : ", newGscEnvVariables);
+		logMap("New GSC System Properties : ", newGscSystemProperties);
 
 		long newGscProcessId = gsc.getVirtualMachine().getDetails().getPid();
 		log.info("New GSC Process ID = {}", newGscProcessId);
 	}
 
-	private static void printEnvVariables(String previousLogMessage, Map<String, String> envVariables) {
+	private static void logMap(String previousLogMessage, Map<String, String> envVariables) {
 		log.debug(previousLogMessage);
 		// print sorted by key
 		new TreeMap<>(envVariables)
 				.forEach((key, value) -> log.debug("{} : {}", key, value));
 	}
 
-	private static void printSystemProperties(String previousLogMessage, Map<String, String> systemProperties) {
-		log.debug(previousLogMessage);
+	private static void printMap(String previousLogMessage, Map<String, String> envVariables, PrintWriter writer) {
+		writer.println(previousLogMessage);
 		// print sorted by key
-		new TreeMap<>(systemProperties)
-				.forEach((key, value) -> log.debug("{} : {}", key, value));
+		new TreeMap<>(envVariables)
+				.forEach((key, value) -> writer.println(key + " : " + value));
 	}
 
 }

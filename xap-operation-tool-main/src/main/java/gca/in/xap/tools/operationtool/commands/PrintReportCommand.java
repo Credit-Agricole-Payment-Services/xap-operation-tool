@@ -15,10 +15,13 @@ public class PrintReportCommand extends AbstractAppCommand implements Runnable {
 	@Lazy
 	private XapService xapService;
 
+	@CommandLine.Option(names = {"--with-jvm-details"}, description = "Print JVM details (Environment Variables and System Properties)")
+	private boolean withJvmDetails;
+
 	public void run() {
 		xapService.printReportOnManagers();
 		xapService.printReportOnAgents();
-		xapService.printReportOnVirtualMachines();
+		xapService.printReportOnVirtualMachines(withJvmDetails);
 		xapService.printReportOnContainersAndProcessingUnits();
 	}
 

@@ -38,7 +38,7 @@ public class RestartBadContainersCommand extends AbstractAppCommand implements R
 	public void run() {
 		xapService.printReportOnManagers();
 		xapService.printReportOnAgents();
-		xapService.printReportOnVirtualMachines();
+		xapService.printReportOnVirtualMachines(false);
 		xapService.printReportOnContainersAndProcessingUnits();
 
 
