@@ -215,7 +215,7 @@ public class DefaultApplicationConfigBuilder implements ApplicationConfigBuilder
 		String[] deploymentOptions = processingUnitConfig.toDeploymentOptions();
 		// avoid printing passwords to logs
 		String deploymentOptionsString = Arrays.stream(deploymentOptions).filter(s -> !s.contains("password")).collect(Collectors.joining("\n"));
-		log.info("deploymentOptionsString = {}", deploymentOptionsString);
+		log.debug("deploymentOptionsString = {}", deploymentOptionsString);
 	}
 
 }

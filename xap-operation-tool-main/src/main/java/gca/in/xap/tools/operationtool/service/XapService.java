@@ -2,12 +2,12 @@ package gca.in.xap.tools.operationtool.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gigaspaces.grid.gsa.AgentProcessDetails;
+import com.gigaspaces.grid.gsa.GSProcessRestartOnExit;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.MultimapBuilder;
-import gca.in.xap.tools.operationtool.model.ComponentType;
-import gca.in.xap.tools.operationtool.model.DumpReport;
-import gca.in.xap.tools.operationtool.model.VirtualMachineDescription;
+import gca.in.xap.tools.operationtool.model.*;
 import gca.in.xap.tools.operationtool.predicates.container.IsEmptyContainerPredicate;
+import gca.in.xap.tools.operationtool.predicates.machine.MachineWithSameNamePredicate;
 import gca.in.xap.tools.operationtool.service.deployer.ApplicationDeployer;
 import gca.in.xap.tools.operationtool.service.deployer.ProcessingUnitDeployer;
 import gca.in.xap.tools.operationtool.service.restartstrategy.DemoteThenRestartContainerItemVisitor;
@@ -20,12 +20,14 @@ import gca.in.xap.tools.operationtool.util.collectionvisit.SequentialCollectionV
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.builder.ReflectionToStringBuilder;
 import org.openspaces.admin.Admin;
 import org.openspaces.admin.application.Application;
 import org.openspaces.admin.application.config.ApplicationConfig;
 import org.openspaces.admin.dump.DumpResult;
 import org.openspaces.admin.gsa.GridServiceAgent;
 import org.openspaces.admin.gsa.GridServiceAgents;
+import org.openspaces.admin.gsa.GridServiceContainerOptions;
 import org.openspaces.admin.gsc.GridServiceContainer;
 import org.openspaces.admin.gsc.GridServiceContainers;
 import org.openspaces.admin.gsm.GridServiceManager;
@@ -39,11 +41,11 @@ import org.openspaces.admin.pu.config.UserDetailsConfig;
 import org.openspaces.admin.pu.topology.ProcessingUnitConfigHolder;
 import org.openspaces.admin.vm.VirtualMachine;
 import org.openspaces.admin.vm.VirtualMachineDetails;
-import org.openspaces.admin.vm.VirtualMachines;
 
-import javax.annotation.Nullable;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -75,7 +77,9 @@ public class XapService {
 			@NonNull final ApplicationConfig applicationConfig,
 			@NonNull final Application dataApp,
 			final long deploymentStartTime,
-			@NonNull final Duration timeout) throws TimeoutException {
+			@NonNull final Duration timeout,
+			@NonNull XapService xapService
+	) throws TimeoutException {
 		long timeoutTime = deploymentStartTime + timeout.toMillis();
 
 		final String applicationConfigName = applicationConfig.getName();
@@ -90,7 +94,7 @@ public class XapService {
 
 		for (String puName : puNamesInOrderOfDeployment) {
 			ProcessingUnit pu = processingUnits.getProcessingUnit(puName);
-			awaitDeployment(pu, deploymentStartTime, timeout, timeoutTime);
+			awaitDeployment(pu, deploymentStartTime, timeout, timeoutTime, xapService);
 			deployedPuNames.add(puName);
 		}
 
@@ -101,10 +105,17 @@ public class XapService {
 		log.info("Application deployed in : {} ms", appDeploymentDuration);
 	}
 
-	static void awaitDeployment(@NonNull ProcessingUnit pu, long deploymentStartTime, @NonNull Duration timeout, long expectedMaximumEndDate) throws TimeoutException {
+	static void awaitDeployment(@NonNull ProcessingUnit pu, long deploymentStartTime, @NonNull Duration timeout, long expectedMaximumEndDate, @NonNull XapService xapService) throws TimeoutException {
 		String puName = pu.getName();
 		final int plannedNumberOfInstances = pu.getPlannedNumberOfInstances();
-		log.info("Waiting for PU {} to deploy {} instances ...", puName, plannedNumberOfInstances);
+
+		final long candidatesContainersCount = Arrays
+				.stream(xapService.findContainers())
+				.filter(gsc -> pu.getRequiredContainerZones().isSatisfiedBy(gsc.getExactZones()))
+				.filter(gsc -> !pu.isRequiresIsolation() || gsc.getProcessingUnitInstances().length == 0)
+				.count();
+
+		log.info("Waiting for PU {} to deploy {} instances ... (found {} GSCs matching PU constraints)", puName, plannedNumberOfInstances, candidatesContainersCount);
 
 		long remainingDelayUntilTimeout = expectedMaximumEndDate - System.currentTimeMillis();
 		if (remainingDelayUntilTimeout < 0L) {
@@ -176,10 +187,10 @@ public class XapService {
 	private ApplicationDeployer applicationDeployer;
 
 	@Setter
-	private DemoteThenRestartContainerItemVisitor demoteThenRestartContainerItemVisitor;
+	private RestartContainerItemVisitor restartContainerItemVisitor;
 
 	@Setter
-	private RestartContainerItemVisitor restartContainerItemVisitor;
+	private DemoteService demoteService;
 
 	@Setter
 	private RestartManagerItemVisitor restartManagerItemVisitor;
@@ -224,6 +235,11 @@ public class XapService {
 		return machines;
 	}
 
+	public VirtualMachine[] findAllVirtualMachines() {
+		VirtualMachine[] virtualMachines = admin.getVirtualMachines().getVirtualMachines();
+		return virtualMachines;
+	}
+
 	public ProcessingUnit findProcessingUnitByName(String processingUnitName) {
 		ProcessingUnit processingUnit = admin.getProcessingUnits().getProcessingUnit(processingUnitName);
 		return processingUnit;
@@ -233,6 +249,51 @@ public class XapService {
 		ProcessingUnit[] processingUnits = admin.getProcessingUnits().getProcessingUnits();
 		List<String> result = Arrays.stream(processingUnits).map(processingUnit -> processingUnit.getName()).collect(Collectors.toList());
 		return result;
+	}
+
+	public GridServiceContainer findContainerByGlobalProcessIdentifier(GlobalProcessId gpid) {
+		Map<String, GridServiceAgent> hostNames = admin.getGridServiceAgents().getHostNames();
+		GridServiceAgent gsa = hostNames.get(gpid.getHostName());
+		if (gsa != null) {
+			GridServiceContainer[] containers = gsa.getGridServiceContainers().getContainers();
+			Optional<GridServiceContainer> match = Arrays.stream(containers)
+					.filter(gsc -> gsc.getVirtualMachine().getDetails().getPid() == gpid.getPid())
+					.findFirst();
+			if (match.isPresent()) {
+				return match.get();
+			}
+		}
+		return null;
+	}
+
+	public GlobalAgentId findGlobalAgentIdByGlobalProcessIdentifier(GlobalProcessId gpid) {
+		final GridServiceAgent[] agents = findAgents();
+		for (GridServiceAgent gsa : agents) {
+			String hostName = gsa.getMachine().getHostName();
+			if (gpid.getHostName().equals(hostName)) {
+				AgentProcessDetails[] processDetailsList = gsa.getProcessesDetails().getProcessDetails();
+				for (AgentProcessDetails agentProcessDetails : processDetailsList) {
+					if (agentProcessDetails.getProcessId() == gpid.getPid()) {
+						return new GlobalAgentId(hostName, agentProcessDetails.getAgentId());
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	public void killByGlobalAgentId(GlobalAgentId globalAgentId) {
+		log.info("Attempt to kill agent with id {} on {} ...", globalAgentId.getAgentId(), globalAgentId.getHostName());
+		final Predicate<Machine> machinePredicate = new MachineWithSameNamePredicate(globalAgentId.getHostName());
+		GridServiceAgent[] agents = findAgents();
+		GridServiceAgent matchingGSA = Arrays.stream(agents)
+				.filter(gsa -> machinePredicate.test(gsa.getMachine()))
+				.findFirst()
+				.orElseThrow(() -> new RuntimeException("Failed to find service with agentId " + globalAgentId.getAgentId() + " on host " + globalAgentId.getHostName()));
+		String gsaHostName = matchingGSA.getMachine().getHostName();
+		log.info("Found GSA {}", gsaHostName);
+		log.info("Killing JVM with agentId {} on {}...", globalAgentId.getAgentId(), gsaHostName);
+		matchingGSA.killByAgentId(globalAgentId.getAgentId());
 	}
 
 	public void printReportOnContainersAndProcessingUnits() {
@@ -328,15 +389,15 @@ public class XapService {
 		log.info("Found {} running GSM instances : {}", gsmCount, managersIds);
 	}
 
-	public void printReportOnVirtualMachines() {
-		VirtualMachines virtualMachines = admin.getVirtualMachines();
-		final int jvmCount = virtualMachines.getSize();
+	public void printReportOnVirtualMachines(boolean withJvmDetails) {
+		VirtualMachine[] virtualMachines = findAllVirtualMachines();
+		final int jvmCount = virtualMachines.length;
 		log.info("Found {} JVMs", jvmCount);
 
 		final List<VirtualMachineDescription> virtualMachineDescriptions = new ArrayList<>();
 
 
-		for (VirtualMachine jvm : virtualMachines.getVirtualMachines()) {
+		for (VirtualMachine jvm : virtualMachines) {
 			final VirtualMachineDetails details = jvm.getDetails();
 			//
 			VirtualMachineDescription vmDescription = new VirtualMachineDescription();
@@ -368,9 +429,42 @@ public class XapService {
 					padLeft(jvm.getHeapSizeInMBInit(), 5),
 					padLeft(jvm.getHeapSizeInMBMax(), 5),
 					jvm.getJvmDescription());
-			//Map<String, String> environmentVariables = jvm.getEnvironmentVariables();
-			//String envVariableXapGscOptions = environmentVariables.get("XAP_GSC_OPTIONS");
-			//log.info("envVariableXapGscOptions = {}", envVariableXapGscOptions);
+		}
+
+		if (withJvmDetails) {
+			saveJvmDetails(virtualMachineDescriptions);
+		}
+	}
+
+	private void saveJvmDetails(final List<VirtualMachineDescription> virtualMachineDescriptions) {
+		File outputDirectory = new File("jvm-details");
+		outputDirectory.mkdirs();
+		for (VirtualMachineDescription jvm : virtualMachineDescriptions) {
+			File outputFile = new File(outputDirectory, "jvm-details-" + jvm.getHostName() + "-" + jvm.getComponentType() + "-" + jvm.getPid() + ".txt");
+			try (FileOutputStream fos = new FileOutputStream(outputFile)) {
+				try (PrintWriter printWriter = new PrintWriter(fos)) {
+					StringBuilder builder = new StringBuilder();
+					builder.append(jvm.getComponentType());
+					builder.append(" : ");
+					builder.append(String.format("%5d", jvm.getPid()));
+					builder.append(" : running on ");
+					builder.append(jvm.getHostName());
+					builder.append(" for ");
+					builder.append(padRight(jvm.getUptime(), 17));
+					builder.append(" : Heap [");
+					builder.append(padLeft(jvm.getHeapSizeInMBInit(), 5));
+					builder.append(" MB, ");
+					builder.append(padLeft(jvm.getHeapSizeInMBMax(), 5));
+					builder.append(" MB] : ");
+					builder.append(jvm.getJvmDescription());
+					printWriter.println(builder.toString());
+					//
+					printMap("JVM Environment Variables : ", jvm.getEnvironmentVariables(), printWriter);
+					printMap("JVM System Properties : ", jvm.getSystemProperties(), printWriter);
+				}
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
 		}
 	}
 
@@ -404,13 +498,14 @@ public class XapService {
 	 */
 	public void restartEmptyContainers() {
 		log.warn("Will restart all empty GSC instances ... (GSC with no PU running)");
-		restartContainers(new IsEmptyContainerPredicate(), new SequentialCollectionVisitingStrategy<>(Duration.ZERO), false);
+		restartContainers(new IsEmptyContainerPredicate(), new SequentialCollectionVisitingStrategy<>(Duration.ZERO), false, null);
 	}
 
 	public void restartContainers(
 			@NonNull Predicate<GridServiceContainer> predicate,
 			@NonNull CollectionVisitingStrategy<GridServiceContainer> collectionVisitingStrategy,
-			boolean demoteFirst
+			boolean demoteFirst,
+			Duration demoteMaxSuspendDuration
 	) {
 		GridServiceContainer[] containers = findContainers();
 		containers = Arrays.stream(containers).filter(predicate).toArray(GridServiceContainer[]::new);
@@ -423,7 +518,7 @@ public class XapService {
 
 		final CollectionVisitingStrategy.ItemVisitor itemVisitor;
 		if (demoteFirst) {
-			itemVisitor = this.demoteThenRestartContainerItemVisitor;
+			itemVisitor = new DemoteThenRestartContainerItemVisitor(restartContainerItemVisitor, demoteService, demoteMaxSuspendDuration);
 		} else {
 			itemVisitor = restartContainerItemVisitor;
 		}
@@ -574,7 +669,7 @@ public class XapService {
 		}
 
 		long deploymentStartTime = deployRequestEndTime;
-		awaitDeployment(applicationConfig, dataApp, deploymentStartTime, operationTimeout);
+		awaitDeployment(applicationConfig, dataApp, deploymentStartTime, operationTimeout, this);
 	}
 
 	public void deployProcessingUnits(
@@ -622,7 +717,7 @@ public class XapService {
 		long puDeploymentStartTime = System.currentTimeMillis();
 
 		ProcessingUnit processingUnit = processingUnitDeployer.deploy(puName, processingUnitConfig);
-		awaitDeployment(processingUnit, puDeploymentStartTime, timeout, expectedMaximumEndDate);
+		awaitDeployment(processingUnit, puDeploymentStartTime, timeout, expectedMaximumEndDate, this);
 	}
 
 	private void undeployPu(String puName, Duration timeout) {
@@ -712,6 +807,93 @@ public class XapService {
 	public void setDefaultTimeout(Duration timeout) {
 		log.info("Admin will use a default timeout of {} ms", timeout.toMillis());
 		admin.setDefaultTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS);
+	}
+
+	public void startNewContainer(File file) {
+		GsaGscXmlFileParser parser = new GsaGscXmlFileParser();
+		final String jvmArgs;
+		try {
+			jvmArgs = parser.extractXPath(file, "/process/script/environment");
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+
+		//
+		// example value of jvmArgs = ${XAP_GSC_OPTIONS} -Xloggc:${LOG_HOME}/sctinst/gc-log-gsc_LARGE_01.log -Xms5G -Xmx5G -DappInstanceId=gsc_LARGE_01 -Dcom.gs.zones=ZONE_A,DAL,LARGE_HEAP,LARGE_01  -javaagent:/app/in/bin/jmx_prometheus_javaagent.jar=9020:/app/in/etc/jmx-exporter.yml
+		//
+		log.info("jvmArgs = {}", jvmArgs);
+
+		final LocalMachineGridServiceLocator localMachineGridServiceLocator = new LocalMachineGridServiceLocator();
+		final GridServiceAgent gridServiceAgent = localMachineGridServiceLocator.pickAgentOnLocalMachine(findAgents());
+
+		final Map<String, String> gsaEnvironmentVariables = gridServiceAgent.getVirtualMachine().getDetails().getEnvironmentVariables();
+		final Map<String, String> gsaSystemProperties = gridServiceAgent.getVirtualMachine().getDetails().getSystemProperties();
+
+		logMap("GSA Environment Variables : ", gsaEnvironmentVariables);
+		logMap("GSA System Properties : ", gsaSystemProperties);
+
+		final GridServiceContainerOptions gridServiceContainerOptions = new GridServiceContainerOptions()
+				.useScript()
+				.restartOnExit(GSProcessRestartOnExit.ALWAYS)
+				.overrideVmInputArguments();
+
+		StringBuilder filteredJvmArgs = new StringBuilder();
+		String[] jvmArgsArray = jvmArgs.split(" ");
+		Arrays.stream(jvmArgsArray)
+				.map(value -> value.trim())
+				.forEach(
+						value -> {
+							if (value.equals("")) {
+								return;
+							}
+							if (value.equals("${XAP_GSC_OPTIONS}")) {
+								return;
+							}
+							//if (value.startsWith("-javaagent")) {
+							//	return;
+							//}
+							log.info("Using vmInputArgument : {}", value);
+							//gridServiceContainerOptions.vmInputArgument(value);
+							filteredJvmArgs.append(" ").append(value);
+						}
+				);
+
+		log.info("filteredJvmArgs = {}", filteredJvmArgs);
+
+		String finalXapGscOptions = gsaEnvironmentVariables.get("XAP_GSC_OPTIONS") + " " + filteredJvmArgs.toString();
+		log.info("finalXapGscOptions = {}", finalXapGscOptions);
+
+		//gridServiceContainerOptions.environmentVariable("XAP_COMPONENT_OPTIONS", finalXapGscOptions);
+		gridServiceContainerOptions.environmentVariable("XAP_GSC_OPTIONS", finalXapGscOptions);
+
+		log.debug("gridServiceContainerOptions = {}", ReflectionToStringBuilder.toString(gridServiceContainerOptions));
+		log.debug("gridServiceContainerOptions.getOptions() = {}", ReflectionToStringBuilder.toString(gridServiceContainerOptions.getOptions()));
+
+		final GridServiceContainer gsc = gridServiceAgent.startGridServiceAndWait(gridServiceContainerOptions);
+		log.info("Started GSC {}", gsc.getId());
+
+		final Map<String, String> newGscEnvVariables = gsc.getVirtualMachine().getDetails().getEnvironmentVariables();
+		final Map<String, String> newGscSystemProperties = gsc.getVirtualMachine().getDetails().getSystemProperties();
+
+		logMap("New GSC Environment Variables : ", newGscEnvVariables);
+		logMap("New GSC System Properties : ", newGscSystemProperties);
+
+		long newGscProcessId = gsc.getVirtualMachine().getDetails().getPid();
+		log.info("New GSC Process ID = {}", newGscProcessId);
+	}
+
+	private static void logMap(String previousLogMessage, Map<String, String> envVariables) {
+		log.debug(previousLogMessage);
+		// print sorted by key
+		new TreeMap<>(envVariables)
+				.forEach((key, value) -> log.debug("{} : {}", key, value));
+	}
+
+	private static void printMap(String previousLogMessage, Map<String, String> envVariables, PrintWriter writer) {
+		writer.println(previousLogMessage);
+		// print sorted by key
+		new TreeMap<>(envVariables)
+				.forEach((key, value) -> writer.println(key + " : " + value));
 	}
 
 }

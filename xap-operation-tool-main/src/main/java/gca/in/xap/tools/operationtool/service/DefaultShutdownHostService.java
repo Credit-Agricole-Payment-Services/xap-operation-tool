@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,7 +41,7 @@ public class DefaultShutdownHostService implements ShutdownHostService {
 	private final int maxRelocateAttemptCount = 3;
 
 	@Override
-	public void shutdownHost(String hostNameOrAddress, boolean skipRelocateProcessingUnits, boolean skipShutdownAgent) {
+	public void shutdownHost(String hostNameOrAddress, boolean skipRelocateProcessingUnits, boolean skipShutdownAgent, Duration demoteMaxSuspendDuration) {
 		log.info("Asked to shutdown any GSC/GSM/GSA on host {}", hostNameOrAddress);
 		final Predicate<Machine> machinePredicate = new MachineWithSameNamePredicate(hostNameOrAddress);
 
@@ -67,7 +68,7 @@ public class DefaultShutdownHostService implements ShutdownHostService {
 			while (currentAttemptCount < maxRelocateAttemptCount && foundPuInstanceCount > 0) {
 				currentAttemptCount++;
 				//
-				foundPuInstanceCount = doRelocate(matchingMachines, machinePredicate);
+				foundPuInstanceCount = doRelocate(matchingMachines, machinePredicate, demoteMaxSuspendDuration);
 			}
 		}
 
@@ -91,7 +92,7 @@ public class DefaultShutdownHostService implements ShutdownHostService {
 
 	}
 
-	private int doRelocate(Machine[] matchingMachines, Predicate<Machine> machinePredicate) {
+	private int doRelocate(Machine[] matchingMachines, Predicate<Machine> machinePredicate, Duration demoteMaxSuspendDuration) {
 		final AtomicInteger foundProcessingUnitsCounter = new AtomicInteger(0);
 		Arrays.stream(matchingMachines).forEach(machine -> {
 
@@ -103,7 +104,7 @@ public class DefaultShutdownHostService implements ShutdownHostService {
 				foundProcessingUnitsCounter.incrementAndGet();
 
 				try {
-					puRelocateService.relocatePuInstance(puInstance, new NotPredicate<>(machinePredicate), true, true);
+					puRelocateService.relocatePuInstance(puInstance, new NotPredicate<>(machinePredicate), true, true, demoteMaxSuspendDuration, false);
 				} catch (RuntimeException e) {
 					// if there is a failure on 1 PU, maybe other PUs can be relocated, so we continue
 					// this exception needs to be catched in order to be able to proceed on other PUs if any

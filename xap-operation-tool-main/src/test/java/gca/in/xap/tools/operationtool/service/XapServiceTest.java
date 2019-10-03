@@ -5,6 +5,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 import org.openspaces.admin.application.Application;
 import org.openspaces.admin.application.config.ApplicationConfig;
+import org.openspaces.admin.gsc.GridServiceContainer;
 import org.openspaces.admin.pu.ProcessingUnit;
 import org.openspaces.admin.pu.ProcessingUnitInstance;
 import org.openspaces.admin.pu.ProcessingUnits;
@@ -80,7 +81,10 @@ public class XapServiceTest {
 
 		long deploymentStartTime = System.currentTimeMillis();
 
-		XapService.awaitDeployment(applicationConfig, dataApp, deploymentStartTime, Duration.of(10, ChronoUnit.SECONDS));
+		XapService xapService = mock(XapService.class, DefaultUnexpectedMockInvocationAnswer.singleton);
+		doReturn(new GridServiceContainer[]{}).when(xapService).findContainers();
+
+		XapService.awaitDeployment(applicationConfig, dataApp, deploymentStartTime, Duration.of(10, ChronoUnit.SECONDS), xapService);
 	}
 
 }

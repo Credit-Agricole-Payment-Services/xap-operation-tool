@@ -22,6 +22,7 @@ import org.openspaces.admin.space.SpaceInstance;
 import org.openspaces.admin.zone.config.ExactZonesConfig;
 import org.openspaces.core.cluster.ClusterInfo;
 
+import java.time.Duration;
 import java.util.function.Predicate;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -145,7 +146,7 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 		doReturn(new ProcessingUnitInstance[0]).when(processingUnit).getInstances();
 
 		ZonesGroups zonesGroups = null;
-		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups);
+		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups, Duration.ofSeconds(15));
 	}
 
 	@Test
@@ -184,7 +185,7 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 		doReturn("machine1~1234").when(gridServiceContainer1).getId();
 
 		ZonesGroups zonesGroups = null;
-		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups);
+		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups, Duration.ofSeconds(15));
 	}
 
 	@Test
@@ -242,9 +243,9 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 		doReturn("machine2~3457").when(gridServiceContainer4).getId();
 
 		ZonesGroups zonesGroups = null;
-		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups);
+		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups, Duration.ofSeconds(15));
 
-		verify(puRelocateService).relocatePuInstance(any(ProcessingUnitInstance.class), eq(new MachineWithSameNamePredicate("machine2")), eq(true), eq(true));
+		verify(puRelocateService).relocatePuInstance(any(ProcessingUnitInstance.class), eq(new MachineWithSameNamePredicate("machine2")), eq(true), eq(true), eq(Duration.ofSeconds(15)),  eq(true));
 	}
 
 	@Test
@@ -295,9 +296,9 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 		doReturn("machine1~1235").when(gridServiceContainer2).getId();
 
 		ZonesGroups zonesGroups = null;
-		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups);
+		service.rebalanceProcessingUnit(processingUnitName, true, zonesGroups, Duration.ofSeconds(15));
 
-		verify(puRelocateService).relocatePuInstance(any(ProcessingUnitInstance.class), any(Predicate.class), eq(true), eq(true));
+		verify(puRelocateService).relocatePuInstance(any(ProcessingUnitInstance.class), any(Predicate.class), eq(true), eq(true), eq(Duration.ofSeconds(15)), eq(true));
 	}
 
 }

@@ -8,7 +8,7 @@ public class StatefulPrimariesOnlyPredicate extends AbstractStatefullOnlyPredica
 	@Override
 	protected boolean test(String gscId, boolean containsStatefulBackupPU, boolean containsStatefulPrimaryPU) {
 		boolean result = containsStatefulPrimaryPU & !containsStatefulBackupPU;
-		log.info("GSC {} : containsStatefulBackupPU = {}, containsStatefulPrimaryPU = {}, result = {}", gscId, containsStatefulBackupPU, containsStatefulPrimaryPU, result);
+		log.debug("GSC {} : containsStatefulBackupPU = {}, containsStatefulPrimaryPU = {}, result = {}", gscId, containsStatefulBackupPU, containsStatefulPrimaryPU, result);
 		return result;
 	}
 

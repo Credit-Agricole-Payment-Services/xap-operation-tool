@@ -19,6 +19,8 @@ import java.util.List;
 @Slf4j
 public class RebalanceProcessingUnitCommand extends AbstractAppCommand implements Runnable {
 
+	private static final String defaultDemoteMaxSuspendDuration = "PT15S";
+
 	@Autowired
 	@Lazy
 	private XapService xapService;
@@ -35,6 +37,13 @@ public class RebalanceProcessingUnitCommand extends AbstractAppCommand implement
 	@CommandLine.ArgGroup(exclusive = false, multiplicity = "0..1")
 	private List<ZonesGroup> zonesGroupsList;
 
+	@CommandLine.Option(
+			names = "--demote-max-suspend-time",
+			defaultValue = defaultDemoteMaxSuspendDuration,
+			description = "The maximum duration the space partition can be suspended while demoting. Default is " + defaultDemoteMaxSuspendDuration + "."
+	)
+	private Duration demoteMaxSuspendDuration = Duration.parse(defaultDemoteMaxSuspendDuration);
+
 	@Override
 	public void run() {
 		final ZonesGroups zonesGroups = new ZonesGroups(zonesGroupsList);
@@ -43,7 +52,7 @@ public class RebalanceProcessingUnitCommand extends AbstractAppCommand implement
 		xapService.printReportOnContainersAndProcessingUnits();
 		xapService.setDefaultTimeout(Duration.ofMinutes(5));
 
-		rebalanceProcessingUnitService.rebalanceProcessingUnit(processingUnitName, onceOnly, zonesGroups);
+		rebalanceProcessingUnitService.rebalanceProcessingUnit(processingUnitName, onceOnly, zonesGroups, demoteMaxSuspendDuration);
 	}
 
 }

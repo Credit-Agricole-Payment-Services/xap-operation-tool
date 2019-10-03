@@ -11,6 +11,7 @@ import gca.in.xap.tools.operationtool.service.XapService;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import gca.in.xap.tools.operationtool.util.ConfigAndSecretsHolder;
 import gca.in.xap.tools.operationtool.util.picoclicommands.AbstractAppCommand;
+import gca.in.xap.tools.operationtool.util.picoclicommands.DurationTypeConverter;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.application.config.ApplicationConfig;
@@ -22,6 +23,7 @@ import picocli.CommandLine;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 
@@ -48,6 +50,15 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 
 	@Autowired
 	private DeploymentDescriptorUnmarshaller deploymentDescriptorUnmarshaller;
+
+	private static final String DEFAULT_TIMEOUT = "PT10M";
+
+	@CommandLine.Option(names = {"--timeout"},
+			defaultValue = DEFAULT_TIMEOUT,
+			converter = DurationTypeConverter.class,
+			description = "Maximum total duration of the deployment. Default value is " + DEFAULT_TIMEOUT
+	)
+	private Duration timeoutDuration = Duration.parse(DEFAULT_TIMEOUT);
 
 	@CommandLine.Option(names = {"--whole"}, description = "Upload the application in whole.")
 	private boolean wholeMode;
@@ -97,7 +108,7 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 		final Predicate<String> processingUnitsPredicate = FilterPuNamesPredicate.createProcessingUnitsPredicate(puNamesFilteringOptions.processingUnitsIncludes, puNamesFilteringOptions.processingUnitsExcludes);
 		final ApplicationConfig applicationConfig = appDeployBuilder.loadApplicationConfig(processingUnitsPredicate);
 
-		log.warn("Will deploy ApplicationConfig : {}", applicationConfig);
+		log.debug("Will deploy ApplicationConfig : {}", applicationConfig);
 		userConfirmationService.askConfirmationAndWait();
 
 		xapService.printReportOnContainersAndProcessingUnits();
@@ -113,9 +124,9 @@ public class DeployCommand extends AbstractAppCommand implements Runnable {
 
 		try {
 			if (wholeMode) {
-				xapService.deployWhole(applicationConfig, xapClientDiscovery.getTimeoutDuration());
+				xapService.deployWhole(applicationConfig, timeoutDuration);
 			} else {
-				xapService.deployProcessingUnits(applicationConfig, processingUnitsPredicate, xapClientDiscovery.getTimeoutDuration(), restartEmptyContainers);
+				xapService.deployProcessingUnits(applicationConfig, processingUnitsPredicate, timeoutDuration, restartEmptyContainers);
 			}
 		} catch (TimeoutException e) {
 			throw new RuntimeException(e);
