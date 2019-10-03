@@ -31,7 +31,7 @@ pipeline {
 							mavenSettingsConfig: 'pipeline-maven-settings',
 							options: [junitPublisher()]
 					) {
-						sh '$MVN_CMD -B --fail-at-end -U -Dsonar.skip clean install'
+						sh '$MVN_CMD -B --fail-at-end -U -Dsonar.skip clean install -Ddependency-check.skip=true'
 					}
 				}
 			}
@@ -47,7 +47,7 @@ pipeline {
 							mavenSettingsConfig: 'pipeline-maven-settings'
 					) {
 						sh '$MVN_CMD -B dependency:purge-local-repository -DmanualInclude=org.apache.maven.plugins:maven-deploy-plugin'
-						sh '$MVN_CMD -B deploy sonar:sonar -Dmaven.test.skip'
+						sh '$MVN_CMD -B deploy sonar:sonar -Dmaven.test.skip  -Ddependency-check.skip=true'
 					}
 				}
 			}
