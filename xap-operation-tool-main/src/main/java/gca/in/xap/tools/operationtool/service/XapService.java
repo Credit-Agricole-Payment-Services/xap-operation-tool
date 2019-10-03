@@ -19,6 +19,7 @@ import gca.in.xap.tools.operationtool.util.collectionvisit.SequentialCollectionV
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.builder.ReflectionToStringBuilder;
 import org.openspaces.admin.Admin;
 import org.openspaces.admin.application.Application;
 import org.openspaces.admin.application.config.ApplicationConfig;
@@ -787,12 +788,16 @@ public class XapService {
 		final LocalMachineGridServiceLocator localMachineGridServiceLocator = new LocalMachineGridServiceLocator();
 		final GridServiceAgent gridServiceAgent = localMachineGridServiceLocator.pickAgentOnLocalMachine(findAgents());
 
-		Map<String, String> environmentVariables = gridServiceAgent.getVirtualMachine().getDetails().getEnvironmentVariables();
+		final Map<String, String> gsaEnvironmentVariables = gridServiceAgent.getVirtualMachine().getDetails().getEnvironmentVariables();
+		final Map<String, String> gsaSystemProperties = gridServiceAgent.getVirtualMachine().getDetails().getSystemProperties();
+
+		printEnvVariables("GSA Environment Variables : ", gsaEnvironmentVariables);
+		printSystemProperties("GSA System Properties : ", gsaSystemProperties);
 
 		GridServiceContainerOptions gridServiceContainerOptions = new GridServiceContainerOptions()
 				.useScript()
 				//.restartOnExit(GSProcessRestartOnExit.ALWAYS)
-				//.overrideVmInputArguments()
+				.overrideVmInputArguments()
 				//.environmentVariable("XAP_COMPONENT_OPTIONS", jvmArgs)
 				;
 
@@ -805,12 +810,12 @@ public class XapService {
 							if (value.equals("")) {
 								return;
 							}
-							if (value.startsWith("$")) {
+							if (value.equals("${XAP_GSC_OPTIONS}")) {
 								return;
 							}
-							if (value.startsWith("-javaagent")) {
-								return;
-							}
+							//if (value.startsWith("-javaagent")) {
+							//	return;
+							//}
 							log.info("Using vmInputArgument : {}", value);
 							gridServiceContainerOptions.vmInputArgument(value);
 							filteredJvmArgs.append(" ").append(value);
@@ -818,27 +823,41 @@ public class XapService {
 				);
 
 		log.info("filteredJvmArgs = {}", filteredJvmArgs);
-		String finalXapComponentOptions = environmentVariables.get("XAP_GSC_OPTIONS") + " " + filteredJvmArgs.toString();
-		log.info("finalXapComponentOptions = {}", finalXapComponentOptions);
-		gridServiceContainerOptions.environmentVariable("XAP_COMPONENT_OPTIONS", finalXapComponentOptions);
 
-		environmentVariables.entrySet().forEach(
-				entry -> {
-					final String envVariableName = entry.getKey();
-					final String envVariableValue;
-					envVariableValue = entry.getValue();
-					log.info("Env variable {} = {}", envVariableName, envVariableValue);
-					//gridServiceContainerOptions.environmentVariable(envVariableName, envVariableValue);
-				}
-		);
+		String finalXapGscOptions = gsaEnvironmentVariables.get("XAP_GSC_OPTIONS") + " " + filteredJvmArgs.toString();
+		log.info("finalXapGscOptions = {}", finalXapGscOptions);
 
-		//final int memoryInMbs = 2345;
-		//gridServiceContainerOptions.vmInputArgument("-Xms" + memoryInMbs + "m");
-		//gridServiceContainerOptions.vmInputArgument("-Xmx" + memoryInMbs + "m");
+		//gridServiceContainerOptions.environmentVariable("XAP_COMPONENT_OPTIONS", finalXapGscOptions);
+		gridServiceContainerOptions.environmentVariable("XAP_GSC_OPTIONS", finalXapGscOptions);
 
-		log.info("gridServiceContainerOptions = {}", gridServiceContainerOptions);
-		GridServiceContainer gsc = gridServiceAgent.startGridServiceAndWait(gridServiceContainerOptions);
+		log.debug("gridServiceContainerOptions = {}", ReflectionToStringBuilder.toString(gridServiceContainerOptions));
+		log.debug("gridServiceContainerOptions.getOptions() = {}", ReflectionToStringBuilder.toString(gridServiceContainerOptions.getOptions()));
+
+		final GridServiceContainer gsc = gridServiceAgent.startGridServiceAndWait(gridServiceContainerOptions);
 		log.info("Started GSC {}", gsc.getId());
+
+		final Map<String, String> newGscEnvVariables = gsc.getVirtualMachine().getDetails().getEnvironmentVariables();
+		final Map<String, String> newGscSystemProperties = gsc.getVirtualMachine().getDetails().getSystemProperties();
+
+		printEnvVariables("New GSC Environment Variables : ", newGscEnvVariables);
+		printSystemProperties("New GSC System Properties : ", newGscSystemProperties);
+
+		long newGscProcessId = gsc.getVirtualMachine().getDetails().getPid();
+		log.info("New GSC Process ID = {}", newGscProcessId);
+	}
+
+	private static void printEnvVariables(String previousLogMessage, Map<String, String> envVariables) {
+		log.debug(previousLogMessage);
+		// print sorted by key
+		new TreeMap<>(envVariables)
+				.forEach((key, value) -> log.debug("{} : {}", key, value));
+	}
+
+	private static void printSystemProperties(String previousLogMessage, Map<String, String> systemProperties) {
+		log.debug(previousLogMessage);
+		// print sorted by key
+		new TreeMap<>(systemProperties)
+				.forEach((key, value) -> log.debug("{} : {}", key, value));
 	}
 
 }
