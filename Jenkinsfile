@@ -31,7 +31,7 @@ pipeline {
 							mavenSettingsConfig: 'pipeline-maven-settings',
 							options: [junitPublisher()]
 					) {
-						sh '$MVN_CMD -B --fail-at-end -U -Dsonar.skip clean install'
+						sh '$MVN_CMD -B --fail-at-end -U -Dsonar.skip clean install -Ddependency-check.skip=true'
 					}
 				}
 			}
