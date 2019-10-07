@@ -865,15 +865,20 @@ public class XapService {
 				}
 				return options;
 			}
-		}
+		};
+
+		gridServiceContainerOptions
 				.useScript()
 				.restartOnExit(GSProcessRestartOnExit.ALWAYS)
-				.overrideVmInputArguments();
+				.overrideVmInputArguments()
+				;
 
 		final String filteredJvmArgs = spiltAndFilterJvmArgs(jvmArgs);
 		log.info("filteredJvmArgs = {}", filteredJvmArgs);
 
-		String finalXapGscOptions = gsaEnvironmentVariables.get("XAP_GSC_OPTIONS") + " " + filteredJvmArgs;
+		String gsaEnvironmentVariablesXapGscOptions = gsaEnvironmentVariables.get("XAP_GSC_OPTIONS");
+		log.info("gsaEnvironmentVariablesXapGscOptions = {}", gsaEnvironmentVariablesXapGscOptions);
+		String finalXapGscOptions = gsaEnvironmentVariablesXapGscOptions + " " + filteredJvmArgs;
 		log.info("finalXapGscOptions = {}", finalXapGscOptions);
 
 		//gridServiceContainerOptions.environmentVariable("XAP_COMPONENT_OPTIONS", finalXapGscOptions);
