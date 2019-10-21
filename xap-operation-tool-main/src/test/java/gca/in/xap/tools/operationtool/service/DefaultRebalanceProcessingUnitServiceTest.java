@@ -1,9 +1,7 @@
 package gca.in.xap.tools.operationtool.service;
 
 import gca.in.xap.tools.operationtool.predicates.machine.MachineWithSameNamePredicate;
-import gca.in.xap.tools.operationtool.service.rebalance.DefaultRebalanceProcessingUnitService;
-import gca.in.xap.tools.operationtool.service.rebalance.ProcessingUnitInstanceStateSnapshotService;
-import gca.in.xap.tools.operationtool.service.rebalance.ZonesGroups;
+import gca.in.xap.tools.operationtool.service.rebalance.*;
 import gca.in.xap.tools.operationtool.userinput.UserConfirmationService;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Before;
@@ -26,8 +24,7 @@ import java.time.Duration;
 import java.util.function.Predicate;
 
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @Slf4j
@@ -35,6 +32,12 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 
 	@InjectMocks
 	private DefaultRebalanceProcessingUnitService service;
+
+	@InjectMocks
+	private RelocatePuBalanceFixingAction relocatePuBalanceFixingAction;
+
+	@InjectMocks
+	private DemotePuBalanceFixingAction demotePuBalanceFixingAction;
 
 	private ProcessingUnitInstanceStateSnapshotService processingUnitInstanceStateSnapshotService;
 
@@ -130,6 +133,9 @@ public class DefaultRebalanceProcessingUnitServiceTest {
 		processingUnitInstanceStateSnapshotService = new ProcessingUnitInstanceStateSnapshotService();
 		processingUnitInstanceStateSnapshotService.setPuRelocateService(puRelocateService);
 		service.setProcessingUnitInstanceStateSnapshotService(processingUnitInstanceStateSnapshotService);
+
+		service.setRelocatePuBalanceFixingAction(relocatePuBalanceFixingAction);
+		service.setDemotePuBalanceFixingAction(demotePuBalanceFixingAction);
 
 		doReturn("processingUnitInstance1").when(processingUnitInstance1).getId();
 		doReturn("processingUnitInstance2").when(processingUnitInstance2).getId();
