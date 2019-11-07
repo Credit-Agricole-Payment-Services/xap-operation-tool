@@ -1,6 +1,7 @@
 package gca.in.xap.tools.operationtool.service;
 
 import com.gigaspaces.cluster.activeelection.SpaceMode;
+import gca.in.xap.tools.operationtool.predicates.pu.IsStatefulProcessingUnitPredicate;
 import lombok.extern.slf4j.Slf4j;
 import org.openspaces.admin.gsa.GridServiceAgent;
 import org.openspaces.admin.gsc.GridServiceContainer;
@@ -91,11 +92,17 @@ public class IdExtractor {
 
 	public String extractProcessingUnitInstanceNameAndDescription(ProcessingUnitInstance pu) {
 		final String additionalInfo;
-		ProcessingUnitInstance primary = pu.getPartition().getPrimary();
-		if (primary != null) {
-			int partitionIndex = pu.getPartition().getPartitionId() + 1;
-			final String primaryOrBackupIndicator = (pu.getSpaceInstance().getMode() == SpaceMode.PRIMARY) ? "P" : "B";
-			additionalInfo = " (#" + partitionIndex + primaryOrBackupIndicator + ")";
+		IsStatefulProcessingUnitPredicate isStatefulProcessingUnitPredicate = new IsStatefulProcessingUnitPredicate();
+		boolean isStateful = isStatefulProcessingUnitPredicate.test(pu);
+		if (isStateful) {
+			ProcessingUnitInstance primary = pu.getPartition().getPrimary();
+			if (primary != null) {
+				int partitionIndex = pu.getPartition().getPartitionId() + 1;
+				final String primaryOrBackupIndicator = (pu.getSpaceInstance().getMode() == SpaceMode.PRIMARY) ? "P" : "B";
+				additionalInfo = " (#" + partitionIndex + primaryOrBackupIndicator + ")";
+			} else {
+				additionalInfo = "";
+			}
 		} else {
 			additionalInfo = "";
 		}

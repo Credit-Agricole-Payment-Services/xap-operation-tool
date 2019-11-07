@@ -2,6 +2,7 @@ package gca.in.xap.tools.operationtool.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gigaspaces.grid.gsa.AgentProcessDetails;
+import com.gigaspaces.grid.gsa.GSProcessOptions;
 import com.gigaspaces.grid.gsa.GSProcessRestartOnExit;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.MultimapBuilder;
@@ -46,12 +47,14 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.Field;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -818,6 +821,16 @@ public class XapService {
 			throw new RuntimeException(e);
 		}
 
+		String xmlFileName = file.getName();
+		String serviceType;
+		// filename is generally an XML file, with name ending with ".xml", XAP use the left part of the ".xml" filename to name the Grid Service type
+		// this will also be used by XAP to generate a "gs.logFileName" system properties that is built from this service name + the AgentId
+		if (file.getName().endsWith(".xml")) {
+			serviceType = xmlFileName.substring(0, xmlFileName.length() - ".xml".length());
+		} else {
+			serviceType = null;
+		}
+
 		//
 		// example value of jvmArgs = ${XAP_GSC_OPTIONS} -Xloggc:${LOG_HOME}/sctinst/gc-log-gsc_LARGE_01.log -Xms5G -Xmx5G -DappInstanceId=gsc_LARGE_01 -Dcom.gs.zones=ZONE_A,DAL,LARGE_HEAP,LARGE_01  -javaagent:/app/in/bin/jmx_prometheus_javaagent.jar=9020:/app/in/etc/jmx-exporter.yml
 		//
@@ -832,39 +845,47 @@ public class XapService {
 		logMap("GSA Environment Variables : ", gsaEnvironmentVariables);
 		logMap("GSA System Properties : ", gsaSystemProperties);
 
-		final GridServiceContainerOptions gridServiceContainerOptions = new GridServiceContainerOptions()
+		final GridServiceContainerOptions gridServiceContainerOptions = new GridServiceContainerOptions() {
+			@Override
+			public GSProcessOptions getOptions() {
+				GSProcessOptions options = super.getOptions();
+				if (serviceType != null) {
+					Field typeField;
+					try {
+						typeField = GSProcessOptions.class.getDeclaredField("type");
+					} catch (NoSuchFieldException e) {
+						throw new RuntimeException(e);
+					}
+					typeField.setAccessible(true);
+					try {
+						typeField.set(options, serviceType);
+					} catch (IllegalAccessException e) {
+						throw new RuntimeException(e);
+					}
+				}
+				return options;
+			}
+		};
+
+		gridServiceContainerOptions
 				.useScript()
 				.restartOnExit(GSProcessRestartOnExit.ALWAYS)
-				.overrideVmInputArguments();
+				.overrideVmInputArguments()
+				;
 
-		StringBuilder filteredJvmArgs = new StringBuilder();
-		String[] jvmArgsArray = jvmArgs.split(" ");
-		Arrays.stream(jvmArgsArray)
-				.map(value -> value.trim())
-				.forEach(
-						value -> {
-							if (value.equals("")) {
-								return;
-							}
-							if (value.equals("${XAP_GSC_OPTIONS}")) {
-								return;
-							}
-							//if (value.startsWith("-javaagent")) {
-							//	return;
-							//}
-							log.info("Using vmInputArgument : {}", value);
-							//gridServiceContainerOptions.vmInputArgument(value);
-							filteredJvmArgs.append(" ").append(value);
-						}
-				);
-
+		final String filteredJvmArgs = spiltAndFilterJvmArgs(jvmArgs);
 		log.info("filteredJvmArgs = {}", filteredJvmArgs);
 
-		String finalXapGscOptions = gsaEnvironmentVariables.get("XAP_GSC_OPTIONS") + " " + filteredJvmArgs.toString();
+		String gsaEnvironmentVariablesXapGscOptions = gsaEnvironmentVariables.get("XAP_GSC_OPTIONS");
+		log.info("gsaEnvironmentVariablesXapGscOptions = {}", gsaEnvironmentVariablesXapGscOptions);
+		String finalXapGscOptions = gsaEnvironmentVariablesXapGscOptions + " " + filteredJvmArgs;
 		log.info("finalXapGscOptions = {}", finalXapGscOptions);
 
 		//gridServiceContainerOptions.environmentVariable("XAP_COMPONENT_OPTIONS", finalXapGscOptions);
 		gridServiceContainerOptions.environmentVariable("XAP_GSC_OPTIONS", finalXapGscOptions);
+
+		//
+		//gridServiceContainerOptions.vmInputArgument("-Dgs.logFileName=" + serviceType);
 
 		log.debug("gridServiceContainerOptions = {}", ReflectionToStringBuilder.toString(gridServiceContainerOptions));
 		log.debug("gridServiceContainerOptions.getOptions() = {}", ReflectionToStringBuilder.toString(gridServiceContainerOptions.getOptions()));
@@ -880,6 +901,27 @@ public class XapService {
 
 		long newGscProcessId = gsc.getVirtualMachine().getDetails().getPid();
 		log.info("New GSC Process ID = {}", newGscProcessId);
+	}
+
+	private String spiltAndFilterJvmArgs(String jvmArgs) {
+		StringBuilder filteredJvmArgs = new StringBuilder();
+		String[] jvmArgsArray = jvmArgs.split(" ");
+		AtomicInteger count = new AtomicInteger(0);
+		Arrays.stream(jvmArgsArray)
+				.map(String::trim)
+				.filter(value -> !value.equals(""))
+				.filter(value -> !value.equals("${XAP_GSC_OPTIONS}"))
+				.forEach(
+						value -> {
+							log.info("Discovered JVM Arg : {}", value);
+							// only add a separator space between elements, not before the first one
+							if (count.getAndIncrement() > 0) {
+								filteredJvmArgs.append(" ");
+							}
+							filteredJvmArgs.append(value);
+						}
+				);
+		return filteredJvmArgs.toString();
 	}
 
 	private static void logMap(String previousLogMessage, Map<String, String> envVariables) {

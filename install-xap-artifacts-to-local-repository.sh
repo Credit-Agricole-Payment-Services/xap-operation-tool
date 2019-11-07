@@ -41,4 +41,8 @@ mvn org.apache.maven.plugins:maven-install-plugin:2.3.1:install-file -DlocalRepo
 -Dfile=${XAP_HOME}/lib/required/xap-premium-common.jar -Dpackaging=jar \
 -DgroupId=org.gigaspaces -DartifactId=xap-premium-common -Dversion=${XAP_VERSION}
 
+mvn org.apache.maven.plugins:maven-install-plugin:2.3.1:install-file -DlocalRepositoryPath=${localRepositoryPath} \
+-Dfile=${XAP_HOME}/lib/optional/security/xap-security.jar -Dpackaging=jar \
+-DgroupId=com.gigaspaces -DartifactId=xap-security -Dversion=${XAP_VERSION}
+
 echo "Success"
