@@ -38,10 +38,16 @@ public class DefaultShutdownHostService implements ShutdownHostService {
 	@Setter
 	private boolean forbidWhenOnlyOneHost = true;
 
-	private final int maxRelocateAttemptCount = 3;
+	@Setter
+	private int maxRelocateAttemptCount = 3;
 
 	@Override
-	public void shutdownHost(String hostNameOrAddress, boolean skipRelocateProcessingUnits, boolean skipShutdownAgent, Duration demoteMaxSuspendDuration) {
+	public void shutdownHost(
+			String hostNameOrAddress,
+			boolean skipRelocateProcessingUnits,
+			boolean skipShutdownAgent,
+			Duration demoteMaxSuspendDuration
+	) {
 		log.info("Asked to shutdown any GSC/GSM/GSA on host {}", hostNameOrAddress);
 		final Predicate<Machine> machinePredicate = new MachineWithSameNamePredicate(hostNameOrAddress);
 
