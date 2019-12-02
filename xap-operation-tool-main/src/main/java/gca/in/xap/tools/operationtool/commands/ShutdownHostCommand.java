@@ -29,10 +29,10 @@ public class ShutdownHostCommand extends AbstractAppCommand implements Runnable 
 	@Autowired
 	private ShutdownHostService shutdownHostService;
 
-	@CommandLine.Option(names = "--skipRelocateProcessingUnits", defaultValue = "false", description = "If this is used, the GSA will be shutdown directly, any GSC that was launched by this GSA will be terminated, so if a PU is running on those GSC, they may be affected. Relocating Processing Units prior the shutdown may be better for stability of the application.")
+	@CommandLine.Option(names = "--skip-relocate-pu", defaultValue = "false", description = "If this is used, Processing Units will not be relocated prior to GSA shutdown. The GSA will be shutdown directly, any GSC that was launched by this GSA will be terminated, so if a PU is running on those GSC, they may be affected. This option is not recommended for production use.")
 	private boolean skipRelocateProcessingUnits;
 
-	@CommandLine.Option(names = "--skipShutdownAgent", defaultValue = "false", description = "If this is used, the GSA will be not be shutdown. If Processing Units needs to be relocated, they are relocated, but in the end, the GSA will not be shutdown.")
+	@CommandLine.Option(names = "--skip-shutdown-agent", defaultValue = "false", description = "If this is used, the GSA will be not be shutdown. If Processing Units needs to be relocated, they are relocated, but in the end, the GSA will not be shutdown.")
 	private boolean skipShutdownAgent;
 
 	@CommandLine.Parameters(index = "0", arity = "1", description = "name of the host to shutdown", completionCandidates = HostnamesCandidates.class)
