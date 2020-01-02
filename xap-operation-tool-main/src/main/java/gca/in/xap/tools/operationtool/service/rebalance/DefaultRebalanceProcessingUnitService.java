@@ -243,10 +243,13 @@ public class DefaultRebalanceProcessingUnitService implements RebalanceProcessin
 
 		log.info("candidateProcessingUnitInstancesToRelocate = {}", extractIds(candidateProcessingUnitInstancesToRelocate));
 
-		final ProcessingUnitInstance processingUnitInstanceToRelocate = candidateProcessingUnitInstancesToRelocate.get(0);
-		final Predicate<Machine> targetMachinePredicate = new MachineWithSameNamePredicate(minAndMaxByMachine.getBestKeyOfMin());
-
-		balanceFixingAction.doFixBalance(processingUnitInstanceToRelocate, minAndMaxByMachine, targetMachinePredicate, BreakdownAxis.MACHINE, demoteMaxSuspendDuration);
+		if (!candidateProcessingUnitInstancesToRelocate.isEmpty()) {
+			final ProcessingUnitInstance processingUnitInstanceToRelocate = candidateProcessingUnitInstancesToRelocate.get(0);
+			final Predicate<Machine> targetMachinePredicate = new MachineWithSameNamePredicate(minAndMaxByMachine.getBestKeyOfMin());
+			balanceFixingAction.doFixBalance(processingUnitInstanceToRelocate, minAndMaxByMachine, targetMachinePredicate, BreakdownAxis.MACHINE, demoteMaxSuspendDuration);
+		} else {
+			log.warn("Did not found any candidate ProcessingUnitInstance to relocate according to criterias");
+		}
 	}
 
 	private void rebalanceByGSC(

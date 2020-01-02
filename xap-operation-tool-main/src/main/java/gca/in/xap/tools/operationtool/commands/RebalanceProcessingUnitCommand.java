@@ -46,7 +46,12 @@ public class RebalanceProcessingUnitCommand extends AbstractAppCommand implement
 
 	@Override
 	public void run() {
-		final ZonesGroups zonesGroups = new ZonesGroups(zonesGroupsList);
+		final ZonesGroups zonesGroups;
+		if (zonesGroupsList != null) {
+			zonesGroups = new ZonesGroups(zonesGroupsList);
+		} else {
+			zonesGroups = null;
+		}
 		log.info("zonesGroups = {}", zonesGroups);
 
 		xapService.printReportOnContainersAndProcessingUnits();

@@ -11,8 +11,8 @@
 	]
   },
   "contextProperties": {
-	"capsin.database.jdbcUrl": "jdbc:oracle:thin:@***REMOVED***:12992:inq1",
-	"capsin.database.username": "***REMOVED***",
+  "capsin.database.jdbcUrl" : "jdbc:oracle:thin:@(DESCRIPTION =(CONNECT_TIMEOUT=0)(TRANSPORT_CONNECT_TIMEOUT=1)(RETRY_COUNT=120)(ADDRESS = (PROTOCOL = TCP)(HOST = dbhost1)(PORT = 12992))(ADDRESS = (PROTOCOL = TCP)(HOST =dbhost2)(PORT = 12992))(FAILOVER = ON)(CONNECT_DATA =(SERVER = DEDICATED)(SERVICE_NAME = mydb)))",
+	"capsin.database.username": "dbuser",
 	"capsin.database.password": "password",
 	"capsin.hibernate.hbm2ddl.auto": "update"
   }
