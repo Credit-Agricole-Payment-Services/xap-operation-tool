@@ -1,6 +1,7 @@
-name: Java CI
+name: Continuous Integration
 
-on: [push]
+# Trigger the workflow on push or pull request
+on: [push, pull_request]
 
 jobs:
   build:
@@ -14,4 +15,4 @@ jobs:
       with:
         java-version: 1.8
     - name: Build with Maven
-      run: mvn -B package --file pom.xml
+      run: mvn -B package --file pom.xml -s settings.xml
