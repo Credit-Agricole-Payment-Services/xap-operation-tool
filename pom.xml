@@ -8,12 +8,6 @@
 	<version>1.9.3-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
-	<parent>
-		<groupId>gca.caps</groupId>
-		<artifactId>caps-master-pom</artifactId>
-		<version>5.1.1</version>
-	</parent>
-
 	<properties>
 		<project.key>capsin</project.key>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
