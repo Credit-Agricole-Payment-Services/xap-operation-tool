@@ -16,7 +16,7 @@
 
 		<!-- included in XAP distrib -->
 		<xap.version>14.2.0</xap.version>
-		<spring.version>5.2.2.RELEASE</spring.version>
+		<spring.version>5.3.14</spring.version>
 		<spring-boot.version>1.5.21.RELEASE</spring-boot.version>
 
 		<slf4j.version>1.7.26</slf4j.version>
